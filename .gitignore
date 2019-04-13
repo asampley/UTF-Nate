@@ -1,0 +1,5 @@
+/target
+**/*.rs.bk
+
+# conveniently store your bot token in this file
+token
