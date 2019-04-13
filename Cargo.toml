@@ -4,5 +4,7 @@ version = "0.1.0"
 authors = ["sampley <sampley@ualberta.ca>"]
 edition = "2018"
 
-[dependencies]
-serenity = "0.5"
+[dependencies.serenity]
+version = "0.5"
+default-features = false
+features = ["builder", "cache", "client", "framework", "gateway", "http", "model", "standard_framework", "utils", "voice"]
