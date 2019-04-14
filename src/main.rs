@@ -1,4 +1,5 @@
 extern crate serenity;
+mod handler;
 mod unicode;
 mod voice;
 
@@ -6,25 +7,24 @@ use serenity::client::Client;
 use serenity::prelude::EventHandler;
 use serenity::framework::standard::StandardFramework;
 
+use handler::Handler;
+use handler::VoiceCache;
 use unicode::Unicode;
-use voice::{Join, Leave, VoiceManager};
+use voice::{Join, Leave, Play, VoiceManager};
 
 use std::sync::Arc;
-
-struct Handler;
-
-// implement default event handler
-impl EventHandler for Handler {}
+use std::collections::HashMap;
 
 fn main() {
     // login with a bot token from an environment variable
     let mut client = Client::new(&read_token().expect("token"), Handler)
         .expect("Error creating client");
 
-    // create voice manager to handle voice commands
     {
         let mut data = client.data.lock();
+        // create voice manager to handle voice commands
         data.insert::<VoiceManager>(Arc::clone(&client.voice_manager));
+        data.insert::<VoiceCache>(HashMap::default());
     }
 
     // create a framework to process message commands
@@ -36,6 +36,7 @@ fn main() {
             .cmd("summon", Join)
             .cmd("leave", Leave)
             .cmd("banish", Leave)
+            .cmd("play", Play)
     );
 
     if let Err(reason) = client.start() {
