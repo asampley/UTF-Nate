@@ -52,7 +52,10 @@ impl EventHandler for Handler {
             let outro = "bnw/death";
 
             if bot_channel != None && voice_state.user_id != bot_id() {
-                let clip = if *user_channel == bot_channel {
+
+                let clip = if *user_channel == previous_channel {
+                    return;
+                } else if *user_channel == bot_channel {
                     intro
                 } else if previous_channel == bot_channel {
                     outro
