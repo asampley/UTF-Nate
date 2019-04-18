@@ -1,22 +1,13 @@
 use serenity::prelude::EventHandler;
 use serenity::prelude::Context;
-use serenity::model::user::CurrentUser;
 use serenity::model::voice::VoiceState;
 use serenity::model::gateway::Ready;
-use serenity::model::id::{UserId, GuildId, ChannelId};
-use serenity::prelude::*;
+use serenity::model::id::{UserId, GuildId};
 use serenity::client::CACHE;
 
 use crate::voice::audio_source;
-use crate::voice::VoiceManager;
 
-use std::collections::HashMap;
-
-pub struct VoiceCache;
-
-impl TypeMapKey for VoiceCache {
-    type Value = HashMap<GuildId, HashMap<UserId, Option<ChannelId>>>;
-}
+use crate::data::{VoiceGuilds, VoiceGuild, VoiceUserCache, VoiceManager};
 
 pub struct Handler;
 
@@ -32,8 +23,8 @@ impl EventHandler for Handler {
         if let Some(guild_id) = guild_id {
             let mut data_lock = ctx.data.lock();
             let cache = data_lock
-                .get_mut::<VoiceCache>()
-                .expect("Expected VoiceCache in ShareMap");
+                .get_mut::<VoiceUserCache>()
+                .expect("Expected VoiceUserCache in ShareMap");
 
             let bot_channel = *cache
                 .entry(guild_id).or_default()
@@ -48,7 +39,7 @@ impl EventHandler for Handler {
 
             *user_channel = voice_state.channel_id;
 
-            let intro = "dota/helloits";
+            let intro = "bnw/cowhappy";
             let outro = "bnw/death";
 
             if bot_channel != None && voice_state.user_id != bot_id() {
@@ -66,11 +57,16 @@ impl EventHandler for Handler {
                 let manager_lock = data_lock.get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
                 let mut manager = manager_lock.lock();
 
+                let voice_guild = data_lock.get_mut::<VoiceGuilds>()
+                    .expect("Expected VoiceGuilds in ShareMap")
+                    .entry(guild_id)
+                    .or_insert(VoiceGuild::default());
+
                 if let Some(handler) = manager.get_mut(guild_id) {
                     let source = audio_source(clip);
 
                     match source {
-                        Ok(source) => handler.play(source),
+                        Ok(source) => voice_guild.add_audio(handler.play_returning(source)),
                         Err(reason) => {
                             eprintln!("Error trying to intro clip: {:?}", reason);
                         }

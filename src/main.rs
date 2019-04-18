@@ -2,15 +2,15 @@ extern crate serenity;
 mod handler;
 mod unicode;
 mod voice;
+mod data;
 
 use serenity::client::Client;
-use serenity::prelude::EventHandler;
 use serenity::framework::standard::StandardFramework;
 
 use handler::Handler;
-use handler::VoiceCache;
 use unicode::Unicode;
-use voice::{Join, Leave, Play, VoiceManager};
+use voice::{Join, Leave, Play, Volume, Stop};
+use data::{VoiceUserCache, VoiceManager, VoiceGuilds};
 
 use std::sync::Arc;
 use std::collections::HashMap;
@@ -24,7 +24,8 @@ fn main() {
         let mut data = client.data.lock();
         // create voice manager to handle voice commands
         data.insert::<VoiceManager>(Arc::clone(&client.voice_manager));
-        data.insert::<VoiceCache>(HashMap::default());
+        data.insert::<VoiceUserCache>(HashMap::default());
+        data.insert::<VoiceGuilds>(HashMap::default());
     }
 
     // create a framework to process message commands
@@ -37,6 +38,8 @@ fn main() {
             .cmd("leave", Leave)
             .cmd("banish", Leave)
             .cmd("play", Play)
+            .cmd("volume", Volume)
+            .cmd("stop", Stop)
     );
 
     if let Err(reason) = client.start() {

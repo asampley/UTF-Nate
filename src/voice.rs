@@ -1,20 +1,13 @@
 use serenity::framework::standard::{Args, Command, CommandError};
-use serenity::client::bridge::voice::ClientVoiceManager;
 use serenity::model::channel::Message;
 use serenity::client::Context;
 use serenity::voice;
 use serenity::Result as SerenityResult;
-use serenity::prelude::*;
 use serenity::voice::AudioSource;
 
-use std::sync::Arc;
 use std::path::{Path, PathBuf};
 
-pub struct VoiceManager;
-
-impl TypeMapKey for VoiceManager {
-    type Value = Arc<Mutex<ClientVoiceManager>>;
-}
+use crate::data::{VoiceManager, VoiceGuilds, VoiceGuild};
 
 fn clip_path() -> PathBuf {
     return Path::new("./resources/clips").canonicalize().unwrap();
@@ -23,6 +16,8 @@ fn clip_path() -> PathBuf {
 pub struct Join;
 pub struct Leave;
 pub struct Play;
+pub struct Volume;
+pub struct Stop;
 
 fn check_msg(result: SerenityResult<Message>) {
     if let Err(reason) = result {
@@ -147,22 +142,90 @@ impl Command for Play {
 
         let guild_id = guild.read().id;
 
-        let manager_lock = ctx.data.lock().get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
-        let mut manager = manager_lock.lock();
+        {
+            let mut data_lock = ctx.data.lock();
 
-        if let Some(handler) = manager.get_mut(guild_id) {
-            let source = audio_source(&loc);
+            let manager_lock = data_lock.get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
+            let mut manager = manager_lock.lock();
 
-            match source {
-                Ok(source) => handler.play(source),
-                Err(reason) => {
-                    eprintln!("Error trying to play clip: {:?}", reason);
-                    check_msg(msg.channel_id.say("Invalid clip"));
+            let voice_guild = data_lock.get_mut::<VoiceGuilds>()
+                .expect("Expected VoiceGuilds in ShareMap")
+                .entry(guild_id)
+                .or_insert(VoiceGuild::default());
+
+            if let Some(handler) = manager.get_mut(guild_id) {
+                let source = audio_source(&loc);
+
+                match source {
+                    Ok(source) => {
+                        voice_guild.add_audio(handler.play_returning(source));
+                    },
+                    Err(reason) => {
+                        eprintln!("Error trying to play clip: {:?}", reason);
+                        check_msg(msg.channel_id.say("Invalid clip"));
+                    }
                 }
+            } else {
+                check_msg(msg.channel_id.say("Not in a voice channel"));
             }
-        } else {
-            check_msg(msg.channel_id.say("Not in a voice channel"));
         }
+
+        Ok(())
+    }
+}
+
+impl Command for Volume {
+    fn execute(&self, ctx: &mut Context, msg: &Message, mut args: Args)
+        -> Result<(), CommandError>
+    {
+        let volume = match args.single::<f32>() {
+            Ok(volume) => volume,
+            Err(_) => {
+                check_msg(msg.channel_id.say("`Volume must be a valid float between 0.0 and 1.0`"));
+                return Ok(());
+            }
+        };
+
+        if volume < 0.0 || volume > 1.0 {
+            check_msg(msg.channel_id.say("`Volume must be between 0.0 and 1.0`"));
+            return Ok(());
+        }
+
+        let guild_id = match msg.guild_id {
+            Some(guild_id) => guild_id,
+            None => {
+                check_msg(msg.channel_id.say("`Groups and DMs not supported`"));
+                return Ok(());
+            }
+        };
+
+        ctx.data.lock().get_mut::<VoiceGuilds>()
+            .expect("Expected VoiceGuilds in ShareMap")
+            .entry(guild_id).or_default()
+            .set_volume(volume);
+
+        check_msg(msg.channel_id.say(format!("`Volume set to {}`", volume)));
+
+        Ok(())
+    }
+}
+
+impl Command for Stop {
+    fn execute(&self, ctx: &mut Context, msg: &Message, _: Args)
+        -> Result<(), CommandError>
+    {
+        let guild_id = match msg.guild_id {
+            Some(guild_id) => guild_id,
+            None => {
+                check_msg(msg.channel_id.say("`Groups and DMs not supported`"));
+                return Ok(());
+            }
+        };
+
+        ctx.data.lock().get_mut::<VoiceGuilds>()
+            .expect("Expected VoiceGuilds in ShareMap")
+            .entry(guild_id).or_default()
+            .clear_audios();
 
         Ok(())
     }
