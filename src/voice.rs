@@ -7,7 +7,9 @@ use serenity::voice::AudioSource;
 
 use std::path::{Path, PathBuf};
 
-use crate::data::{VoiceManager, VoiceGuilds, VoiceGuild};
+use crate::data::{VoiceManager, VoiceGuilds, VoiceGuild, ConfigResource};
+use crate::configuration;
+use crate::configuration::write_config;
 
 fn clip_path() -> PathBuf {
     return Path::new("./resources/clips").canonicalize().unwrap();
@@ -18,6 +20,8 @@ pub struct Leave;
 pub struct Play;
 pub struct Volume;
 pub struct Stop;
+pub struct Intro;
+pub struct Outro;
 
 fn check_msg(result: SerenityResult<Message>) {
     if let Err(reason) = result {
@@ -29,30 +33,36 @@ pub fn audio_source(loc: &str) -> serenity::Result<Box<dyn AudioSource>> {
     if loc.starts_with("http") {
         return voice::ytdl(&loc)
     } else {
-        // create a new path, but ensure the path does not go above
-        // the clip directory
-        let clip_path = clip_path();
-        let mut play_path = clip_path.join(&loc);
-        for ext in &["mp3", "wav"] {
-            play_path.set_extension(ext);
-            match play_path.canonicalize() {
-                Ok(play_path) => {
-                    if play_path.ancestors().all(|a| a != clip_path) {
-                        return Err(serenity::Error::Other("Attempt to play clip outside clip path"));
-                    } else if !play_path.exists() {
-                        // skip extension
-                    } else {
-                        return voice::ffmpeg(&play_path);
-                    }
-                },
-                Err(_) => () // just move on to next extension
-            }
+        match get_clip(&loc) {
+            Some(clip) => voice::ffmpeg(&clip),
+            None => Err(serenity::Error::Other("Could not find source")),
         }
-    };
-
-    Err(serenity::Error::Other("Could not find source"))
+    }
 }
 
+fn get_clip(loc: &str) -> Option<PathBuf> {
+    let clip_path = clip_path();
+    let mut play_path = clip_path.join(&loc);
+
+    for ext in &["mp3", "wav"] {
+        play_path.set_extension(ext);
+
+        if valid_clip(&play_path) {
+            return Some(play_path);
+        }
+    }
+
+    None
+}
+
+fn valid_clip(path: &Path) -> bool {
+    let root_path = clip_path();
+
+    match path.canonicalize() {
+        Ok(path) => path.exists() && path.ancestors().any(|a| a == root_path),
+        Err(_) => false,
+    }
+}
 
 impl Command for Join {
     fn execute(&self, ctx: &mut Context, msg: &Message, _: Args)
@@ -181,20 +191,20 @@ impl Command for Volume {
         let volume = match args.single::<f32>() {
             Ok(volume) => volume,
             Err(_) => {
-                check_msg(msg.channel_id.say("`Volume must be a valid float between 0.0 and 1.0`"));
+                check_msg(msg.channel_id.say("Volume must be a valid float between 0.0 and 1.0"));
                 return Ok(());
             }
         };
 
         if volume < 0.0 || volume > 1.0 {
-            check_msg(msg.channel_id.say("`Volume must be between 0.0 and 1.0`"));
+            check_msg(msg.channel_id.say("Volume must be between 0.0 and 1.0"));
             return Ok(());
         }
 
         let guild_id = match msg.guild_id {
             Some(guild_id) => guild_id,
             None => {
-                check_msg(msg.channel_id.say("`Groups and DMs not supported`"));
+                check_msg(msg.channel_id.say("Groups and DMs not supported"));
                 return Ok(());
             }
         };
@@ -204,7 +214,7 @@ impl Command for Volume {
             .entry(guild_id).or_default()
             .set_volume(volume);
 
-        check_msg(msg.channel_id.say(format!("`Volume set to {}`", volume)));
+        check_msg(msg.channel_id.say(format!("Volume set to {}", volume)));
 
         Ok(())
     }
@@ -217,7 +227,7 @@ impl Command for Stop {
         let guild_id = match msg.guild_id {
             Some(guild_id) => guild_id,
             None => {
-                check_msg(msg.channel_id.say("`Groups and DMs not supported`"));
+                check_msg(msg.channel_id.say("Groups and DMs not supported"));
                 return Ok(());
             }
         };
@@ -227,6 +237,84 @@ impl Command for Stop {
             .entry(guild_id).or_default()
             .clear_audios();
 
+        Ok(())
+    }
+}
+
+impl Command for Intro {
+    fn execute(&self, ctx: &mut Context, msg: &Message, args: Args)
+        -> Result<(), CommandError>
+    {
+        if args.len() != 1 {
+            check_msg(msg.channel_id.say("Expected exactly one clip"));
+            return Ok(());
+        }
+
+        let clip_str = args.current().unwrap();
+        match get_clip(clip_str) {
+            Some(_) => (),
+            None => {
+                check_msg(msg.channel_id.say("Invalid clip"));
+                return Ok(());
+            }
+        }
+
+        let user_id = msg.author.id;
+
+        let mut data_lock = ctx.data.lock();
+        let config = data_lock.get_mut::<ConfigResource>()
+            .expect("Expected ConfigResource in ShareMap");
+
+        config.intros.insert(user_id, clip_str.to_string());
+
+        { use configuration::Result::*;
+            match write_config(Path::new("config.json"), config) {
+                Ok(()) => (),
+                JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
+                IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
+            }
+        }
+
+        check_msg(msg.channel_id.say("Set new intro"));
+        Ok(())
+    }
+}
+
+impl Command for Outro {
+    fn execute(&self, ctx: &mut Context, msg: &Message, args: Args)
+        -> Result<(), CommandError>
+    {
+        if args.len() != 1 {
+            check_msg(msg.channel_id.say("Expected exactly one clip"));
+            return Ok(());
+        }
+
+        let clip_str = args.current().unwrap();
+        match get_clip(clip_str) {
+            Some(_) => (),
+            None => {
+                check_msg(msg.channel_id.say("Invalid clip"));
+                return Ok(());
+            }
+        };
+
+        let user_id = msg.author.id;
+
+        let mut data_lock = ctx.data.lock();
+        let config = data_lock.get_mut::<ConfigResource>()
+            .expect("Expected ConfigResource in ShareMap");
+
+        config.outros.insert(user_id, clip_str.to_string());
+
+        { use configuration::Result::*;
+            match write_config(Path::new("config.json"), config) {
+                Ok(()) => (),
+                JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
+                IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
+            }
+        }
+
+        check_msg(msg.channel_id.say("Set new outro"));
         Ok(())
     }
 }

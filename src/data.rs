@@ -3,6 +3,8 @@ use serenity::voice::LockedAudio;
 use serenity::prelude::{Mutex, TypeMapKey};
 use serenity::client::bridge::voice::ClientVoiceManager;
 
+use crate::configuration::Config;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -21,6 +23,12 @@ impl TypeMapKey for VoiceManager {
 pub struct VoiceGuild {
     volume: f32,
     audios: Vec<LockedAudio>,
+}
+
+pub struct ConfigResource;
+
+impl TypeMapKey for ConfigResource {
+    type Value = Config;
 }
 
 impl VoiceGuild {

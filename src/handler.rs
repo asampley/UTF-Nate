@@ -7,7 +7,7 @@ use serenity::client::CACHE;
 
 use crate::voice::audio_source;
 
-use crate::data::{VoiceGuilds, VoiceGuild, VoiceUserCache, VoiceManager};
+use crate::data::{VoiceGuilds, VoiceGuild, VoiceUserCache, VoiceManager, ConfigResource};
 
 pub struct Handler;
 
@@ -34,19 +34,26 @@ impl EventHandler for Handler {
                 .entry(voice_state.user_id).or_insert(None);
 
             let previous_channel = *user_channel;
-
-            println!("{:?} moved from {:?} to {:?}", voice_state.user_id, user_channel, voice_state.channel_id);
-
             *user_channel = voice_state.channel_id;
+            let user_channel = *user_channel;
 
-            let intro = "bnw/cowhappy";
-            let outro = "bnw/death";
+            let config = data_lock
+                .get::<ConfigResource>()
+                .expect("Expected ConfigResource in ShareMap");
+            let intro = config.intros
+                .get(&voice_state.user_id).map(|s| &**s)
+                .unwrap_or("bnw/cowhappy")
+                .to_string();
+            let outro = config.outros
+                .get(&voice_state.user_id).map(|s| &**s)
+                .unwrap_or("bnw/death")
+                .to_string();
 
             if bot_channel != None && voice_state.user_id != bot_id() {
 
-                let clip = if *user_channel == previous_channel {
+                let clip = if user_channel == previous_channel {
                     return;
-                } else if *user_channel == bot_channel {
+                } else if user_channel == bot_channel {
                     intro
                 } else if previous_channel == bot_channel {
                     outro
@@ -63,7 +70,7 @@ impl EventHandler for Handler {
                     .or_insert(VoiceGuild::default());
 
                 if let Some(handler) = manager.get_mut(guild_id) {
-                    let source = audio_source(clip);
+                    let source = audio_source(&clip);
 
                     match source {
                         Ok(source) => voice_guild.add_audio(handler.play_returning(source)),

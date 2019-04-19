@@ -3,3 +3,6 @@
 
 # conveniently store your bot token in this file
 token
+
+# persistent configuration stored here
+config.json
