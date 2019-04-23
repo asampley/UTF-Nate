@@ -13,7 +13,7 @@ use serenity::framework::standard::StandardFramework;
 
 use handler::Handler;
 use unicode::Unicode;
-use voice::{Join, Leave, Play, Volume, Stop, Intro, Outro};
+use voice::{Join, Leave, Play, Volume, Stop, Intro, Outro, List};
 use data::{VoiceUserCache, VoiceManager, VoiceGuilds, ConfigResource};
 use configuration::{Config, read_config, write_config};
 
@@ -49,6 +49,7 @@ fn main() {
             .cmd("stop", Stop)
             .cmd("intro", Intro)
             .cmd("outro", Outro)
+            .cmd("playlist", List)
     );
 
     if let Err(reason) = client.start() {

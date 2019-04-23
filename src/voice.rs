@@ -5,7 +5,10 @@ use serenity::voice;
 use serenity::Result as SerenityResult;
 use serenity::voice::AudioSource;
 
+use std::fs::read_dir;
 use std::path::{Path, PathBuf};
+
+use itertools::Itertools;
 
 use crate::data::{VoiceManager, VoiceGuilds, VoiceGuild, ConfigResource};
 use crate::configuration;
@@ -22,6 +25,7 @@ pub struct Volume;
 pub struct Stop;
 pub struct Intro;
 pub struct Outro;
+pub struct List;
 
 fn check_msg(result: SerenityResult<Message>) {
     if let Err(reason) = result {
@@ -59,7 +63,17 @@ fn valid_clip(path: &Path) -> bool {
     let root_path = clip_path();
 
     match path.canonicalize() {
-        Ok(path) => path.exists() && path.ancestors().any(|a| a == root_path),
+        Ok(path) => path.exists() && sandboxed(&root_path, &path),
+        Err(_) => false,
+    }
+}
+
+fn sandboxed(sandbox: &Path, path: &Path) -> bool {
+    match sandbox.canonicalize() {
+        Ok(sandbox) => match path.canonicalize() {
+            Ok(path) => path.ancestors().any(|d| d == sandbox),
+            Err(_) => false,
+        }
         Err(_) => false,
     }
 }
@@ -318,3 +332,66 @@ impl Command for Outro {
         Ok(())
     }
 }
+
+impl Command for List {
+    fn execute(&self, _: &mut Context, msg: &Message, args: Args)
+        -> Result<(), CommandError>
+    {
+        if args.len() > 1 {
+            check_msg(msg.channel_id.say("Expected at most one path to be specified"));
+            return Ok(());
+        }
+
+        let dir = clip_path().join(Path::new(match args.len() {
+            0 => "",
+            1 => args.current().unwrap(),
+            _ => {
+                eprintln!("Unexpected number of arguments");
+                return Ok(());
+            }
+        }));
+
+        let dir = match dir.canonicalize() {
+            Ok(dir) => dir,
+            Err(reason) => {
+                check_msg(msg.channel_id.say("Invalid directory"));
+                return Ok(());
+            }
+        };
+
+        if !sandboxed(&clip_path(), &dir) {
+            check_msg(msg.channel_id.say("Invalid directory"));
+            return Ok(());
+        }
+
+        match read_dir(dir) {
+            Err(reason) => {
+                eprintln!("Unable to read directory: {:?}", reason);
+                check_msg(msg.channel_id.say("Invalid directory"));
+                return Ok(());
+            }
+            Ok(dir_iter) => {
+                let message = dir_iter
+                    .filter_map(|e| e.ok())
+                    .map(|e| (e.path().file_stem().and_then(|f| f.to_str()).map(|f| f.to_owned()), e.file_type()))
+                    .filter(|(f, t)| f.is_some() && t.is_ok())
+                    .map(|(f, t)| (f.unwrap(), t.unwrap()))
+                    .sorted_by(|(f0, t0), (f1, t1)| (!t0.is_dir(), f0.to_lowercase()).cmp(&(!t1.is_dir(), f1.to_lowercase())))
+                    .map(|(f, t)| format!("{: <20}", f + if t.is_dir() { "/" } else { "" }))
+                    .chunks(3)
+                    .into_iter()
+                    .map(|chunk| chunk.fold("".to_owned(), |acc, s| acc + &s))
+                    .fold("".to_owned(), |acc, s| acc + "\n" + &s);
+
+                check_msg(msg.channel_id.say(
+                    "```\n".to_owned()
+                    + &message
+                    + "\n```"
+                ));
+            }
+        }
+
+        return Ok(());
+    }
+}
+
