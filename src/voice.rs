@@ -353,7 +353,7 @@ impl Command for List {
 
         let dir = match dir.canonicalize() {
             Ok(dir) => dir,
-            Err(reason) => {
+            Err(_reason) => {
                 check_msg(msg.channel_id.say("Invalid directory"));
                 return Ok(());
             }

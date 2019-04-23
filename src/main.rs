@@ -10,12 +10,14 @@ mod data;
 
 use serenity::client::Client;
 use serenity::framework::standard::StandardFramework;
+use serenity::model::channel::Message;
+use serenity::prelude::Context;
 
 use handler::Handler;
 use unicode::Unicode;
 use voice::{Join, Leave, Play, Volume, Stop, Intro, Outro, List};
 use data::{VoiceUserCache, VoiceManager, VoiceGuilds, ConfigResource};
-use configuration::{Config, read_config, write_config};
+use configuration::{Config, read_config};
 
 use std::sync::Arc;
 use std::collections::HashMap;
@@ -39,6 +41,7 @@ fn main() {
     client.with_framework(
         StandardFramework::new()
             .configure(|c| c.prefix("!"))
+            .before(before_hook)
             .cmd("u", Unicode)
             .cmd("join", Join)
             .cmd("summon", Join)
@@ -80,4 +83,16 @@ fn load_config() -> Config {
             Config::default()
         }
     }
+}
+
+fn before_hook(_ctx: &mut Context, msg: &Message, cmd: &str)
+    -> bool
+{
+    let guild_name = msg.guild().map(|g| g.read().name.clone());
+    println!("User {} ({}) in guild {:?} ({:?}) running {} with message: {}",
+        msg.author.name, msg.author.id,
+        guild_name, msg.guild_id,
+        cmd, msg.content);
+
+    true
 }
