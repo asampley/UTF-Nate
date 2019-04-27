@@ -11,6 +11,8 @@ use crate::data::{VoiceGuilds, VoiceGuild, VoiceUserCache, VoiceManager, ConfigR
 
 pub struct Handler;
 
+enum IOClip { Intro, Outro }
+
 // implement default event handler
 impl EventHandler for Handler {
     fn ready(&self, _: Context, _: Ready) {
@@ -54,9 +56,9 @@ impl EventHandler for Handler {
                 let clip = if user_channel == previous_channel {
                     return;
                 } else if user_channel == bot_channel {
-                    intro
+                    (IOClip::Intro, intro)
                 } else if previous_channel == bot_channel {
-                    outro
+                    (IOClip::Outro, outro)
                 } else {
                     return;
                 };
@@ -70,10 +72,16 @@ impl EventHandler for Handler {
                     .or_insert(VoiceGuild::default());
 
                 if let Some(handler) = manager.get_mut(guild_id) {
-                    let source = audio_source(&clip);
+                    let source = audio_source(&clip.1);
 
                     match source {
-                        Ok(source) => voice_guild.add_audio(handler.play_returning(source)),
+                        Ok(source) => {
+                            voice_guild.add_audio(handler.play_returning(source));
+                            println!("Playing {} for user ({})",
+                                match clip.0 { IOClip::Intro => "intro", IOClip::Outro => "outro" },
+                                voice_state.user_id
+                            );
+                        },
                         Err(reason) => {
                             eprintln!("Error trying to intro clip: {:?}", reason);
                         }

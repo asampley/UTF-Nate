@@ -1,7 +1,8 @@
 use serenity::prelude::Context;
-use serenity::framework::standard::{Args, Command, CommandError};
+use serenity::framework::standard::{Args, Command, CommandError, CommandOptions};
 use serenity::model::channel::Message;
 use std::num::ParseIntError;
+use std::sync::Arc;
 
 pub struct Unicode;
 
@@ -31,6 +32,16 @@ impl Unicode {
 }
 
 impl Command for Unicode {
+    fn options(&self) -> Arc<CommandOptions> {
+        Arc::new(CommandOptions {
+            help_available: true,
+            desc: Some(String::from("Print the characters based on the unicode code point. The code point can be specified in either decimal or hexidecimal (by preceding it with 0x).")),
+            usage: Some(String::from("[codepoint...]")),
+            example: Some(String::from("0x252C 0x2500 0x252C 0x30CE 0x28 0x20 0xBA 0x20 0x5F 0x20 0xBA 0x30CE 0x29")),
+            ..Default::default()
+        })
+    }
+
     fn execute(&self, _: &mut Context, message: &Message, mut args: Args)
         -> Result<(), CommandError>
     {

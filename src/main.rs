@@ -10,6 +10,7 @@ mod data;
 
 use serenity::client::Client;
 use serenity::framework::standard::StandardFramework;
+use serenity::framework::standard::help_commands;
 use serenity::model::channel::Message;
 use serenity::prelude::Context;
 
@@ -42,17 +43,19 @@ fn main() {
         StandardFramework::new()
             .configure(|c| c.prefix("!"))
             .before(before_hook)
+            .help(help_commands::plain)
             .cmd("u", Unicode)
-            .cmd("join", Join)
-            .cmd("summon", Join)
-            .cmd("leave", Leave)
-            .cmd("banish", Leave)
-            .cmd("play", Play)
-            .cmd("volume", Volume)
-            .cmd("stop", Stop)
-            .cmd("intro", Intro)
-            .cmd("outro", Outro)
-            .cmd("playlist", List)
+            .group("voice", |g| g
+                .desc("Commands to move the bot to voice channels, play clips, and set intro/outro clips for each user.")
+                .cmd("summon", Join)
+                .cmd("banish", Leave)
+                .cmd("play", Play)
+                .cmd("volume", Volume)
+                .cmd("stop", Stop)
+                .cmd("intro", Intro)
+                .cmd("outro", Outro)
+                .cmd("playlist", List)
+            )
     );
 
     if let Err(reason) = client.start() {

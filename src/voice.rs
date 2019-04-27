@@ -1,4 +1,4 @@
-use serenity::framework::standard::{Args, Command, CommandError};
+use serenity::framework::standard::{Args, Command, CommandError, CommandOptions};
 use serenity::model::channel::Message;
 use serenity::client::Context;
 use serenity::voice;
@@ -7,6 +7,7 @@ use serenity::voice::AudioSource;
 
 use std::fs::read_dir;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use itertools::Itertools;
 
@@ -79,6 +80,14 @@ fn sandboxed(sandbox: &Path, path: &Path) -> bool {
 }
 
 impl Command for Join {
+    fn options(&self) -> Arc<CommandOptions> {
+        Arc::new(CommandOptions {
+            help_available: true,
+            desc: Some(String::from("Summon the bot to the voice channel the user is currently in")),
+            ..Default::default()
+        })
+    }
+
     fn execute(&self, ctx: &mut Context, msg: &Message, _: Args)
         -> Result<(), CommandError>
     {
@@ -117,6 +126,14 @@ impl Command for Join {
 }
 
 impl Command for Leave {
+    fn options(&self) -> Arc<CommandOptions> {
+        Arc::new(CommandOptions {
+            help_available: true,
+            desc: Some(String::from("Remove the bot from the voice channel it is in")),
+            ..Default::default()
+        })
+    }
+
     fn execute(&self, ctx: &mut Context, msg: &Message, _: Args)
         -> Result<(), CommandError>
     {
@@ -145,6 +162,16 @@ impl Command for Leave {
 }
 
 impl Command for Play {
+    fn options(&self) -> Arc<CommandOptions> {
+        Arc::new(CommandOptions {
+            help_available: true,
+            desc: Some(String::from("Play the specified clip")),
+            usage: Some(String::from("<clip>")),
+            example: Some(String::from("bnw/needoffspring")),
+            ..Default::default()
+        })
+    }
+
     fn execute(&self, ctx: &mut Context, msg: &Message, mut args: Args)
         -> Result<(), CommandError>
     {
@@ -199,6 +226,16 @@ impl Command for Play {
 }
 
 impl Command for Volume {
+    fn options(&self) -> Arc<CommandOptions> {
+        Arc::new(CommandOptions {
+            help_available: true,
+            desc: Some(String::from("Stop all clips currently being played by the bot")),
+            usage: Some(String::from("<volume>")),
+            example: Some(String::from("0.5")),
+            ..Default::default()
+        })
+    }
+
     fn execute(&self, ctx: &mut Context, msg: &Message, mut args: Args)
         -> Result<(), CommandError>
     {
@@ -235,6 +272,14 @@ impl Command for Volume {
 }
 
 impl Command for Stop {
+    fn options(&self) -> Arc<CommandOptions> {
+        Arc::new(CommandOptions {
+            help_available: true,
+            desc: Some(String::from("Stop all clips currently being played by the bot")),
+            ..Default::default()
+        })
+    }
+
     fn execute(&self, ctx: &mut Context, msg: &Message, _: Args)
         -> Result<(), CommandError>
     {
@@ -256,6 +301,16 @@ impl Command for Stop {
 }
 
 impl Command for Intro {
+    fn options(&self) -> Arc<CommandOptions> {
+        Arc::new(CommandOptions {
+            help_available: true,
+            desc: Some(String::from("Set the clip to be played when you enter the channel containing the bot")),
+            usage: Some(String::from("<clip>")),
+            example: Some(String::from("bnw/angels")),
+            ..Default::default()
+        })
+    }
+
     fn execute(&self, ctx: &mut Context, msg: &Message, args: Args)
         -> Result<(), CommandError>
     {
@@ -295,6 +350,16 @@ impl Command for Intro {
 }
 
 impl Command for Outro {
+    fn options(&self) -> Arc<CommandOptions> {
+        Arc::new(CommandOptions {
+            help_available: true,
+            desc: Some(String::from("Set the clip to be played when you exit the channel containing the bot")),
+            usage: Some(String::from("<clip>")),
+            example: Some(String::from("bnw/death")),
+            ..Default::default()
+        })
+    }
+
     fn execute(&self, ctx: &mut Context, msg: &Message, args: Args)
         -> Result<(), CommandError>
     {
@@ -334,6 +399,16 @@ impl Command for Outro {
 }
 
 impl Command for List {
+    fn options(&self) -> Arc<CommandOptions> {
+        Arc::new(CommandOptions {
+            help_available: true,
+            desc: Some(String::from("List all the sections and/or clips available in the section")),
+            usage: Some(String::from("[section]")),
+            example: Some(String::from("bnw")),
+            ..Default::default()
+        })
+    }
+
     fn execute(&self, _: &mut Context, msg: &Message, args: Args)
         -> Result<(), CommandError>
     {
