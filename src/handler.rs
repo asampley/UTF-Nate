@@ -39,28 +39,49 @@ impl EventHandler for Handler {
             *user_channel = voice_state.channel_id;
             let user_channel = *user_channel;
 
-            let config = data_lock
-                .get::<ConfigResource>()
-                .expect("Expected ConfigResource in ShareMap");
-            let intro = config.intros
-                .get(&voice_state.user_id).map(|s| &**s)
-                .unwrap_or("bnw/cowhappy")
-                .to_string();
-            let outro = config.outros
-                .get(&voice_state.user_id).map(|s| &**s)
-                .unwrap_or("bnw/death")
-                .to_string();
+            let bot_channel = if voice_state.user_id == bot_id() {
+                user_channel
+            } else {
+                bot_channel
+            };
 
-            if bot_channel != None && voice_state.user_id != bot_id() {
+            if bot_channel != None {
 
-                let clip = if user_channel == previous_channel {
+                let io = if user_channel == previous_channel {
                     return;
                 } else if user_channel == bot_channel {
-                    (IOClip::Intro, intro)
+                    IOClip::Intro
                 } else if previous_channel == bot_channel {
-                    (IOClip::Outro, outro)
+                    IOClip::Outro
                 } else {
                     return;
+                };
+
+                let config = data_lock
+                    .get::<ConfigResource>()
+                    .expect("Expected ConfigResource in ShareMap");
+
+                let clip = if voice_state.user_id == bot_id() {
+                    match io {
+                        IOClip::Intro => config.guilds
+                            .get(&guild_id)
+                            .and_then(|gc| gc.bot_intro.as_ref())
+                            .map(|s| s.as_str())
+                            .unwrap_or("dota/bothello")
+                            .to_owned(),
+                        IOClip::Outro => return,
+                    }
+                } else {
+                    match io {
+                        IOClip::Intro => config.intros
+                            .get(&voice_state.user_id).map(|s| s.as_str())
+                            .unwrap_or("bnw/cowhappy")
+                            .to_owned(),
+                        IOClip::Outro => config.outros
+                            .get(&voice_state.user_id).map(|s| s.as_str())
+                            .unwrap_or("bnw/death")
+                            .to_owned(),
+                    }
                 };
 
                 let manager_lock = data_lock.get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
@@ -72,13 +93,13 @@ impl EventHandler for Handler {
                     .or_insert(VoiceGuild::default());
 
                 if let Some(handler) = manager.get_mut(guild_id) {
-                    let source = audio_source(&clip.1);
+                    let source = audio_source(&clip);
 
                     match source {
                         Ok(source) => {
                             voice_guild.add_audio(handler.play_returning(source));
                             println!("Playing {} for user ({})",
-                                match clip.0 { IOClip::Intro => "intro", IOClip::Outro => "outro" },
+                                match io { IOClip::Intro => "intro", IOClip::Outro => "outro" },
                                 voice_state.user_id
                             );
                         },

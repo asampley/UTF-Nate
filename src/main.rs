@@ -16,7 +16,7 @@ use serenity::prelude::Context;
 
 use handler::Handler;
 use unicode::Unicode;
-use voice::{Join, Leave, Play, Volume, Stop, Intro, Outro, List};
+use voice::{Join, Leave, Play, Volume, Stop, Intro, Outro, List, BotIntro};
 use data::{VoiceUserCache, VoiceManager, VoiceGuilds, ConfigResource};
 use configuration::{Config, read_config};
 
@@ -55,6 +55,7 @@ fn main() {
                 .cmd("intro", Intro)
                 .cmd("outro", Outro)
                 .cmd("playlist", List)
+                .cmd("introbot", BotIntro)
             )
     );
 

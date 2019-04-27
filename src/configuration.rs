@@ -1,4 +1,4 @@
-use serenity::model::id::UserId;
+use serenity::model::id::{UserId,GuildId};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::fs::File;
@@ -8,6 +8,12 @@ use std::path::Path;
 pub struct Config {
     pub intros: HashMap<UserId, String>,
     pub outros: HashMap<UserId, String>,
+    pub guilds: HashMap<GuildId, GuildConfig>,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub struct GuildConfig {
+    pub bot_intro: Option<String>,
 }
 
 pub enum Result<T> {

@@ -26,6 +26,7 @@ pub struct Volume;
 pub struct Stop;
 pub struct Intro;
 pub struct Outro;
+pub struct BotIntro;
 pub struct List;
 
 fn check_msg(result: SerenityResult<Message>) {
@@ -347,6 +348,65 @@ impl Command for Intro {
         check_msg(msg.channel_id.say("Set new intro"));
         Ok(())
     }
+}
+
+impl Command for BotIntro {
+    fn options(&self) -> Arc<CommandOptions> {
+        Arc::new(CommandOptions {
+            help_available: true,
+            desc: Some(String::from("Set the clip to be played when you enter the channel containing the bot")),
+            usage: Some(String::from("<clip>")),
+            example: Some(String::from("bnw/angels")),
+            ..Default::default()
+        })
+    }
+
+    fn execute(&self, ctx: &mut Context, msg: &Message, args: Args)
+        -> Result<(), CommandError>
+    {
+        if args.len() != 1 {
+            check_msg(msg.channel_id.say("Expected exactly one clip"));
+            return Ok(());
+        }
+
+        let guild_id = match msg.guild_id {
+            Some(guild_id) => guild_id,
+            None => {
+                check_msg(msg.channel_id.say("Groups and DMs not supported"));
+                return Ok(());
+            }
+        };
+
+        let clip_str = args.current().unwrap();
+        match get_clip(clip_str) {
+            Some(_) => (),
+            None => {
+                check_msg(msg.channel_id.say("Invalid clip"));
+                return Ok(());
+            }
+        }
+
+        let mut data_lock = ctx.data.lock();
+        let config = data_lock.get_mut::<ConfigResource>()
+            .expect("Expected ConfigResource in ShareMap");
+
+        config.guilds
+            .entry(guild_id)
+            .or_default()
+            .bot_intro = Some(clip_str.to_string());
+
+        { use configuration::Result::*;
+            match write_config(Path::new("config.json"), config) {
+                Ok(()) => (),
+                JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
+                IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
+            }
+        }
+
+        check_msg(msg.channel_id.say("Set new intro"));
+        Ok(())
+    }
+
 }
 
 impl Command for Outro {
