@@ -28,7 +28,7 @@ pub fn write_config(path: &Path, config: &Config) -> Result<()> {
         Ok(file) => file,
     };
 
-    match serde_json::to_writer(file, config) {
+    match serde_json::to_writer_pretty(file, config) {
         Err(err) => Result::JsonError(err),
         Ok(()) => Result::Ok(()),
     }
