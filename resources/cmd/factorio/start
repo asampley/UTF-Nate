@@ -1,0 +1,11 @@
+#!/bin/sh
+set -euf
+
+if systemctl is-active factorio | grep "^active$" > /dev/null 2>&1; then
+	echo "Factorio server already running"
+	exit
+fi
+
+sudo systemctl start factorio
+
+echo "Started factorio server"

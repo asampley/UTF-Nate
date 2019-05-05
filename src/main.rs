@@ -7,6 +7,8 @@ mod handler;
 mod unicode;
 mod voice;
 mod data;
+mod cmd;
+mod util;
 
 use serenity::client::Client;
 use serenity::framework::standard::StandardFramework;
@@ -19,6 +21,7 @@ use unicode::Unicode;
 use voice::{Join, Leave, Play, Volume, Stop, Intro, Outro, List, BotIntro};
 use data::{VoiceUserCache, VoiceManager, VoiceGuilds, ConfigResource};
 use configuration::{Config, read_config};
+use cmd::Cmd;
 
 use std::sync::Arc;
 use std::collections::HashMap;
@@ -56,6 +59,10 @@ fn main() {
                 .cmd("outro", Outro)
                 .cmd("playlist", List)
                 .cmd("introbot", BotIntro)
+            )
+            .group("external", |g| g
+                .desc("Commands relating to external commands, such as starting a factorio server")
+                .cmd("cmd", Cmd)
             )
     );
 

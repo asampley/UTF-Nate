@@ -1,9 +1,8 @@
 use serenity::framework::standard::{Args, Command, CommandError, CommandOptions};
 use serenity::model::channel::Message;
 use serenity::client::Context;
-use serenity::voice;
-use serenity::Result as SerenityResult;
 use serenity::voice::AudioSource;
+use serenity::voice;
 
 use std::fs::read_dir;
 use std::path::{Path, PathBuf};
@@ -14,6 +13,7 @@ use itertools::Itertools;
 use crate::data::{VoiceManager, VoiceGuilds, VoiceGuild, ConfigResource};
 use crate::configuration;
 use crate::configuration::write_config;
+use crate::util::*;
 
 fn clip_path() -> PathBuf {
     return Path::new("./resources/clips").canonicalize().unwrap();
@@ -28,12 +28,6 @@ pub struct Intro;
 pub struct Outro;
 pub struct BotIntro;
 pub struct List;
-
-fn check_msg(result: SerenityResult<Message>) {
-    if let Err(reason) = result {
-        eprintln!("Error sending message: {:?}", reason);
-    }
-}
 
 pub fn audio_source(loc: &str) -> serenity::Result<Box<dyn AudioSource>> {
     if loc.starts_with("http") {
@@ -62,22 +56,7 @@ fn get_clip(loc: &str) -> Option<PathBuf> {
 }
 
 fn valid_clip(path: &Path) -> bool {
-    let root_path = clip_path();
-
-    match path.canonicalize() {
-        Ok(path) => path.exists() && sandboxed(&root_path, &path),
-        Err(_) => false,
-    }
-}
-
-fn sandboxed(sandbox: &Path, path: &Path) -> bool {
-    match sandbox.canonicalize() {
-        Ok(sandbox) => match path.canonicalize() {
-            Ok(path) => path.ancestors().any(|d| d == sandbox),
-            Err(_) => false,
-        }
-        Err(_) => false,
-    }
+    sandboxed_exists(&clip_path(), &path)
 }
 
 impl Command for Join {
@@ -494,7 +473,7 @@ impl Command for List {
             }
         };
 
-        if !sandboxed(&clip_path(), &dir) {
+        if !sandboxed_exists(&clip_path(), &dir) {
             check_msg(msg.channel_id.say("Invalid directory"));
             return Ok(());
         }
