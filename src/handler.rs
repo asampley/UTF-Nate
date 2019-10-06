@@ -7,7 +7,7 @@ use serenity::client::CACHE;
 
 use crate::voice::audio_source;
 
-use crate::data::{VoiceGuilds, VoiceGuild, VoiceUserCache, VoiceManager, ConfigResource};
+use crate::data::{VoiceGuilds, VoiceUserCache, VoiceManager, ConfigResource};
 
 pub struct Handler;
 
@@ -23,26 +23,39 @@ impl EventHandler for Handler {
 
     fn voice_state_update(&self, ctx: Context, guild_id: Option<GuildId>, voice_state: VoiceState) {
         if let Some(guild_id) = guild_id {
-            let mut data_lock = ctx.data.lock();
-            let cache = data_lock
-                .get_mut::<VoiceUserCache>()
-                .expect("Expected VoiceUserCache in ShareMap");
-
-            let bot_channel = *cache
+            let cache_guild = ctx.data.lock()
+                .get::<VoiceUserCache>()
+                .cloned()
+                .expect("Expected VoiceUserCache in ShareMap")
+                .write()
                 .entry(guild_id).or_default()
-                .entry(bot_id()).or_insert(None);
-            let user_channel = cache
-                .entry(guild_id).or_default()
-                .entry(voice_state.user_id).or_insert(None);
+                .clone();
 
-            let previous_channel = *user_channel;
-            *user_channel = voice_state.channel_id;
-            let user_channel = *user_channel;
+            let (bot_channel, previous_channel, user_channel) = {
+                let mut cache_lock = cache_guild.write();
 
-            let bot_channel = if voice_state.user_id == bot_id() {
-                user_channel
-            } else {
-                bot_channel
+                // get previous channel for the user
+                let user_channel = cache_lock
+                    .entry(voice_state.user_id)
+                    .or_insert(None);
+
+                // store previous channel and update
+                let previous_channel = *user_channel;
+                *user_channel = voice_state.channel_id;
+                let user_channel = *user_channel;
+
+                // get the bot's channel, which may be updated at this point.
+                let bot_channel = *cache_lock
+                    .entry(bot_id())
+                    .or_insert(None);
+
+                //let bot_channel = if voice_state.user_id == bot_id() {
+                    //user_channel
+                //} else {
+                    //bot_channel
+                //};
+
+                (bot_channel, previous_channel, user_channel)
             };
 
             if bot_channel != None {
@@ -57,40 +70,50 @@ impl EventHandler for Handler {
                     return;
                 };
 
-                let config = data_lock
-                    .get::<ConfigResource>()
-                    .expect("Expected ConfigResource in ShareMap");
+                let clip = {
+                    let config_arc = ctx.data.lock()
+                        .get::<ConfigResource>()
+                        .cloned()
+                        .expect("Expected ConfigResource in ShareMap")
+                        .clone();
 
-                let clip = if voice_state.user_id == bot_id() {
-                    match io {
-                        IOClip::Intro => config.guilds
-                            .get(&guild_id)
-                            .and_then(|gc| gc.bot_intro.as_ref())
-                            .map(|s| s.as_str())
-                            .unwrap_or("dota/bothello")
-                            .to_owned(),
-                        IOClip::Outro => return,
-                    }
-                } else {
-                    match io {
-                        IOClip::Intro => config.intros
-                            .get(&voice_state.user_id).map(|s| s.as_str())
-                            .unwrap_or("bnw/cowhappy")
-                            .to_owned(),
-                        IOClip::Outro => config.outros
-                            .get(&voice_state.user_id).map(|s| s.as_str())
-                            .unwrap_or("bnw/death")
-                            .to_owned(),
+                    let config = config_arc.read();
+
+                    if voice_state.user_id == bot_id() {
+                        match io {
+                            IOClip::Intro => config.guilds
+                                .get(&guild_id)
+                                .and_then(|gc| gc.bot_intro.as_ref())
+                                .map(|s| s.as_str())
+                                .unwrap_or("dota/bothello")
+                                .to_owned(),
+                            IOClip::Outro => return,
+                        }
+                    } else {
+                        match io {
+                            IOClip::Intro => config.intros
+                                .get(&voice_state.user_id).map(|s| s.as_str())
+                                .unwrap_or("bnw/cowhappy")
+                                .to_owned(),
+                            IOClip::Outro => config.outros
+                                .get(&voice_state.user_id).map(|s| s.as_str())
+                                .unwrap_or("bnw/death")
+                                .to_owned(),
+                        }
                     }
                 };
 
-                let manager_lock = data_lock.get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
+                let manager_lock = ctx.data.lock().get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
                 let mut manager = manager_lock.lock();
 
-                let voice_guild = data_lock.get_mut::<VoiceGuilds>()
+                let voice_guild_arc = ctx.data.lock().get_mut::<VoiceGuilds>().cloned()
                     .expect("Expected VoiceGuilds in ShareMap")
+                    .write()
                     .entry(guild_id)
-                    .or_insert(VoiceGuild::default());
+                    .or_default()
+                    .clone();
+
+                let mut voice_guild = voice_guild_arc.write();
 
                 if let Some(handler) = manager.get_mut(guild_id) {
                     let source = audio_source(&clip);

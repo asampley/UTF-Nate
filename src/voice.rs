@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use crate::data::{VoiceManager, VoiceGuilds, VoiceGuild, ConfigResource};
+use crate::data::{VoiceManager, VoiceGuilds, ConfigResource};
 use crate::configuration;
 use crate::configuration::write_config;
 use crate::util::*;
@@ -179,10 +179,15 @@ impl Command for Play {
             let manager_lock = data_lock.get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
             let mut manager = manager_lock.lock();
 
-            let voice_guild = data_lock.get_mut::<VoiceGuilds>()
+            let voice_guild_arc = data_lock.get_mut::<VoiceGuilds>()
+                .cloned()
                 .expect("Expected VoiceGuilds in ShareMap")
+                .write()
                 .entry(guild_id)
-                .or_insert(VoiceGuild::default());
+                .or_default()
+                .clone();
+
+            let mut voice_guild = voice_guild_arc.write();
 
             if let Some(handler) = manager.get_mut(guild_id) {
                 let source = audio_source(&loc);
@@ -242,7 +247,8 @@ impl Command for Volume {
 
         ctx.data.lock().get_mut::<VoiceGuilds>()
             .expect("Expected VoiceGuilds in ShareMap")
-            .entry(guild_id).or_default()
+            .write()
+            .entry(guild_id).or_default().clone().write()
             .set_volume(volume);
 
         check_msg(msg.channel_id.say(format!("Volume set to {}", volume)));
@@ -273,7 +279,9 @@ impl Command for Stop {
 
         ctx.data.lock().get_mut::<VoiceGuilds>()
             .expect("Expected VoiceGuilds in ShareMap")
+			.write()
             .entry(guild_id).or_default()
+            .clone().write()
             .clear_audios();
 
         Ok(())
@@ -311,13 +319,16 @@ impl Command for Intro {
         let user_id = msg.author.id;
 
         let mut data_lock = ctx.data.lock();
-        let config = data_lock.get_mut::<ConfigResource>()
-            .expect("Expected ConfigResource in ShareMap");
+        let config_arc = data_lock.get_mut::<ConfigResource>()
+            .expect("Expected ConfigResource in ShareMap")
+            .clone();
+
+        let mut config = config_arc.write();
 
         config.intros.insert(user_id, clip_str.to_string());
 
         { use configuration::Result::*;
-            match write_config(Path::new("config.json"), config) {
+            match write_config(Path::new("config.json"), &*config) {
                 Ok(()) => (),
                 JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
                 IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
@@ -366,8 +377,11 @@ impl Command for BotIntro {
         }
 
         let mut data_lock = ctx.data.lock();
-        let config = data_lock.get_mut::<ConfigResource>()
-            .expect("Expected ConfigResource in ShareMap");
+        let config_arc = data_lock.get_mut::<ConfigResource>()
+            .expect("Expected ConfigResource in ShareMap")
+            .clone();
+
+        let mut config = config_arc.write();
 
         config.guilds
             .entry(guild_id)
@@ -375,7 +389,7 @@ impl Command for BotIntro {
             .bot_intro = Some(clip_str.to_string());
 
         { use configuration::Result::*;
-            match write_config(Path::new("config.json"), config) {
+            match write_config(Path::new("config.json"), &*config) {
                 Ok(()) => (),
                 JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
                 IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
@@ -419,13 +433,16 @@ impl Command for Outro {
         let user_id = msg.author.id;
 
         let mut data_lock = ctx.data.lock();
-        let config = data_lock.get_mut::<ConfigResource>()
-            .expect("Expected ConfigResource in ShareMap");
+        let config_arc = data_lock.get_mut::<ConfigResource>()
+            .expect("Expected ConfigResource in ShareMap")
+            .clone();
+
+        let mut config = config_arc.write();
 
         config.outros.insert(user_id, clip_str.to_string());
 
         { use configuration::Result::*;
-            match write_config(Path::new("config.json"), config) {
+            match write_config(Path::new("config.json"), &*config) {
                 Ok(()) => (),
                 JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
                 IoError(reason) => eprintln!("Error writing config file: {:?}", reason),

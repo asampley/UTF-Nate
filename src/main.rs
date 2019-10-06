@@ -15,6 +15,7 @@ use serenity::framework::standard::StandardFramework;
 use serenity::framework::standard::help_commands;
 use serenity::model::channel::Message;
 use serenity::prelude::Context;
+use serenity::prelude::RwLock;
 
 use handler::Handler;
 use unicode::Unicode;
@@ -35,10 +36,10 @@ fn main() {
     {
         let mut data = client.data.lock();
         // create voice manager to handle voice commands
-        data.insert::<VoiceManager>(Arc::clone(&client.voice_manager));
-        data.insert::<VoiceUserCache>(HashMap::default());
-        data.insert::<VoiceGuilds>(HashMap::default());
-        data.insert::<ConfigResource>(load_config());
+        data.insert::<VoiceManager>(client.voice_manager.clone());
+        data.insert::<VoiceUserCache>(Default::default());
+        data.insert::<VoiceGuilds>(Default::default());
+        data.insert::<ConfigResource>(Arc::new(RwLock::new(load_config())));
     }
 
     // create a framework to process message commands

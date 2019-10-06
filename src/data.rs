@@ -1,6 +1,6 @@
 use serenity::model::id::{GuildId, UserId, ChannelId};
 use serenity::voice::LockedAudio;
-use serenity::prelude::{Mutex, TypeMapKey};
+use serenity::prelude::{Mutex, RwLock, TypeMapKey};
 use serenity::client::bridge::voice::ClientVoiceManager;
 
 use crate::configuration::Config;
@@ -10,8 +10,10 @@ use std::sync::Arc;
 
 pub struct VoiceUserCache;
 
+type ArcRw<T> = Arc<RwLock<T>>;
+
 impl TypeMapKey for VoiceUserCache {
-    type Value = HashMap<GuildId, HashMap<UserId, Option<ChannelId>>>;
+    type Value = ArcRw<HashMap<GuildId, ArcRw<HashMap<UserId, Option<ChannelId>>>>>;
 }
 
 pub struct VoiceManager;
@@ -28,7 +30,7 @@ pub struct VoiceGuild {
 pub struct ConfigResource;
 
 impl TypeMapKey for ConfigResource {
-    type Value = Config;
+    type Value = ArcRw<Config>;
 }
 
 impl VoiceGuild {
@@ -65,5 +67,5 @@ impl Default for VoiceGuild {
 pub struct VoiceGuilds;
 
 impl TypeMapKey for VoiceGuilds {
-    type Value = HashMap<GuildId, VoiceGuild>;
+    type Value = ArcRw<HashMap<GuildId, ArcRw<VoiceGuild>>>;
 }
