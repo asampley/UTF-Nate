@@ -12,6 +12,7 @@ mod util;
 
 use serenity::client::Client;
 use serenity::framework::standard::StandardFramework;
+use serenity::framework::standard::CommandError;
 use serenity::framework::standard::help_commands;
 use serenity::model::channel::Message;
 use serenity::prelude::Context;
@@ -47,6 +48,7 @@ fn main() {
         StandardFramework::new()
             .configure(|c| c.prefix("!"))
             .before(before_hook)
+    		.after(after_hook)
             .help(help_commands::plain)
             .cmd("u", Unicode)
             .group("voice", |g| g
@@ -107,4 +109,13 @@ fn before_hook(_ctx: &mut Context, msg: &Message, cmd: &str)
         cmd, msg.content);
 
     true
+}
+
+fn after_hook(_ctx: &mut Context, msg: &Message, cmd: &str, res: Result<(), CommandError>) {
+    let guild_name = msg.guild().map(|g| g.read().name.clone());
+
+    println!("User {} ({}) in guild {:?} ({:?}) completed {} with result {:?} with message: {}",
+        msg.author.name, msg.author.id,
+        guild_name, msg.guild_id,
+        cmd, res, msg.content);
 }
