@@ -1,7 +1,3 @@
-extern crate serenity;
-extern crate serde;
-extern crate serde_json;
-
 mod configuration;
 mod handler;
 mod unicode;
@@ -11,22 +7,31 @@ mod cmd;
 mod util;
 
 use serenity::client::Client;
-use serenity::framework::standard::StandardFramework;
-use serenity::framework::standard::CommandError;
-use serenity::framework::standard::help_commands;
+use serenity::framework::standard::{
+    Args,
+    CommandGroup,
+    CommandResult,
+    DispatchError,
+    help_commands,
+    HelpOptions,
+    StandardFramework,
+};
+use serenity::framework::standard::macros::help;
+use serenity::model::id::UserId;
 use serenity::model::channel::Message;
 use serenity::prelude::Context;
 use serenity::prelude::RwLock;
 
+use util::check_msg;
 use handler::Handler;
-use unicode::Unicode;
-use voice::{Join, Leave, Play, Volume, Stop, Intro, Outro, List, BotIntro};
+use unicode::UNICODE_GROUP;
+use voice::VOICE_GROUP;
 use data::{VoiceUserCache, VoiceManager, VoiceGuilds, ConfigResource};
 use configuration::{Config, read_config};
-use cmd::Cmd;
+use cmd::EXTERNAL_GROUP;
 
 use std::sync::Arc;
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::Path;
 
 fn main() {
@@ -35,7 +40,7 @@ fn main() {
         .expect("Error creating client");
 
     {
-        let mut data = client.data.lock();
+        let mut data = client.data.write();
         // create voice manager to handle voice commands
         data.insert::<VoiceManager>(client.voice_manager.clone());
         data.insert::<VoiceUserCache>(Default::default());
@@ -48,25 +53,13 @@ fn main() {
         StandardFramework::new()
             .configure(|c| c.prefix("!"))
             .before(before_hook)
-    		.after(after_hook)
-            .help(help_commands::plain)
-            .cmd("u", Unicode)
-            .group("voice", |g| g
-                .desc("Commands to move the bot to voice channels, play clips, and set intro/outro clips for each user.")
-                .cmd("summon", Join)
-                .cmd("banish", Leave)
-                .cmd("play", Play)
-                .cmd("volume", Volume)
-                .cmd("stop", Stop)
-                .cmd("intro", Intro)
-                .cmd("outro", Outro)
-                .cmd("playlist", List)
-                .cmd("introbot", BotIntro)
-            )
-            .group("external", |g| g
-                .desc("Commands relating to external commands, such as starting a factorio server")
-                .cmd("cmd", Cmd)
-            )
+            .after(after_hook)
+            .help(&HELP)
+            .group(&UNICODE_GROUP)
+            .group(&VOICE_GROUP)
+            .group(&EXTERNAL_GROUP)
+            .unrecognised_command(unrecognised_command)
+            .on_dispatch_error(on_dispatch_error)
     );
 
     if let Err(reason) = client.start() {
@@ -99,10 +92,32 @@ fn load_config() -> Config {
     }
 }
 
-fn before_hook(_ctx: &mut Context, msg: &Message, cmd: &str)
+#[help]
+fn help(
+    ctx: &mut Context,
+    msg: &Message,
+    args: Args,
+    help_options: &'static HelpOptions,
+    groups: &[&'static CommandGroup],
+    owners: HashSet<UserId>
+) -> CommandResult {
+    help_commands::plain(ctx, msg, args, help_options, groups, owners)
+}
+
+fn unrecognised_command(ctx: &mut Context, msg: &Message, cmd: &str) {
+    let guild_name = msg.guild(&ctx.cache).map(|g| g.read().name.clone());
+    check_msg(msg.reply(&ctx, format!("Unrecognised command: {}", cmd)));
+    println!("User {} ({}) in guild {:?} ({:?}) command {} not recognised with message: {}",
+        msg.author.name, msg.author.id,
+        guild_name, msg.guild_id,
+        cmd, msg.content
+    );
+}
+
+fn before_hook(ctx: &mut Context, msg: &Message, cmd: &str)
     -> bool
 {
-    let guild_name = msg.guild().map(|g| g.read().name.clone());
+    let guild_name = msg.guild(&ctx.cache).map(|g| g.read().name.clone());
     println!("User {} ({}) in guild {:?} ({:?}) running {} with message: {}",
         msg.author.name, msg.author.id,
         guild_name, msg.guild_id,
@@ -111,11 +126,28 @@ fn before_hook(_ctx: &mut Context, msg: &Message, cmd: &str)
     true
 }
 
-fn after_hook(_ctx: &mut Context, msg: &Message, cmd: &str, res: Result<(), CommandError>) {
-    let guild_name = msg.guild().map(|g| g.read().name.clone());
+fn after_hook(ctx: &mut Context, msg: &Message, cmd: &str, res: CommandResult) {
+    let guild_name = msg.guild(&ctx.cache).map(|g| g.read().name.clone());
 
     println!("User {} ({}) in guild {:?} ({:?}) completed {} with result {:?} with message: {}",
         msg.author.name, msg.author.id,
         guild_name, msg.guild_id,
         cmd, res, msg.content);
+}
+
+fn on_dispatch_error(ctx: &mut Context, msg: &Message, err: DispatchError) {
+    use DispatchError::*;
+    match err {
+        NotEnoughArguments { min, given } => {
+            let s = format!("Too few arguments. Expected at least {}, but got {}.", min, given);
+
+            let _ = msg.channel_id.say(&ctx.http, &s);
+        },
+        TooManyArguments { max, given } => {
+            let s = format!("Too many arguments. Expected at most {}, but got {}.", max, given);
+
+            let _ = msg.channel_id.say(&ctx.http, &s);
+        },
+        _ => println!("Unhandled dispatch error: {:?}", err),
+    }
 }

@@ -3,7 +3,6 @@ use serenity::prelude::Context;
 use serenity::model::voice::VoiceState;
 use serenity::model::gateway::Ready;
 use serenity::model::id::{UserId, GuildId};
-use serenity::client::CACHE;
 
 use crate::voice::audio_source;
 
@@ -15,45 +14,35 @@ enum IOClip { Intro, Outro }
 
 // implement default event handler
 impl EventHandler for Handler {
-    fn ready(&self, _: Context, _: Ready) {
+    fn ready(&self, ctx: Context, _: Ready) {
         println!("Bot started!");
 
-        println!("Bot info {:?}", serenity::CACHE.read().user);
+        println!("Bot info {:?}", ctx.cache.read().user);
     }
 
-    fn voice_state_update(&self, ctx: Context, guild_id: Option<GuildId>, voice_state: VoiceState) {
+    fn voice_state_update(&self, ctx: Context, guild_id: Option<GuildId>, old_state: Option<VoiceState>, new_state: VoiceState) {
         if let Some(guild_id) = guild_id {
-            let cache_guild = ctx.data.lock()
-                .get::<VoiceUserCache>()
-                .cloned()
-                .expect("Expected VoiceUserCache in ShareMap")
-                .write()
-                .entry(guild_id).or_default()
-                .clone();
-
             let (bot_channel, previous_channel, user_channel) = {
-                let mut cache_lock = cache_guild.write();
+                let cache_guild = ctx.data.read()
+                    .get::<VoiceUserCache>()
+                    .cloned()
+                    .expect("Expected VoiceUserCache in ShareMap")
+                    .write()
+                    .entry(guild_id).or_default()
+                    .clone();
+
+                // update cache if the user is the bot
+                if new_state.user_id == bot_id(&ctx) {
+                    cache_guild.write().insert(bot_id(&ctx), new_state.channel_id);
+                }
+
+                // get the bot's channel
+                let bot_channel = cache_guild.read().get(&bot_id(&ctx)).cloned().flatten();
 
                 // get previous channel for the user
-                let user_channel = cache_lock
-                    .entry(voice_state.user_id)
-                    .or_insert(None);
+                let previous_channel = old_state.map(|s| s.channel_id).flatten();
+                let user_channel = new_state.channel_id;
 
-                // store previous channel and update
-                let previous_channel = *user_channel;
-                *user_channel = voice_state.channel_id;
-                let user_channel = *user_channel;
-
-                // get the bot's channel, which may be updated at this point.
-                let bot_channel = *cache_lock
-                    .entry(bot_id())
-                    .or_insert(None);
-
-                //let bot_channel = if voice_state.user_id == bot_id() {
-                    //user_channel
-                //} else {
-                    //bot_channel
-                //};
 
                 (bot_channel, previous_channel, user_channel)
             };
@@ -71,7 +60,7 @@ impl EventHandler for Handler {
                 };
 
                 let clip = {
-                    let config_arc = ctx.data.lock()
+                    let config_arc = ctx.data.read()
                         .get::<ConfigResource>()
                         .cloned()
                         .expect("Expected ConfigResource in ShareMap")
@@ -79,7 +68,7 @@ impl EventHandler for Handler {
 
                     let config = config_arc.read();
 
-                    if voice_state.user_id == bot_id() {
+                    if new_state.user_id == bot_id(&ctx) {
                         match io {
                             IOClip::Intro => config.guilds
                                 .get(&guild_id)
@@ -92,21 +81,21 @@ impl EventHandler for Handler {
                     } else {
                         match io {
                             IOClip::Intro => config.intros
-                                .get(&voice_state.user_id).map(|s| s.as_str())
+                                .get(&new_state.user_id).map(|s| s.as_str())
                                 .unwrap_or("bnw/cowhappy")
                                 .to_owned(),
                             IOClip::Outro => config.outros
-                                .get(&voice_state.user_id).map(|s| s.as_str())
+                                .get(&new_state.user_id).map(|s| s.as_str())
                                 .unwrap_or("bnw/death")
                                 .to_owned(),
                         }
                     }
                 };
 
-                let manager_lock = ctx.data.lock().get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
+                let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
                 let mut manager = manager_lock.lock();
 
-                let voice_guild_arc = ctx.data.lock().get_mut::<VoiceGuilds>().cloned()
+                let voice_guild_arc = ctx.data.write().get_mut::<VoiceGuilds>().cloned()
                     .expect("Expected VoiceGuilds in ShareMap")
                     .write()
                     .entry(guild_id)
@@ -123,7 +112,7 @@ impl EventHandler for Handler {
                             voice_guild.add_audio(handler.play_returning(source));
                             println!("Playing {} for user ({})",
                                 match io { IOClip::Intro => "intro", IOClip::Outro => "outro" },
-                                voice_state.user_id
+                                new_state.user_id
                             );
                         },
                         Err(reason) => {
@@ -136,6 +125,6 @@ impl EventHandler for Handler {
     }
 }
 
-fn bot_id() -> UserId {
-    CACHE.read().user.id
+fn bot_id(ctx: &Context) -> UserId {
+    ctx.cache.read().user.id
 }
