@@ -37,7 +37,7 @@ pub async fn audio_source(loc: &str) -> serenity::Result<Box<dyn AudioSource>> {
 
 fn get_clip(loc: &str) -> Option<PathBuf> {
     let clip_path = clip_path();
-    let mut play_path = dbg!(clip_path.join(&loc));
+    let mut play_path = clip_path.join(&loc);
 
     for ext in &["mp3", "wav"] {
         play_path.set_extension(ext);

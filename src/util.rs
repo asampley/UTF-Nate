@@ -4,9 +4,9 @@ use serenity::model::channel::Message;
 use std::path::Path;
 
 pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
-    match dbg!(dbg!(sandbox).canonicalize()) {
-        Ok(sandbox) => match dbg!(dbg!(path).canonicalize()) {
-            Ok(path) => path.ancestors().any(|d| d == sandbox) && dbg!(path.exists()),
+    match sandbox.canonicalize() {
+        Ok(sandbox) => match path.canonicalize() {
+            Ok(path) => path.ancestors().any(|d| d == sandbox) && path.exists(),
             Err(_) => false,
         }
         Err(_) => false,
