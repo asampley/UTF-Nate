@@ -1,5 +1,5 @@
 use serenity::prelude::Context;
-use serenity::framework::standard::{Args, CommandResult, CommandError};
+use serenity::framework::standard::{Args, CommandResult};
 use serenity::framework::standard::macros::{command, group};
 use serenity::model::channel::Message;
 use std::num::ParseIntError;
@@ -38,7 +38,7 @@ struct Unicode;
 #[description("Print the characters based on the unicode code point. The code point can be specified in either decimal or hexidecimal (by preceding it with 0x).")]
 #[usage("[codepoint...]")]
 #[example("0x252C 0x2500 0x252C 0x30CE 0x28 0x20 0xBA 0x20 0x5F 0x20 0xBA 0x30CE 0x29")]
-pub fn unicode(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+pub async fn unicode(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let mut chars = Vec::with_capacity(args.len());
     let mut reply = None;
 
@@ -61,8 +61,7 @@ pub fn unicode(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
         reply = Some(chars.into_iter().collect());
     }
 
-    match msg.reply(&ctx, &reply.unwrap()) {
-        Err(err) => Err(CommandError(format!("Unable to send message: {:?}", err))),
-        Ok(_) => Ok(()),
-    }
+    msg.reply(&ctx, &reply.unwrap()).await?;
+
+    Ok(())
 }

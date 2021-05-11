@@ -24,12 +24,12 @@ fn clip_path() -> PathBuf {
     return Path::new("./resources/clips").canonicalize().unwrap();
 }
 
-pub fn audio_source(loc: &str) -> serenity::Result<Box<dyn AudioSource>> {
+pub async fn audio_source(loc: &str) -> serenity::Result<Box<dyn AudioSource>> {
     if loc.starts_with("http") {
-        return voice::ytdl(&loc)
+        return voice::ytdl(&loc).await
     } else {
         match get_clip(&loc) {
-            Some(clip) => voice::ffmpeg(&clip),
+            Some(clip) => voice::ffmpeg(&clip).await,
             None => Err(serenity::Error::Other("Could not find source")),
         }
     }
@@ -37,7 +37,7 @@ pub fn audio_source(loc: &str) -> serenity::Result<Box<dyn AudioSource>> {
 
 fn get_clip(loc: &str) -> Option<PathBuf> {
     let clip_path = clip_path();
-    let mut play_path = clip_path.join(&loc);
+    let mut play_path = dbg!(clip_path.join(&loc));
 
     for ext in &["mp3", "wav"] {
         play_path.set_extension(ext);
@@ -57,35 +57,34 @@ fn valid_clip(path: &Path) -> bool {
 #[command]
 #[help_available]
 #[description("Summon the bot to the voice channel the user is currently in")]
-pub fn summon(ctx: &mut Context, msg: &Message) -> CommandResult {
-    let guild = match msg.guild(&ctx.cache) {
+pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
+    let guild = match msg.guild(&ctx.cache).await {
         Some(guild) => guild,
         None => {
-            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported"));
+            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported").await);
             return Ok(());
         },
     };
 
-    let guild_id = guild.read().id;
+    let guild_id = guild.id;
 
     let channel_id = guild
-        .read()
         .voice_states.get(&msg.author.id)
         .and_then(|voice_state| voice_state.channel_id);
 
     let connect_to = match channel_id {
         Some(channel) => channel,
         None => {
-            check_msg(msg.reply(&ctx, "Not in a voice channel"));
+            check_msg(msg.reply(&ctx, "Not in a voice channel").await);
             return Ok(());
         }
     };
 
-    let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
-    let mut manager = manager_lock.lock();
+    let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
+    let mut manager = manager_lock.lock().await;
 
     if manager.join(guild_id, connect_to).is_none() {
-        check_msg(msg.channel_id.say(&ctx.http, "Error joining the channel"));
+        check_msg(msg.channel_id.say(&ctx.http, "Error joining the channel").await);
     }
 
     Ok(())
@@ -94,25 +93,25 @@ pub fn summon(ctx: &mut Context, msg: &Message) -> CommandResult {
 #[command]
 #[help_available]
 #[description("Remove the bot from the voice channel it is in")]
-pub fn banish(ctx: &mut Context, msg: &Message) -> CommandResult {
-    let guild = match msg.guild(&ctx.cache) {
+pub async fn banish(ctx: &Context, msg: &Message) -> CommandResult {
+    let guild = match msg.guild(&ctx.cache).await {
         Some(guild) => guild,
         None => {
-            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported"));
+            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported").await);
             return Ok(());
         }
     };
 
-    let guild_id = guild.read().id;
+    let guild_id = guild.id;
 
-    let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
-    let mut manager = manager_lock.lock();
+    let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
+    let mut manager = manager_lock.lock().await;
     let has_handler = manager.get(guild_id).is_some();
 
     if has_handler {
         manager.remove(guild_id);
     } else {
-        check_msg(msg.reply(&ctx, "Not in a voice channel"));
+        check_msg(msg.reply(&ctx, "Not in a voice channel").await);
     }
 
     Ok(())
@@ -124,55 +123,55 @@ pub fn banish(ctx: &mut Context, msg: &Message) -> CommandResult {
 #[num_args(1)]
 #[usage("<clip>")]
 #[example("bnw/needoffspring")]
-pub fn play(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+pub async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let loc = match args.single::<String>() {
         Ok(loc) => loc,
         Err(_) => {
-            check_msg(msg.channel_id.say(&ctx.http, "Must provide a source"));
+            check_msg(msg.channel_id.say(&ctx.http, "Must provide a source").await);
             return Ok(())
         },
     };
 
-    let guild = match msg.guild(&ctx.cache) {
+    let guild = match msg.guild(&ctx.cache).await {
         Some(guild) => guild,
         None => {
-            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported"));
+            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported").await);
             return Ok(());
         }
     };
 
-    let guild_id = guild.read().id;
+    let guild_id = guild.id;
 
     {
-        let mut data_lock = ctx.data.write();
+        let mut data_lock = ctx.data.write().await;
 
         let manager_lock = data_lock.get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
-        let mut manager = manager_lock.lock();
+        let mut manager = manager_lock.lock().await;
 
         let voice_guild_arc = data_lock.get_mut::<VoiceGuilds>()
             .cloned()
             .expect("Expected VoiceGuilds in ShareMap")
-            .write()
+            .write().await
             .entry(guild_id)
             .or_default()
             .clone();
 
-        let mut voice_guild = voice_guild_arc.write();
+        let mut voice_guild = voice_guild_arc.write().await;
 
         if let Some(handler) = manager.get_mut(guild_id) {
-            let source = audio_source(&loc);
+            let source = audio_source(&loc).await;
 
             match source {
                 Ok(source) => {
-                    voice_guild.add_audio(handler.play_returning(source));
+                    voice_guild.add_audio(handler.play_returning(source)).await;
                 },
                 Err(reason) => {
                     eprintln!("Error trying to play clip: {:?}", reason);
-                    check_msg(msg.channel_id.say(&ctx.http, "Invalid clip"));
+                    check_msg(msg.channel_id.say(&ctx.http, "Invalid clip").await);
                 }
             }
         } else {
-            check_msg(msg.channel_id.say(&ctx.http, "Not in a voice channel"));
+            check_msg(msg.channel_id.say(&ctx.http, "Not in a voice channel").await);
         }
     }
 
@@ -185,35 +184,35 @@ pub fn play(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
 #[num_args(1)]
 #[usage("<volume>")]
 #[example("0.5")]
-pub fn volume(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let volume = match args.single::<f32>() {
         Ok(volume) => volume,
         Err(_) => {
-            check_msg(msg.channel_id.say(&ctx.http, "Volume must be a valid float between 0.0 and 1.0"));
+            check_msg(msg.channel_id.say(&ctx.http, "Volume must be a valid float between 0.0 and 1.0").await);
             return Ok(());
         }
     };
 
     if volume < 0.0 || volume > 1.0 {
-        check_msg(msg.channel_id.say(&ctx.http, "Volume must be between 0.0 and 1.0"));
+        check_msg(msg.channel_id.say(&ctx.http, "Volume must be between 0.0 and 1.0").await);
         return Ok(());
     }
 
     let guild_id = match msg.guild_id {
         Some(guild_id) => guild_id,
         None => {
-            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported"));
+            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported").await);
             return Ok(());
         }
     };
 
-    ctx.data.write().get_mut::<VoiceGuilds>()
+    ctx.data.write().await.get_mut::<VoiceGuilds>()
         .expect("Expected VoiceGuilds in ShareMap")
-        .write()
-        .entry(guild_id).or_default().clone().write()
-        .set_volume(volume);
+        .write().await
+        .entry(guild_id).or_default().clone().write().await
+        .set_volume(volume).await;
 
-    check_msg(msg.channel_id.say(&ctx.http, format!("Volume set to {}", volume)));
+    check_msg(msg.channel_id.say(&ctx.http, format!("Volume set to {}", volume)).await);
 
     Ok(())
 }
@@ -221,21 +220,21 @@ pub fn volume(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult
 #[command]
 #[help_available]
 #[description("Stop all clips currently being played by the bot")]
-pub fn stop(ctx: &mut Context, msg: &Message) -> CommandResult {
+pub async fn stop(ctx: &Context, msg: &Message) -> CommandResult {
     let guild_id = match msg.guild_id {
         Some(guild_id) => guild_id,
         None => {
-            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported"));
+            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported").await);
             return Ok(());
         }
     };
 
-    ctx.data.write().get_mut::<VoiceGuilds>()
+    ctx.data.write().await.get_mut::<VoiceGuilds>()
         .expect("Expected VoiceGuilds in ShareMap")
-        .write()
+        .write().await
         .entry(guild_id).or_default()
-        .clone().write()
-        .clear_audios();
+        .clone().write().await
+        .clear_audios().await;
 
     Ok(())
 }
@@ -246,9 +245,9 @@ pub fn stop(ctx: &mut Context, msg: &Message) -> CommandResult {
 #[num_args(1)]
 #[usage("<clip>")]
 #[example("bnw/angels")]
-pub fn intro(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
+pub async fn intro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     if args.len() != 1 {
-        check_msg(msg.channel_id.say(&ctx.http, "Expected exactly one clip"));
+        check_msg(msg.channel_id.say(&ctx.http, "Expected exactly one clip").await);
         return Ok(());
     }
 
@@ -256,19 +255,19 @@ pub fn intro(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
     match get_clip(clip_str) {
         Some(_) => (),
         None => {
-            check_msg(msg.channel_id.say(&ctx.http, "Invalid clip"));
+            check_msg(msg.channel_id.say(&ctx.http, "Invalid clip").await);
             return Ok(());
         }
     }
 
     let user_id = msg.author.id;
 
-    let mut data_lock = ctx.data.write();
+    let mut data_lock = ctx.data.write().await;
     let config_arc = data_lock.get_mut::<ConfigResource>()
         .expect("Expected ConfigResource in ShareMap")
         .clone();
 
-    let mut config = config_arc.write();
+    let mut config = config_arc.write().await;
 
     config.intros.insert(user_id, clip_str.to_string());
 
@@ -280,7 +279,7 @@ pub fn intro(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
         }
     }
 
-    check_msg(msg.channel_id.say(&ctx.http, "Set new intro"));
+    check_msg(msg.channel_id.say(&ctx.http, "Set new intro").await);
     Ok(())
 }
 
@@ -290,16 +289,16 @@ pub fn intro(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
 #[num_args(1)]
 #[usage("<clip>")]
 #[example("bnw/angels")]
-pub fn introbot(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
+pub async fn introbot(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     if args.len() != 1 {
-        check_msg(msg.channel_id.say(&ctx.http, "Expected exactly one clip"));
+        check_msg(msg.channel_id.say(&ctx.http, "Expected exactly one clip").await);
         return Ok(());
     }
 
     let guild_id = match msg.guild_id {
         Some(guild_id) => guild_id,
         None => {
-            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported"));
+            check_msg(msg.channel_id.say(&ctx.http, "Groups and DMs not supported").await);
             return Ok(());
         }
     };
@@ -308,17 +307,17 @@ pub fn introbot(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
     match get_clip(clip_str) {
         Some(_) => (),
         None => {
-            check_msg(msg.channel_id.say(&ctx.http, "Invalid clip"));
+            check_msg(msg.channel_id.say(&ctx.http, "Invalid clip").await);
             return Ok(());
         }
     }
 
-    let mut data_lock = ctx.data.write();
+    let mut data_lock = ctx.data.write().await;
     let config_arc = data_lock.get_mut::<ConfigResource>()
         .expect("Expected ConfigResource in ShareMap")
         .clone();
 
-    let mut config = config_arc.write();
+    let mut config = config_arc.write().await;
 
     config.guilds
         .entry(guild_id)
@@ -333,7 +332,7 @@ pub fn introbot(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
         }
     }
 
-    check_msg(msg.channel_id.say(&ctx.http, "Set new intro"));
+    check_msg(msg.channel_id.say(&ctx.http, "Set new intro").await);
     Ok(())
 }
 
@@ -343,9 +342,9 @@ pub fn introbot(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
 #[num_args(1)]
 #[usage("<clip>")]
 #[example("bnw/death")]
-pub fn outro(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
+pub async fn outro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     if args.len() != 1 {
-        check_msg(msg.channel_id.say(&ctx.http, "Expected exactly one clip"));
+        check_msg(msg.channel_id.say(&ctx.http, "Expected exactly one clip").await);
         return Ok(());
     }
 
@@ -353,19 +352,19 @@ pub fn outro(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
     match get_clip(clip_str) {
         Some(_) => (),
         None => {
-            check_msg(msg.channel_id.say(&ctx.http, "Invalid clip"));
+            check_msg(msg.channel_id.say(&ctx.http, "Invalid clip").await);
             return Ok(());
         }
     };
 
     let user_id = msg.author.id;
 
-    let mut data_lock = ctx.data.write();
+    let mut data_lock = ctx.data.write().await;
     let config_arc = data_lock.get_mut::<ConfigResource>()
         .expect("Expected ConfigResource in ShareMap")
         .clone();
 
-    let mut config = config_arc.write();
+    let mut config = config_arc.write().await;
 
     config.outros.insert(user_id, clip_str.to_string());
 
@@ -377,7 +376,7 @@ pub fn outro(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
         }
     }
 
-    check_msg(msg.channel_id.say(&ctx.http, "Set new outro"));
+    check_msg(msg.channel_id.say(&ctx.http, "Set new outro").await);
     Ok(())
 }
 
@@ -388,9 +387,9 @@ pub fn outro(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
 #[max_args(1)]
 #[usage("[section]")]
 #[example("bnw")]
-pub fn playlist(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
+pub async fn playlist(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     if args.len() > 1 {
-        check_msg(msg.channel_id.say(&ctx.http, "Expected at most one path to be specified"));
+        check_msg(msg.channel_id.say(&ctx.http, "Expected at most one path to be specified").await);
         return Ok(());
     }
 
@@ -406,20 +405,20 @@ pub fn playlist(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
     let dir = match dir.canonicalize() {
         Ok(dir) => dir,
         Err(_reason) => {
-            check_msg(msg.channel_id.say(&ctx.http, "Invalid directory"));
+            check_msg(msg.channel_id.say(&ctx.http, "Invalid directory").await);
             return Ok(());
         }
     };
 
     if !sandboxed_exists(&clip_path(), &dir) {
-        check_msg(msg.channel_id.say(&ctx.http, "Invalid directory"));
+        check_msg(msg.channel_id.say(&ctx.http, "Invalid directory").await);
         return Ok(());
     }
 
     match read_dir(dir) {
         Err(reason) => {
             eprintln!("Unable to read directory: {:?}", reason);
-            check_msg(msg.channel_id.say(&ctx.http, "Invalid directory"));
+            check_msg(msg.channel_id.say(&ctx.http, "Invalid directory").await);
             return Ok(());
         }
         Ok(dir_iter) => {
@@ -439,7 +438,7 @@ pub fn playlist(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
                 "```\n".to_owned()
                 + &message
                 + "\n```"
-            ));
+            ).await);
         }
     }
 

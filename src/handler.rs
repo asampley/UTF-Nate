@@ -1,8 +1,9 @@
+use serenity::async_trait;
 use serenity::prelude::EventHandler;
 use serenity::prelude::Context;
 use serenity::model::voice::VoiceState;
 use serenity::model::gateway::Ready;
-use serenity::model::id::{UserId, GuildId};
+use serenity::model::id::GuildId;
 
 use crate::voice::audio_source;
 
@@ -13,31 +14,34 @@ pub struct Handler;
 enum IOClip { Intro, Outro }
 
 // implement default event handler
+#[async_trait]
 impl EventHandler for Handler {
-    fn ready(&self, ctx: Context, _: Ready) {
+    async fn ready(&self, ctx: Context, _: Ready) {
         println!("Bot started!");
 
-        println!("Bot info {:?}", ctx.cache.read().user);
+        println!("Bot info {:?}", ctx.cache.current_user_id().await);
     }
 
-    fn voice_state_update(&self, ctx: Context, guild_id: Option<GuildId>, old_state: Option<VoiceState>, new_state: VoiceState) {
+    async fn voice_state_update(&self, ctx: Context, guild_id: Option<GuildId>, old_state: Option<VoiceState>, new_state: VoiceState) {
         if let Some(guild_id) = guild_id {
             let (bot_channel, previous_channel, user_channel) = {
-                let cache_guild = ctx.data.read()
+                let cache_guild = ctx.data.read().await
                     .get::<VoiceUserCache>()
                     .cloned()
                     .expect("Expected VoiceUserCache in ShareMap")
-                    .write()
+                    .write().await
                     .entry(guild_id).or_default()
                     .clone();
 
+                let bot_id = ctx.cache.current_user_id().await;
+
                 // update cache if the user is the bot
-                if new_state.user_id == bot_id(&ctx) {
-                    cache_guild.write().insert(bot_id(&ctx), new_state.channel_id);
+                if new_state.user_id == bot_id {
+                    cache_guild.write().await.insert(bot_id, new_state.channel_id);
                 }
 
                 // get the bot's channel
-                let bot_channel = cache_guild.read().get(&bot_id(&ctx)).cloned().flatten();
+                let bot_channel = cache_guild.read().await.get(&bot_id).cloned().flatten();
 
                 // get previous channel for the user
                 let previous_channel = old_state.map(|s| s.channel_id).flatten();
@@ -60,15 +64,15 @@ impl EventHandler for Handler {
                 };
 
                 let clip = {
-                    let config_arc = ctx.data.read()
+                    let config_arc = ctx.data.read().await
                         .get::<ConfigResource>()
                         .cloned()
                         .expect("Expected ConfigResource in ShareMap")
                         .clone();
 
-                    let config = config_arc.read();
+                    let config = config_arc.read().await;
 
-                    if new_state.user_id == bot_id(&ctx) {
+                    if new_state.user_id == ctx.cache.current_user_id().await {
                         match io {
                             IOClip::Intro => config.guilds
                                 .get(&guild_id)
@@ -92,24 +96,24 @@ impl EventHandler for Handler {
                     }
                 };
 
-                let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
-                let mut manager = manager_lock.lock();
+                let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
+                let mut manager = manager_lock.lock().await;
 
-                let voice_guild_arc = ctx.data.write().get_mut::<VoiceGuilds>().cloned()
+                let voice_guild_arc = ctx.data.write().await.get_mut::<VoiceGuilds>().cloned()
                     .expect("Expected VoiceGuilds in ShareMap")
-                    .write()
+                    .write().await
                     .entry(guild_id)
                     .or_default()
                     .clone();
 
-                let mut voice_guild = voice_guild_arc.write();
+                let mut voice_guild = voice_guild_arc.write().await;
 
                 if let Some(handler) = manager.get_mut(guild_id) {
-                    let source = audio_source(&clip);
+                    let source = audio_source(&clip).await;
 
                     match source {
                         Ok(source) => {
-                            voice_guild.add_audio(handler.play_returning(source));
+                            voice_guild.add_audio(handler.play_returning(source)).await;
                             println!("Playing {} for user ({})",
                                 match io { IOClip::Intro => "intro", IOClip::Outro => "outro" },
                                 new_state.user_id
@@ -123,8 +127,4 @@ impl EventHandler for Handler {
             }
         }
     }
-}
-
-fn bot_id(ctx: &Context) -> UserId {
-    ctx.cache.read().user.id
 }

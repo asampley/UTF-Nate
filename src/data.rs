@@ -34,27 +34,38 @@ impl TypeMapKey for ConfigResource {
 }
 
 impl VoiceGuild {
-    pub fn add_audio(&mut self, audio: LockedAudio) {
-        self.clean_audios();
-        audio.lock().volume(self.volume);
+    pub async fn add_audio(&mut self, audio: LockedAudio) {
+        self.clean_audios().await;
+        audio.lock().await.volume(self.volume);
         self.audios.push(audio);
     }
 
-    pub fn set_volume(&mut self, volume: f32) {
+    pub async fn set_volume(&mut self, volume: f32) {
         self.volume = volume;
-        self.audios.iter().for_each(|audio| { audio.lock().volume(volume); });
+        for audio in &self.audios {
+            audio.lock().await.volume(volume);
+        }
     }
 
-    pub fn volume(&self) -> f32 {
+    pub async fn volume(&self) -> f32 {
         self.volume
     }
 
-    pub fn clear_audios(&mut self) {
-        self.audios.drain(..).for_each(|audio| { audio.lock().volume(0.0); });
+    pub async fn clear_audios(&mut self) {
+        for audio in self.audios.drain(..) {
+            audio.lock().await.volume(0.0);
+        }
     }
 
-    fn clean_audios(&mut self) {
-        self.audios.retain(|audio| !audio.lock().finished);
+    async fn clean_audios(&mut self) {
+        let mut i = 0;
+        while i != self.audios.len() {
+            if !self.audios[i].lock().await.finished {
+                self.audios.remove(i);
+            } else {
+                i += 1;
+            }
+        }
     }
 }
 

@@ -7,11 +7,16 @@ edition = "2018"
 [dependencies]
 serde_json = "1.0"
 itertools = "0.8"
+futures = "0.3"
 
 [dependencies.serde]
 version = "1.0"
 features = ["derive"]
 
 [dependencies.serenity]
-version = "0.8"
+version = "0.9"
 features = ["builder", "cache", "client", "framework", "gateway", "http", "model", "standard_framework", "utils", "rustls_backend", "voice"]
+
+[dependencies.tokio]
+version = "0.2"
+features = ["macros"]
