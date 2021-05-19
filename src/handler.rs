@@ -1,130 +1,172 @@
 use serenity::async_trait;
-use serenity::prelude::EventHandler;
-use serenity::prelude::Context;
-use serenity::model::voice::VoiceState;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
+use serenity::model::voice::VoiceState;
+use serenity::prelude::Context;
+use serenity::prelude::EventHandler;
+
+use songbird::SongbirdKey;
 
 use crate::voice::audio_source;
 
-use crate::data::{VoiceGuilds, VoiceUserCache, VoiceManager, ConfigResource};
+use crate::data::{ConfigResource, VoiceGuilds, VoiceUserCache};
 
 pub struct Handler;
 
-enum IOClip { Intro, Outro }
+enum IOClip {
+	Intro,
+	Outro,
+}
 
 // implement default event handler
 #[async_trait]
 impl EventHandler for Handler {
-    async fn ready(&self, ctx: Context, _: Ready) {
-        println!("Bot started!");
+	async fn ready(&self, ctx: Context, _: Ready) {
+		println!("Bot started!");
 
-        println!("Bot info {:?}", ctx.cache.current_user_id().await);
-    }
+		println!("Bot info {:?}", ctx.cache.current_user_id().await);
+	}
 
-    async fn voice_state_update(&self, ctx: Context, guild_id: Option<GuildId>, old_state: Option<VoiceState>, new_state: VoiceState) {
-        if let Some(guild_id) = guild_id {
-            let (bot_channel, previous_channel, user_channel) = {
-                let cache_guild = ctx.data.read().await
-                    .get::<VoiceUserCache>()
-                    .cloned()
-                    .expect("Expected VoiceUserCache in ShareMap")
-                    .write().await
-                    .entry(guild_id).or_default()
-                    .clone();
+	async fn voice_state_update(
+		&self,
+		ctx: Context,
+		guild_id: Option<GuildId>,
+		old_state: Option<VoiceState>,
+		new_state: VoiceState,
+	) {
+		if let Some(guild_id) = guild_id {
+			let (bot_channel, previous_channel, user_channel) = {
+				let cache_guild = ctx
+					.data
+					.read()
+					.await
+					.get::<VoiceUserCache>()
+					.cloned()
+					.expect("Expected VoiceUserCache in ShareMap")
+					.write()
+					.await
+					.entry(guild_id)
+					.or_default()
+					.clone();
 
-                let bot_id = ctx.cache.current_user_id().await;
+				let bot_id = ctx.cache.current_user_id().await;
 
-                // update cache if the user is the bot
-                if new_state.user_id == bot_id {
-                    cache_guild.write().await.insert(bot_id, new_state.channel_id);
-                }
+				// update cache if the user is the bot
+				if new_state.user_id == bot_id {
+					cache_guild
+						.write()
+						.await
+						.insert(bot_id, new_state.channel_id);
+				}
 
-                // get the bot's channel
-                let bot_channel = cache_guild.read().await.get(&bot_id).cloned().flatten();
+				// get the bot's channel
+				let bot_channel = cache_guild.read().await.get(&bot_id).cloned().flatten();
 
-                // get previous channel for the user
-                let previous_channel = old_state.map(|s| s.channel_id).flatten();
-                let user_channel = new_state.channel_id;
+				// get previous channel for the user
+				let previous_channel = old_state.map(|s| s.channel_id).flatten();
+				let user_channel = new_state.channel_id;
 
+				(bot_channel, previous_channel, user_channel)
+			};
 
-                (bot_channel, previous_channel, user_channel)
-            };
+			if bot_channel != None {
+				let io = if user_channel == previous_channel {
+					return;
+				} else if user_channel == bot_channel {
+					IOClip::Intro
+				} else if previous_channel == bot_channel {
+					IOClip::Outro
+				} else {
+					return;
+				};
 
-            if bot_channel != None {
+				let clip = {
+					let config_arc = ctx
+						.data
+						.read()
+						.await
+						.get::<ConfigResource>()
+						.cloned()
+						.expect("Expected ConfigResource in ShareMap")
+						.clone();
 
-                let io = if user_channel == previous_channel {
-                    return;
-                } else if user_channel == bot_channel {
-                    IOClip::Intro
-                } else if previous_channel == bot_channel {
-                    IOClip::Outro
-                } else {
-                    return;
-                };
+					let config = config_arc.read().await;
 
-                let clip = {
-                    let config_arc = ctx.data.read().await
-                        .get::<ConfigResource>()
-                        .cloned()
-                        .expect("Expected ConfigResource in ShareMap")
-                        .clone();
+					if new_state.user_id == ctx.cache.current_user_id().await {
+						match io {
+							IOClip::Intro => config
+								.guilds
+								.get(&guild_id)
+								.and_then(|gc| gc.bot_intro.as_ref())
+								.map(|s| s.as_str())
+								.unwrap_or("dota/bothello")
+								.to_owned(),
+							IOClip::Outro => return,
+						}
+					} else {
+						match io {
+							IOClip::Intro => config
+								.intros
+								.get(&new_state.user_id)
+								.map(|s| s.as_str())
+								.unwrap_or("bnw/cowhappy")
+								.to_owned(),
+							IOClip::Outro => config
+								.outros
+								.get(&new_state.user_id)
+								.map(|s| s.as_str())
+								.unwrap_or("bnw/death")
+								.to_owned(),
+						}
+					}
+				};
 
-                    let config = config_arc.read().await;
+				let songbird = ctx
+					.data
+					.read()
+					.await
+					.get::<SongbirdKey>()
+					.cloned()
+					.expect("Expected SongbirdKey in ShareMap");
 
-                    if new_state.user_id == ctx.cache.current_user_id().await {
-                        match io {
-                            IOClip::Intro => config.guilds
-                                .get(&guild_id)
-                                .and_then(|gc| gc.bot_intro.as_ref())
-                                .map(|s| s.as_str())
-                                .unwrap_or("dota/bothello")
-                                .to_owned(),
-                            IOClip::Outro => return,
-                        }
-                    } else {
-                        match io {
-                            IOClip::Intro => config.intros
-                                .get(&new_state.user_id).map(|s| s.as_str())
-                                .unwrap_or("bnw/cowhappy")
-                                .to_owned(),
-                            IOClip::Outro => config.outros
-                                .get(&new_state.user_id).map(|s| s.as_str())
-                                .unwrap_or("bnw/death")
-                                .to_owned(),
-                        }
-                    }
-                };
+				let voice_guild_arc = ctx
+					.data
+					.write()
+					.await
+					.get_mut::<VoiceGuilds>()
+					.cloned()
+					.expect("Expected VoiceGuilds in ShareMap")
+					.write()
+					.await
+					.entry(guild_id)
+					.or_default()
+					.clone();
 
-                let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("Expected VoiceManager in ShareMap");
-                let mut manager = manager_lock.lock().await;
+				let mut voice_guild = voice_guild_arc.write().await;
 
-                let voice_guild_arc = ctx.data.write().await.get_mut::<VoiceGuilds>().cloned()
-                    .expect("Expected VoiceGuilds in ShareMap")
-                    .write().await
-                    .entry(guild_id)
-                    .or_default()
-                    .clone();
+				if let Some(call) = songbird.get(guild_id) {
+					let source = audio_source(&clip).await;
 
-                let mut voice_guild = voice_guild_arc.write().await;
-
-                if let Some(handler) = manager.get_mut(guild_id) {
-                    let source = audio_source(&clip).await;
-
-                    match source {
-                        Ok(source) => {
-                            voice_guild.add_audio(handler.play_returning(source)).await;
-                            println!("Playing {} for user ({})",
-                                match io { IOClip::Intro => "intro", IOClip::Outro => "outro" },
-                                new_state.user_id
-                            );
-                        },
-                        Err(reason) => {
-                            eprintln!("Error trying to intro clip: {:?}", reason);
-                        }
-                    }
-                }
-            }
-        }
-    }
+					match source {
+						Ok(source) => {
+							voice_guild
+								.add_audio(call.lock().await.play_source(source))
+								.expect("Error playing source");
+							println!(
+								"Playing {} for user ({})",
+								match io {
+									IOClip::Intro => "intro",
+									IOClip::Outro => "outro",
+								},
+								new_state.user_id
+							);
+						}
+						Err(reason) => {
+							eprintln!("Error trying to intro clip: {:?}", reason);
+						}
+					}
+				}
+			}
+		}
+	}
 }

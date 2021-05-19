@@ -1,32 +1,34 @@
-use serenity::prelude::Context;
-use serenity::framework::standard::{Args, CommandResult};
 use serenity::framework::standard::macros::{command, group};
+use serenity::framework::standard::{Args, CommandResult};
 use serenity::model::channel::Message;
+use serenity::prelude::Context;
+
 use std::num::ParseIntError;
 
+use crate::util::check_msg;
+
 enum ParseCodeError {
-    ParseIntError(ParseIntError),
-    InvalidCode(u32),
+	ParseIntError(ParseIntError),
+	InvalidCode(u32),
 }
 
 fn parse_code(string: &str) -> Result<char, ParseCodeError> {
-    use ParseCodeError::*;
+	use ParseCodeError::*;
 
-    let code = if string.starts_with("0x") {
-        u32::from_str_radix(&string[2..], 16)
-    } else {
-        u32::from_str_radix(string, 10)
-    };
+	let code = if string.starts_with("0x") {
+		u32::from_str_radix(&string[2..], 16)
+	} else {
+		u32::from_str_radix(string, 10)
+	};
 
-    match code {
-        Err(parse_error) => Err(ParseIntError(parse_error)),
-        Ok(c) => match std::char::from_u32(c) {
-            None => Err(InvalidCode(c)),
-            Some(c) => Ok(c),
-        }
-    }
+	match code {
+		Err(parse_error) => Err(ParseIntError(parse_error)),
+		Ok(c) => match std::char::from_u32(c) {
+			None => Err(InvalidCode(c)),
+			Some(c) => Ok(c),
+		},
+	}
 }
-
 #[group("unicode")]
 #[description("Some fun with unicode")]
 #[commands(unicode)]
@@ -39,29 +41,29 @@ struct Unicode;
 #[usage("[codepoint...]")]
 #[example("0x252C 0x2500 0x252C 0x30CE 0x28 0x20 0xBA 0x20 0x5F 0x20 0xBA 0x30CE 0x29")]
 pub async fn unicode(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let mut chars = Vec::with_capacity(args.len());
-    let mut reply = None;
+	let mut chars = Vec::with_capacity(args.len());
+	let mut reply = None;
 
-    for arg in args.iter::<String>() {
-        let code_str = arg.unwrap();
-        let code = parse_code(&code_str);
+	for arg in args.iter::<String>() {
+		let code_str = arg.unwrap();
+		let code = parse_code(&code_str);
 
-        let c = match code {
-            Err(_) => {
-                reply = Some(format!("Invalid character code: {}", code_str));
-                break;
-            },
-            Ok(c) => c,
-        };
+		let c = match code {
+			Err(_) => {
+				reply = Some(format!("Invalid character code: {}", code_str));
+				break;
+			}
+			Ok(c) => c,
+		};
 
-        chars.push(c);
-    }
+		chars.push(c);
+	}
 
-    if reply.is_none() {
-        reply = Some(chars.into_iter().collect());
-    }
+	if reply.is_none() {
+		reply = Some(chars.into_iter().collect());
+	}
 
-    msg.reply(&ctx, &reply.unwrap()).await?;
+	check_msg(msg.reply(&ctx, &reply.unwrap()).await);
 
-    Ok(())
+	Ok(())
 }
