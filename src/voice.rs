@@ -18,7 +18,7 @@ use crate::util::*;
 
 #[group("voice")]
 #[description("Commands to move the bot to voice channels and play clips.")]
-#[commands(summon, banish, playnow, queue, volume, stop, playlist)]
+#[commands(summon, banish, playnow, queue, volume, stop, skip, playlist)]
 pub struct Voice;
 
 pub fn clip_path() -> PathBuf {
@@ -375,6 +375,37 @@ pub async fn stop(ctx: &Context, msg: &Message) -> CommandResult {
 	if let Some(call) = songbird.get(guild_id) {
 		call.lock().await.stop()
 	}
+
+	Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+#[help_available]
+#[description("Skip the current song in the queue")]
+pub async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
+	let guild_id = match msg.guild_id {
+		Some(guild_id) => guild_id,
+		None => {
+			msg.channel_id
+				.say(&ctx.http, "Groups and DMs not supported")
+				.await?;
+			return Ok(());
+		}
+	};
+
+	ctx
+		.data
+		.write()
+		.await
+		.get::<SongbirdKey>()
+		.cloned()
+		.expect("Expected SongbirdKey in ShareMap")
+		.get_or_insert(guild_id.into())
+		.lock()
+		.await
+		.queue()
+		.skip()?;
 
 	Ok(())
 }
