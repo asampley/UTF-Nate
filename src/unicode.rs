@@ -5,8 +5,6 @@ use serenity::prelude::Context;
 
 use std::num::ParseIntError;
 
-use crate::util::check_msg;
-
 enum ParseCodeError {
 	ParseIntError(ParseIntError),
 	InvalidCode(u32),
@@ -63,7 +61,7 @@ pub async fn unicode(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
 		reply = Some(chars.into_iter().collect());
 	}
 
-	check_msg(msg.reply(&ctx, &reply.unwrap()).await);
+	msg.reply(&ctx, &reply.unwrap()).await?;
 
 	Ok(())
 }

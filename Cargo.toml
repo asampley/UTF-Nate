@@ -24,4 +24,4 @@ features = ["macros", "rt-multi-thread"]
 
 [dependencies.songbird]
 version = "0.1"
-features = ["driver"]
+features = ["driver", "builtin-queue"]

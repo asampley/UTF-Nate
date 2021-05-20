@@ -142,7 +142,7 @@ async fn on_dispatch_error(ctx: &Context, msg: &Message, err: DispatchError) {
 				min, given
 			);
 
-			let _ = msg.channel_id.say(&ctx.http, &s);
+			check_msg(msg.channel_id.say(&ctx.http, &s).await);
 		}
 		TooManyArguments { max, given } => {
 			let s = format!(
@@ -150,7 +150,14 @@ async fn on_dispatch_error(ctx: &Context, msg: &Message, err: DispatchError) {
 				max, given
 			);
 
-			let _ = msg.channel_id.say(&ctx.http, &s);
+			check_msg(msg.channel_id.say(&ctx.http, &s).await);
+		}
+		OnlyForGuilds => {
+			check_msg(
+				msg.channel_id
+					.say(&ctx.http, "This command is only available in guilds")
+					.await,
+			);
 		}
 		_ => println!("Unhandled dispatch error: {:?}", err),
 	}
