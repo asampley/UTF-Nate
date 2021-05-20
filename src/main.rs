@@ -5,6 +5,7 @@ mod handler;
 mod unicode;
 mod util;
 mod voice;
+mod herald;
 
 use serenity::client::Client;
 use serenity::framework::standard::macros::{help, hook};
@@ -22,6 +23,7 @@ use cmd::EXTERNAL_GROUP;
 use configuration::{read_config, Config};
 use data::{ConfigResource, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
+use herald::HERALD_GROUP;
 use unicode::UNICODE_GROUP;
 use util::check_msg;
 use voice::VOICE_GROUP;
@@ -44,6 +46,7 @@ async fn main() {
 				.help(&HELP)
 				.group(&UNICODE_GROUP)
 				.group(&VOICE_GROUP)
+				.group(&HERALD_GROUP)
 				.group(&EXTERNAL_GROUP)
 				.unrecognised_command(unrecognised_command)
 				.on_dispatch_error(on_dispatch_error),

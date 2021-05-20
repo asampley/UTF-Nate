@@ -3,6 +3,7 @@ use serenity::futures::channel::mpsc;
 use serenity::model::id::{ChannelId, GuildId, UserId};
 use serenity::prelude::{RwLock, TypeMapKey};
 
+use songbird::error::TrackError;
 use songbird::tracks::TrackHandle;
 
 use uuid::Uuid;
@@ -63,20 +64,16 @@ impl VoiceGuild {
 	pub fn set_volume(&mut self, volume: f32) -> songbird::error::TrackResult<()> {
 		self.volume = volume;
 		for audio in &self.audios {
-			audio.set_volume(volume)?;
+			match audio.set_volume(volume) {
+				Ok(_) | Err(TrackError::Finished) => (),
+				Err(e) => return Err(e),
+			}
 		}
 		Ok(())
 	}
 
 	pub fn volume(&self) -> f32 {
 		self.volume
-	}
-
-	pub fn clear_audios(&mut self) -> songbird::error::TrackResult<()> {
-		for audio in self.audios.drain(..) {
-			audio.stop()?;
-		}
-		Ok(())
 	}
 
 	fn clean_audios(&mut self) {

@@ -27,7 +27,9 @@ pub async fn cmd(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 	let command = match args.single::<String>() {
 		Ok(command) => cmd_path().join(&command),
 		Err(_) => {
-            msg.channel_id.say(&ctx.http, "Must provide a command").await?;
+			msg.channel_id
+				.say(&ctx.http, "Must provide a command")
+				.await?;
 			return Ok(());
 		}
 	};
@@ -49,7 +51,9 @@ pub async fn cmd(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 			println!("Output of command: {}", message);
 		}
 		Err(reason) => {
-            msg.channel_id.say(&ctx.http, "Error executing command").await?;
+			msg.channel_id
+				.say(&ctx.http, "Error executing command")
+				.await?;
 			eprintln!("Error executing command: {:?}", reason);
 			return Ok(());
 		}
