@@ -7,9 +7,9 @@ use serenity::prelude::EventHandler;
 
 use songbird::SongbirdKey;
 
-use crate::voice::audio_source;
-
 use crate::data::{ConfigResource, VoiceGuilds, VoiceUserCache};
+use crate::voice::audio_source;
+use crate::util::*;
 
 pub struct Handler;
 
@@ -40,9 +40,7 @@ impl EventHandler for Handler {
 					.data
 					.read()
 					.await
-					.get::<VoiceUserCache>()
-					.cloned()
-					.expect("Expected VoiceUserCache in ShareMap")
+					.clone_expect::<VoiceUserCache>()
 					.write()
 					.await
 					.entry(guild_id)
@@ -85,10 +83,7 @@ impl EventHandler for Handler {
 						.data
 						.read()
 						.await
-						.get::<ConfigResource>()
-						.cloned()
-						.expect("Expected ConfigResource in ShareMap")
-						.clone();
+						.clone_expect::<ConfigResource>();
 
 					let config = config_arc.read().await;
 
@@ -125,17 +120,13 @@ impl EventHandler for Handler {
 					.data
 					.read()
 					.await
-					.get::<SongbirdKey>()
-					.cloned()
-					.expect("Expected SongbirdKey in ShareMap");
+					.clone_expect::<SongbirdKey>();
 
 				let voice_guild_arc = ctx
 					.data
 					.write()
 					.await
-					.get_mut::<VoiceGuilds>()
-					.cloned()
-					.expect("Expected VoiceGuilds in ShareMap")
+					.clone_expect::<VoiceGuilds>()
 					.write()
 					.await
 					.entry(guild_id)

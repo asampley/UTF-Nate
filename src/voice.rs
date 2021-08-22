@@ -8,6 +8,7 @@ use songbird::input::Input;
 use songbird::tracks::create_player;
 use songbird::SongbirdKey;
 
+use std::fmt;
 use std::fs::read_dir;
 use std::path::{Path, PathBuf};
 
@@ -42,6 +43,14 @@ impl From<serenity::Error> for AudioError {
 		AudioError::Serenity(e)
 	}
 }
+
+impl fmt::Display for AudioError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		fmt::Debug::fmt(self, f)
+	}
+}
+
+impl std::error::Error for AudioError {}
 
 pub async fn audio_source(loc: &str) -> Result<Input, AudioError> {
 	Ok(if loc.starts_with("http") {
@@ -78,16 +87,7 @@ fn valid_clip(path: &Path) -> bool {
 #[help_available]
 #[description("Summon the bot to the voice channel the user is currently in")]
 pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
-	let guild = match msg.guild(&ctx.cache).await {
-		Some(guild) => guild,
-		None => {
-			msg.channel_id
-				.say(&ctx.http, "Groups and DMs not supported")
-				.await?;
-			return Ok(());
-		}
-	};
-
+	let guild = msg_guild_or_say(ctx, msg).await?;
 	let guild_id = guild.id;
 
 	let channel_id = guild
@@ -95,31 +95,15 @@ pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
 		.get(&msg.author.id)
 		.and_then(|voice_state| voice_state.channel_id);
 
-	let connect_to = match channel_id {
-		Some(channel) => channel,
-		None => {
-			msg.reply(&ctx, "Not in a voice channel").await?;
-			return Ok(());
-		}
-	};
+	let connect_to = channel_id.or_err_say(ctx, msg, "Not in a voice channel").await?;
 
 	let songbird = ctx
 		.data
 		.read()
 		.await
-		.get::<SongbirdKey>()
-		.cloned()
-		.expect("Expected SongbirdKey in ShareMap");
+		.clone_expect::<SongbirdKey>();
 
-	match songbird.join(guild_id, connect_to).await {
-		(_, Err(e)) => {
-			msg.channel_id
-				.say(&ctx.http, "Error joining the channel")
-				.await?;
-			return Err(e.into());
-		}
-		_ => (),
-	}
+	songbird.join(guild_id, connect_to).await.1.or_say(ctx, msg, "Error joining the channel").await??;
 
 	Ok(())
 }
@@ -129,25 +113,13 @@ pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
 #[help_available]
 #[description("Remove the bot from the voice channel it is in")]
 pub async fn banish(ctx: &Context, msg: &Message) -> CommandResult {
-	let guild = match msg.guild(&ctx.cache).await {
-		Some(guild) => guild,
-		None => {
-			msg.channel_id
-				.say(&ctx.http, "Groups and DMs not supported")
-				.await?;
-			return Ok(());
-		}
-	};
-
-	let guild_id = guild.id;
+	let guild_id = msg_guild_id_or_say(ctx, msg).await?;
 
 	let songbird = ctx
 		.data
 		.read()
 		.await
-		.get::<SongbirdKey>()
-		.cloned()
-		.expect("Expected SongbirdKey in ShareMap");
+		.clone_expect::<SongbirdKey>();
 
 	songbird.remove(guild_id).await?;
 
@@ -189,40 +161,18 @@ async fn play_generic(
 	mut args: Args,
 	play_type: PlayType,
 ) -> CommandResult {
-	let loc = match args.single::<String>() {
-		Ok(loc) => loc,
-		Err(_) => {
-			msg.channel_id
-				.say(&ctx.http, "Must provide a source")
-				.await?;
-			return Ok(());
-		}
-	};
+	let loc = args.single::<String>().or_err_say(ctx, msg, "Must provide a source").await?;
 
-	let guild = match msg.guild(&ctx.cache).await {
-		Some(guild) => guild,
-		None => {
-			msg.channel_id
-				.say(&ctx.http, "Groups and DMs not supported")
-				.await?;
-			return Ok(());
-		}
-	};
-
-	let guild_id = guild.id;
+	let guild_id = msg_guild_id_or_say(ctx, msg).await?;
 
 	{
-		let mut data_lock = ctx.data.write().await;
+		let data_lock = ctx.data.read().await;
 
 		let songbird = data_lock
-			.get::<SongbirdKey>()
-			.cloned()
-			.expect("Expected SongbirdKey in ShareMap");
+			.clone_expect::<SongbirdKey>();
 
 		let voice_guild_arc = data_lock
-			.get_mut::<VoiceGuilds>()
-			.cloned()
-			.expect("Expected VoiceGuilds in ShareMap")
+			.clone_expect::<VoiceGuilds>()
 			.write()
 			.await
 			.entry(guild_id)
@@ -232,26 +182,18 @@ async fn play_generic(
 		let mut voice_guild = voice_guild_arc.write().await;
 
 		if let Some(call) = songbird.get(guild_id) {
-			let source = audio_source(&loc).await;
+			let source = audio_source(&loc).await.or_err_say(ctx, msg, "Invalid clip").await?;
 
-			match source {
-				Ok(source) => {
-					let (mut track, handle) = create_player(source);
-					track.set_volume(voice_guild.volume());
+			let (mut track, handle) = create_player(source);
+			track.set_volume(voice_guild.volume());
 
-					match play_type {
-						PlayType::PlayNow => {
-							call.lock().await.play(track);
-							voice_guild.add_audio(handle)?;
-						}
-						PlayType::Queue => {
-							call.lock().await.enqueue(track);
-						}
-					}
+			match play_type {
+				PlayType::PlayNow => {
+					call.lock().await.play(track);
+					voice_guild.add_audio(handle)?;
 				}
-				Err(reason) => {
-					eprintln!("Error trying to play clip: {:?}", reason);
-					msg.channel_id.say(&ctx.http, "Invalid clip").await?;
+				PlayType::Queue => {
+					call.lock().await.enqueue(track);
 				}
 			}
 		} else {
@@ -272,18 +214,7 @@ async fn play_generic(
 #[usage("<volume>")]
 #[example("0.5")]
 pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-	let volume = match args.single::<f32>() {
-		Ok(volume) => volume,
-		Err(_) => {
-			msg.channel_id
-				.say(
-					&ctx.http,
-					"Volume must be a valid float between 0.0 and 1.0",
-				)
-				.await?;
-			return Ok(());
-		}
-	};
+	let volume = args.single::<f32>().or_err_say(ctx, msg, "Volume must be a valid float between 0.0 and 1.0").await?;
 
 	if volume < 0.0 || volume > 1.0 {
 		msg.channel_id
@@ -292,38 +223,24 @@ pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResu
 		return Ok(());
 	}
 
-	let guild_id = match msg.guild_id {
-		Some(guild_id) => guild_id,
-		None => {
-			msg.channel_id
-				.say(&ctx.http, "Groups and DMs not supported")
-				.await?;
-			return Ok(());
-		}
-	};
+	let guild_id = msg_guild_id_or_say(ctx, msg).await?;
 
-	let mut data_lock = ctx.data.write().await;
+	let data_lock = ctx.data.read().await;
 
-	let songbird = data_lock
-		.get::<SongbirdKey>()
-		.cloned()
-		.expect("Expected SongbirdKey in ShareMap");
+	let songbird = data_lock.clone_expect::<SongbirdKey>();
 
 	for handle in songbird.get_or_insert(guild_id.into()).lock().await.queue().current_queue() {
-		match handle.set_volume(volume) {
-			Ok(_) | Err(TrackError::Finished) => (),
-			Err(e) => {
-				msg.channel_id
-					.say(&ctx.http, "Error setting volume.")
-					.await?;
-				return Err(e.into());
-			}
-		}
+		handle.set_volume(volume).err().filter(|e| e == &TrackError::Finished)
+			.and_err_say(
+				ctx,
+				msg,
+				"Error setting volume"
+			).await?;
 	}
 
-	match data_lock
-		.get_mut::<VoiceGuilds>()
-		.expect("Expected VoiceGuilds in ShareMap")
+
+	data_lock
+		.clone_expect::<VoiceGuilds>()
 		.write()
 		.await
 		.entry(guild_id)
@@ -332,19 +249,10 @@ pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResu
 		.write()
 		.await
 		.set_volume(volume)
-	{
-		Ok(_) => {
-			msg.channel_id
-				.say(&ctx.http, format!("Volume set to {}", volume))
-				.await?;
-		}
-		Err(e) => {
-			msg.channel_id
-				.say(&ctx.http, "Error setting volume.")
-				.await?;
-			return Err(e.into());
-		}
-	}
+		.and_say(ctx, msg, format!("Volume set to {}", volume))
+		.await?
+		.or_say(ctx, msg, "Error setting volume")
+		.await??;
 
 	Ok(())
 }
@@ -354,27 +262,17 @@ pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResu
 #[help_available]
 #[description("Stop all clips currently being played by the bot")]
 pub async fn stop(ctx: &Context, msg: &Message) -> CommandResult {
-	let guild_id = match msg.guild_id {
-		Some(guild_id) => guild_id,
-		None => {
-			msg.channel_id
-				.say(&ctx.http, "Groups and DMs not supported")
-				.await?;
-			return Ok(());
-		}
-	};
+	let guild_id = msg_guild_id_or_say(ctx, msg).await?;
 
-	let songbird = ctx
+	ctx
 		.data
 		.write()
 		.await
-		.get::<SongbirdKey>()
-		.cloned()
-		.expect("Expected SongbirdKey in ShareMap");
-
-	if let Some(call) = songbird.get(guild_id) {
-		call.lock().await.stop()
-	}
+		.clone_expect::<SongbirdKey>()
+		.get_or_insert(guild_id.into())
+		.lock()
+		.await
+		.stop();
 
 	Ok(())
 }
@@ -384,23 +282,13 @@ pub async fn stop(ctx: &Context, msg: &Message) -> CommandResult {
 #[help_available]
 #[description("Skip the current song in the queue")]
 pub async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
-	let guild_id = match msg.guild_id {
-		Some(guild_id) => guild_id,
-		None => {
-			msg.channel_id
-				.say(&ctx.http, "Groups and DMs not supported")
-				.await?;
-			return Ok(());
-		}
-	};
+	let guild_id = msg_guild_id_or_say(ctx, msg).await?;
 
 	ctx
 		.data
 		.write()
 		.await
-		.get::<SongbirdKey>()
-		.cloned()
-		.expect("Expected SongbirdKey in ShareMap")
+		.clone_expect::<SongbirdKey>()
 		.get_or_insert(guild_id.into())
 		.lock()
 		.await
