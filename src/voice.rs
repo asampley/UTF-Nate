@@ -2,6 +2,8 @@ use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{Args, CommandResult};
 use serenity::model::channel::Message;
+use serenity::model::prelude::{UserId, GuildId};
+use serenity::model::interactions::application_command::ApplicationCommandInteraction;
 
 use songbird::error::TrackError;
 use songbird::input::Input;
@@ -82,20 +84,26 @@ fn valid_clip(path: &Path) -> bool {
 	sandboxed_exists(&clip_path(), &path)
 }
 
-#[command]
-#[only_in(guilds)]
-#[help_available]
-#[description("Summon the bot to the voice channel the user is currently in")]
-pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
-	let guild = msg_guild_or_say(ctx, msg).await?;
-	let guild_id = guild.id;
+async fn summon_generic(ctx: &Context, guild_id: Option<GuildId>, user_id: UserId) -> String {
+	let guild_id = match guild_id {
+		Some(guild_id) => guild_id,
+		None => return "This command is only available in guilds".to_string(),
+	};
+
+	let guild = match guild_id.to_guild_cached(&ctx.cache).await {
+		Some(guild) => guild,
+		None => return "Internal bot error".to_string(),
+	};
 
 	let channel_id = guild
 		.voice_states
-		.get(&msg.author.id)
+		.get(&user_id)
 		.and_then(|voice_state| voice_state.channel_id);
 
-	let connect_to = channel_id.or_err_say(ctx, msg, "Not in a voice channel").await?;
+	let connect_to = match channel_id {
+		Some(channel_id) => channel_id,
+		None => return "Not in a voice channel".to_string(),
+	};
 
 	let songbird = ctx
 		.data
@@ -103,9 +111,58 @@ pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
 		.await
 		.clone_expect::<SongbirdKey>();
 
-	songbird.join(guild_id, connect_to).await.1.or_say(ctx, msg, "Error joining the channel").await??;
+	match songbird.join(guild_id, connect_to).await.1 {
+		Ok(()) => "Joined channel",
+		Err(_) => "Error joining the channel",
+	}.to_string()
+}
+
+pub async fn summon_interaction(
+	ctx: &Context,
+	interaction: &ApplicationCommandInteraction,
+) -> serenity::Result<()> {
+	interaction.respond_str(&ctx, summon_generic(ctx, interaction.guild_id, interaction.user.id).await).await
+}
+
+#[command]
+#[only_in(guilds)]
+#[help_available]
+#[description("Summon the bot to the voice channel the user is currently in")]
+pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
+	msg.channel_id.say(&ctx.http, summon_generic(ctx, msg.guild_id, msg.author.id).await).await?;
 
 	Ok(())
+}
+
+async fn banish_generic(ctx: &Context, guild_id: Option<GuildId>) -> String {
+	let guild_id = match guild_id {
+		Some(guild_id) => guild_id,
+		None => return "This command is only available in guilds".to_string(),
+	};
+
+	let songbird = ctx
+		.data
+		.read()
+		.await
+		.clone_expect::<SongbirdKey>();
+
+	{
+		use songbird::error::JoinError::*;
+		match songbird.remove(guild_id).await {
+			Ok(()) => "Left voice channel",
+			Err(e) => match e {
+				NoCall => "Not in a voice channel",
+				_ => "Internal bot error",
+			}
+		}.to_string()
+	}
+}
+
+pub async fn banish_interaction(
+	ctx: &Context,
+	interaction: &ApplicationCommandInteraction,
+) -> serenity::Result<()> {
+	interaction.respond_str(&ctx, banish_generic(ctx, interaction.guild_id).await).await
 }
 
 #[command]
@@ -113,15 +170,7 @@ pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
 #[help_available]
 #[description("Remove the bot from the voice channel it is in")]
 pub async fn banish(ctx: &Context, msg: &Message) -> CommandResult {
-	let guild_id = msg_guild_id_or_say(ctx, msg).await?;
-
-	let songbird = ctx
-		.data
-		.read()
-		.await
-		.clone_expect::<SongbirdKey>();
-
-	songbird.remove(guild_id).await?;
+	msg.channel_id.say(&ctx.http, banish_generic(ctx, msg.guild_id).await).await?;
 
 	Ok(())
 }
@@ -209,7 +258,7 @@ async fn play_generic(
 #[command]
 #[only_in(guilds)]
 #[help_available]
-#[description("Stop all clips currently being played by the bot")]
+#[description("Change volume of bot")]
 #[num_args(1)]
 #[usage("<volume>")]
 #[example("0.5")]

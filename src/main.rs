@@ -36,7 +36,12 @@ use std::sync::Arc;
 async fn main() {
 	// login with a bot token from an environment variable
 	let mut client = Client::builder(&read_token().expect("Token could not be read"))
-		.event_handler(Handler)
+		.application_id(
+			read_application_id()
+				.expect("Application id could not be read")
+				.trim().parse()
+				.expect("Application id could not be parsed")
+		).event_handler(Handler)
 		.framework(
 			// create a framework to process message commands
 			StandardFramework::new()
@@ -65,6 +70,10 @@ async fn main() {
 
 fn read_token() -> std::io::Result<String> {
 	std::fs::read_to_string("token")
+}
+
+fn read_application_id() -> std::io::Result<String> {
+	std::fs::read_to_string("application_id")
 }
 
 fn load_config() -> Config {

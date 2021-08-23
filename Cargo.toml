@@ -16,7 +16,7 @@ features = ["derive"]
 
 [dependencies.serenity]
 version = "0.10"
-features = ["builder", "cache", "client", "framework", "gateway", "http", "model", "standard_framework", "utils", "rustls_backend", "voice"]
+features = ["builder", "cache", "client", "framework", "gateway", "http", "model", "standard_framework", "utils", "rustls_backend", "unstable_discord_api", "voice"]
 
 [dependencies.tokio]
 version = "1.0"

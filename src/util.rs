@@ -2,7 +2,7 @@ use serenity::async_trait;
 use serenity::client::Context;
 use serenity::model::channel::Message;
 use serenity::model::id::GuildId;
-use serenity::model::prelude::Guild;
+use serenity::model::interactions::application_command::ApplicationCommandInteraction;
 use serenity::prelude::{ TypeMap, TypeMapKey };
 
 use std::fmt;
@@ -34,6 +34,25 @@ impl fmt::Display for UtilError {
 }
 
 impl std::error::Error for UtilError {}
+
+#[async_trait]
+pub trait Respond {
+	async fn respond_str<T>(&self, ctx: &Context, text: T) -> serenity::Result<()> where
+		T: Send + Sync + AsRef<str>;
+}
+
+#[async_trait]
+impl Respond for ApplicationCommandInteraction {
+	async fn respond_str<T>(&self, ctx: &Context, text: T) -> serenity::Result<()> where
+		T: Send + Sync + AsRef<str>
+	{
+		self.create_interaction_response(&ctx.http, |response|
+			response.interaction_response_data(|data|
+				data.content(text.as_ref())
+			)
+		).await
+	}
+}
 
 #[async_trait]
 pub trait Say: Sized {
@@ -207,10 +226,6 @@ pub fn check_msg(result: serenity::Result<Message>) {
 	if let Err(reason) = result {
 		eprintln!("Error sending message: {:?}", reason);
 	}
-}
-
-pub async fn msg_guild_or_say(ctx: &Context, msg: &Message) -> Result<Guild, UtilError> {
-	msg.guild(&ctx.cache).await.or_err_say(ctx, msg, "This command is only available in guilds").await
 }
 
 pub async fn msg_guild_id_or_say(ctx: &Context, msg: &Message) -> Result<GuildId, UtilError> {

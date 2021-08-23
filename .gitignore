@@ -4,5 +4,8 @@
 # conveniently store your bot token in this file
 token
 
+# store the application id in this file
+application_id
+
 # persistent configuration stored here
 config.json
