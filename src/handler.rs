@@ -1,8 +1,5 @@
 use serenity::async_trait;
-use serenity::model::interactions::application_command::{
-	ApplicationCommand,
-	ApplicationCommandOptionType,
-};
+use serenity::model::interactions::application_command::ApplicationCommand;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
 use serenity::model::voice::VoiceState;
@@ -13,8 +10,20 @@ use serenity::prelude::EventHandler;
 use songbird::SongbirdKey;
 
 use crate::data::{ConfigResource, VoiceGuilds, VoiceUserCache};
-use crate::herald::{IntroOutroMode, intro_outro_interaction, introbot_interaction};
-use crate::voice::{audio_source, summon_interaction, banish_interaction};
+use crate::herald::{
+	IntroOutroMode,
+	intro_outro_interaction, intro_interaction_create, outro_interaction_create,
+	introbot_interaction, introbot_interaction_create,
+};
+use crate::voice::{
+	audio_source,
+	summon_interaction, summon_interaction_create,
+	banish_interaction, banish_interaction_create,
+	list_interaction, list_interaction_create,
+	soundboard_interaction, soundboard_interaction_create, sb_interaction_create,
+	queue_interaction, queue_interaction_create,
+	volume_interaction, volume_interaction_create,
+};
 use crate::util::*;
 
 pub struct Handler;
@@ -32,60 +41,22 @@ impl EventHandler for Handler {
 
 		println!("Bot info {:?}", ctx.cache.current_user_id().await);
 
-		let commands = ApplicationCommand::set_global_application_commands(
+		ApplicationCommand::set_global_application_commands(
 			&ctx.http,
 			|commands| {
 				commands
-					.create_application_command(|command| {
-						command
-							.name("intro")
-							.description("Set the clip to be played when you enter the channel containing the bot")
-							.create_option(|option|
-								option
-									.name("clip")
-									.description("Clip path to play when you enter a channel")
-									.kind(ApplicationCommandOptionType::String)
-									.required(true)
-							)
-					})
-					.create_application_command(|command| {
-						command
-							.name("outro")
-							.description("Set the clip to be played when you exit the channel containing the bot")
-							.create_option(|option|
-								option
-									.name("clip")
-									.description("Clip path to play when you exit a channel")
-									.kind(ApplicationCommandOptionType::String)
-									.required(true)
-							)
-					})
-					.create_application_command(|command| {
-						command
-							.name("introbot")
-							.description("Set the clip to be played when the bot enters a channel in this guild")
-							.create_option(|option|
-								option
-									.name("clip")
-									.description("Clip path to play when the bot enters a channel in this guild")
-									.kind(ApplicationCommandOptionType::String)
-									.required(true)
-							)
-					})
-					.create_application_command(|command| {
-						command
-							.name("summon")
-							.description("Summon the bot to your current voice channel")
-					})
-					.create_application_command(|command| {
-						command
-							.name("banish")
-							.description("Banish the bot from its current voice channel")
-					})
+					.create_application_command(intro_interaction_create)
+					.create_application_command(outro_interaction_create)
+					.create_application_command(introbot_interaction_create)
+					.create_application_command(summon_interaction_create)
+					.create_application_command(banish_interaction_create)
+					.create_application_command(list_interaction_create)
+					.create_application_command(soundboard_interaction_create)
+					.create_application_command(sb_interaction_create)
+					.create_application_command(queue_interaction_create)
+					.create_application_command(volume_interaction_create)
 			}
-		).await;
-
-		println!("Loaded global slash commands: {:#?}", commands);
+		).await.unwrap();
 
 		println!("{:#?}", ApplicationCommand::get_global_application_commands(&ctx.http).await);
 	}
@@ -98,7 +69,12 @@ impl EventHandler for Handler {
 				"introbot" => introbot_interaction(&ctx, &command).await,
 				"summon" => summon_interaction(&ctx, &command).await,
 				"banish" => banish_interaction(&ctx, &command).await,
-				_ => Ok(()),
+				"list" => list_interaction(&ctx, &command).await,
+				"soundboard" => soundboard_interaction(&ctx, &command).await,
+				"sb" => soundboard_interaction(&ctx, &command).await,
+				"queue" => queue_interaction(&ctx, &command).await,
+				"volume" => volume_interaction(&ctx, &command).await,
+				_ => command.respond_str(&ctx, "Unknown command").await,
 			}.expect("Unexpected serenity error");
 		}
 	}

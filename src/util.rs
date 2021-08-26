@@ -8,6 +8,16 @@ use serenity::prelude::{ TypeMap, TypeMapKey };
 use std::fmt;
 use std::path::Path;
 
+#[macro_use]
+macro_rules! unwrap_or_ret {
+	( $e:expr, $f:expr ) => {
+		match $e {
+			Some(x) => x,
+			None => return $f,
+		}
+	}
+}
+
 #[derive(Debug)]
 pub enum UtilError {
 	Serenity(serenity::Error),

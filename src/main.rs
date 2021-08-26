@@ -3,7 +3,7 @@ mod configuration;
 mod data;
 mod handler;
 mod unicode;
-mod util;
+#[macro_use] mod util;
 mod voice;
 mod herald;
 
