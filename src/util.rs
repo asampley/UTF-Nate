@@ -1,7 +1,6 @@
 use serenity::async_trait;
 use serenity::client::Context;
 use serenity::model::channel::Message;
-use serenity::model::id::GuildId;
 use serenity::model::interactions::application_command::ApplicationCommandInteraction;
 use serenity::prelude::{ TypeMap, TypeMapKey };
 
@@ -49,6 +48,16 @@ impl std::error::Error for UtilError {}
 pub trait Respond {
 	async fn respond_str<T>(&self, ctx: &Context, text: T) -> serenity::Result<()> where
 		T: Send + Sync + AsRef<str>;
+}
+
+#[async_trait]
+impl Respond for Message {
+	async fn respond_str<T>(&self, ctx: &Context, text: T) -> serenity::Result<()> where
+		T: Send + Sync + AsRef<str>
+	{
+		self.channel_id.say(&ctx.http, text.as_ref()).await?;
+		Ok(())
+	}
 }
 
 #[async_trait]
@@ -236,10 +245,6 @@ pub fn check_msg(result: serenity::Result<Message>) {
 	if let Err(reason) = result {
 		eprintln!("Error sending message: {:?}", reason);
 	}
-}
-
-pub async fn msg_guild_id_or_say(ctx: &Context, msg: &Message) -> Result<GuildId, UtilError> {
-	msg.guild_id.or_err_say(ctx, msg, "This command is only available in guilds").await
 }
 
 #[async_trait]

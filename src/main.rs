@@ -16,8 +16,11 @@ use serenity::model::channel::Message;
 use serenity::model::id::UserId;
 use serenity::prelude::Context;
 use serenity::prelude::RwLock;
+use serenity::prelude::TypeMapKey;
 
 use songbird::serenity::SerenityInit;
+
+use structopt::StructOpt;
 
 use cmd::EXTERNAL_GROUP;
 use configuration::{read_config, Config};
@@ -32,8 +35,23 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
+#[derive(Debug, StructOpt)]
+struct Opt {
+	#[structopt(long, help = "Reregister slash commands with discord")]
+	reregister: bool,
+
+	#[structopt(long, short, help = "Run command with additional logging")]
+	verbose: bool,
+}
+
+impl TypeMapKey for Opt {
+	type Value = Arc<Self>;
+}
+
 #[tokio::main]
 async fn main() {
+	let opt = Opt::from_args();
+
 	// login with a bot token from an environment variable
 	let mut client = Client::builder(&read_token().expect("Token could not be read"))
 		.application_id(
@@ -56,6 +74,7 @@ async fn main() {
 				.unrecognised_command(unrecognised_command)
 				.on_dispatch_error(on_dispatch_error),
 		)
+		.type_map_insert::<Opt>(Arc::new(opt))
 		.type_map_insert::<VoiceUserCache>(Default::default())
 		.type_map_insert::<VoiceGuilds>(Default::default())
 		.type_map_insert::<ConfigResource>(Arc::new(RwLock::new(load_config())))

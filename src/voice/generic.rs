@@ -208,3 +208,42 @@ pub async fn volume(
 		Err(_) => "Error setting volume".to_string(),
 	}
 }
+
+pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> String {
+	let guild_id = unwrap_or_ret!(guild_id, "This command is only available in guilds".to_string());
+
+	ctx
+		.data
+		.write()
+		.await
+		.clone_expect::<SongbirdKey>()
+		.get_or_insert(guild_id.into())
+		.lock()
+		.await
+		.stop();
+	
+	"Cleared queue and stopped playing".to_string()
+}
+
+pub async fn skip(ctx: &Context, guild_id: Option<GuildId>) -> String {
+	let guild_id = unwrap_or_ret!(guild_id, "This command is only available in guilds".to_string());
+
+	match ctx
+		.data
+		.write()
+		.await
+		.clone_expect::<SongbirdKey>()
+		.get_or_insert(guild_id.into())
+		.lock()
+		.await
+		.queue()
+		.skip()
+	{
+		Ok(_) => "Skipping current clip".to_string(),
+		Err(e) => {
+			eprintln!("{:?}", e);
+			"Error skipping clip".to_string()
+		}
+	}
+
+}

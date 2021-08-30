@@ -9,6 +9,7 @@ use serenity::prelude::EventHandler;
 
 use songbird::SongbirdKey;
 
+use crate::Opt;
 use crate::data::{ConfigResource, VoiceGuilds, VoiceUserCache};
 use crate::herald::{
 	IntroOutroMode,
@@ -20,9 +21,11 @@ use crate::voice::{
 	summon_interaction, summon_interaction_create,
 	banish_interaction, banish_interaction_create,
 	list_interaction, list_interaction_create,
-	soundboard_interaction, soundboard_interaction_create, sb_interaction_create,
-	queue_interaction, queue_interaction_create,
+	clip_interaction, clip_interaction_create,
+	play_interaction, play_interaction_create,
 	volume_interaction, volume_interaction_create,
+	stop_interaction, stop_interaction_create,
+	skip_interaction, skip_interaction_create,
 };
 use crate::util::*;
 
@@ -41,24 +44,40 @@ impl EventHandler for Handler {
 
 		println!("Bot info {:?}", ctx.cache.current_user_id().await);
 
-		ApplicationCommand::set_global_application_commands(
-			&ctx.http,
-			|commands| {
-				commands
-					.create_application_command(intro_interaction_create)
-					.create_application_command(outro_interaction_create)
-					.create_application_command(introbot_interaction_create)
-					.create_application_command(summon_interaction_create)
-					.create_application_command(banish_interaction_create)
-					.create_application_command(list_interaction_create)
-					.create_application_command(soundboard_interaction_create)
-					.create_application_command(sb_interaction_create)
-					.create_application_command(queue_interaction_create)
-					.create_application_command(volume_interaction_create)
-			}
-		).await.unwrap();
+		if ctx.data.read().await.clone_expect::<Opt>().reregister {
+			println!("Reregistering slash commands");
 
-		println!("{:#?}", ApplicationCommand::get_global_application_commands(&ctx.http).await);
+			let commands = ctx.http.get_global_application_commands().await.unwrap();
+
+			for command in commands {
+				ctx.http.delete_global_application_command(command.id.into()).await.unwrap();
+			}
+
+			ApplicationCommand::set_global_application_commands(
+				&ctx.http,
+				|commands| {
+					commands
+						.create_application_command(intro_interaction_create)
+						.create_application_command(outro_interaction_create)
+						.create_application_command(introbot_interaction_create)
+						.create_application_command(summon_interaction_create)
+						.create_application_command(banish_interaction_create)
+						.create_application_command(list_interaction_create)
+						.create_application_command(clip_interaction_create)
+						.create_application_command(play_interaction_create)
+						.create_application_command(volume_interaction_create)
+						.create_application_command(stop_interaction_create)
+						.create_application_command(skip_interaction_create)
+				}
+			).await.unwrap();
+
+			if ctx.data.read().await.clone_expect::<Opt>().verbose { 
+				println!(
+					"Registered slash commands: {:#?}",
+					ApplicationCommand::get_global_application_commands(&ctx.http).await,
+				);
+			}
+		}
 	}
 
 	async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
@@ -70,10 +89,11 @@ impl EventHandler for Handler {
 				"summon" => summon_interaction(&ctx, &command).await,
 				"banish" => banish_interaction(&ctx, &command).await,
 				"list" => list_interaction(&ctx, &command).await,
-				"soundboard" => soundboard_interaction(&ctx, &command).await,
-				"sb" => soundboard_interaction(&ctx, &command).await,
-				"queue" => queue_interaction(&ctx, &command).await,
+				"clip" => clip_interaction(&ctx, &command).await,
+				"play" => play_interaction(&ctx, &command).await,
 				"volume" => volume_interaction(&ctx, &command).await,
+				"stop" => stop_interaction(&ctx, &command).await,
+				"skip" => skip_interaction(&ctx, &command).await,
 				_ => command.respond_str(&ctx, "Unknown command").await,
 			}.expect("Unexpected serenity error");
 		}

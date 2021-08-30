@@ -11,7 +11,6 @@ use serenity::model::interactions::application_command::{
 };
 
 use songbird::input::Input;
-use songbird::SongbirdKey;
 
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -22,7 +21,7 @@ mod generic;
 
 #[group("voice")]
 #[description("Commands to move the bot to voice channels and play clips.")]
-#[commands(summon, banish, soundboard, queue, volume, stop, skip, list)]
+#[commands(summon, banish, clip, play, volume, stop, skip, list)]
 pub struct Voice;
 
 pub fn clip_path() -> PathBuf {
@@ -134,14 +133,13 @@ pub fn banish_interaction_create(
 }
 
 #[command]
-#[aliases(sb)]
 #[only_in(guilds)]
 #[help_available]
 #[description("Play the specified clip immediately")]
 #[num_args(1)]
 #[usage("<clip>")]
 #[example("bnw/needoffspring")]
-pub async fn soundboard(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let path = args.current();
 
 	msg.channel_id.say(
@@ -152,7 +150,7 @@ pub async fn soundboard(ctx: &Context, msg: &Message, args: Args) -> CommandResu
 	Ok(())
 }
 
-pub async fn soundboard_interaction(
+pub async fn clip_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
@@ -163,7 +161,7 @@ pub async fn soundboard_interaction(
 		Some(Value::String(clip)) => Some(clip.as_str()),
 		None => None,
 		Some(_) => {
-			eprintln!("Error in soundboard interaction expecting string argument");
+			eprintln!("Error in clip interaction expecting string argument");
 			return interaction.respond_str(&ctx, "Internal bot error").await;
 		}
 	};
@@ -174,23 +172,10 @@ pub async fn soundboard_interaction(
 	).await
 }
 
-pub fn soundboard_interaction_create(
+pub fn clip_interaction_create(
 	command: &mut CreateApplicationCommand
 ) -> &mut CreateApplicationCommand {
-	command.name("soundboard")
-		.description("Play the specified clip immediately")
-		.create_option(|option|
-			option
-				.name("clip")
-				.description("Clip to play")
-				.kind(ApplicationCommandOptionType::String)
-		)
-}
-
-pub fn sb_interaction_create(
-	command: &mut CreateApplicationCommand
-) -> &mut CreateApplicationCommand {
-	command.name("sb")
+	command.name("clip")
 		.description("Play the specified clip immediately")
 		.create_option(|option|
 			option
@@ -208,7 +193,7 @@ pub fn sb_interaction_create(
 #[num_args(1)]
 #[usage("<clip>")]
 #[example("bnw/needoffspring")]
-pub async fn queue(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let path = args.current();
 
 	msg.channel_id.say(
@@ -219,7 +204,7 @@ pub async fn queue(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	Ok(())
 }
 
-pub async fn queue_interaction(
+pub async fn play_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
@@ -230,7 +215,7 @@ pub async fn queue_interaction(
 		Some(Value::String(clip)) => Some(clip.as_str()),
 		None => None,
 		Some(_) => {
-			eprintln!("Error in soundboard interaction expecting string argument");
+			eprintln!("Error in play interaction expecting string argument");
 			return interaction.respond_str(&ctx, "Internal bot error").await;
 		}
 	};
@@ -241,11 +226,11 @@ pub async fn queue_interaction(
 	).await
 }
 
-pub fn queue_interaction_create(
+pub fn play_interaction_create(
 	command: &mut CreateApplicationCommand
 ) -> &mut CreateApplicationCommand {
-	command.name("queue")
-		.description("Add the specified clip to the queue")
+	command.name("play")
+		.description("Add the specified clip to the play")
 		.create_option(|option|
 			option
 				.name("clip")
@@ -264,7 +249,7 @@ pub fn queue_interaction_create(
 pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let volume = args.single::<f32>().or_err_say(ctx, msg, "Volume must be a valid float between 0.0 and 1.0").await?;
 
-	generic::volume(ctx, msg.guild_id, Some(volume)).await;
+	msg.channel_id.say(&ctx.http, generic::volume(ctx, msg.guild_id, Some(volume)).await).await?;
 
 	Ok(())
 }
@@ -309,19 +294,26 @@ pub fn volume_interaction_create(
 #[help_available]
 #[description("Stop all clips currently being played by the bot")]
 pub async fn stop(ctx: &Context, msg: &Message) -> CommandResult {
-	let guild_id = msg_guild_id_or_say(ctx, msg).await?;
-
-	ctx
-		.data
-		.write()
-		.await
-		.clone_expect::<SongbirdKey>()
-		.get_or_insert(guild_id.into())
-		.lock()
-		.await
-		.stop();
+	msg.channel_id.say(&ctx.http, generic::stop(ctx, msg.guild_id).await).await?;
 
 	Ok(())
+}
+
+pub async fn stop_interaction(
+	ctx: &Context,
+	interaction: &ApplicationCommandInteraction,
+) -> serenity::Result<()> {
+	interaction.respond_str(
+		ctx,
+		generic::stop(ctx, interaction.guild_id).await,
+	).await
+}
+
+pub fn stop_interaction_create(
+	command: &mut CreateApplicationCommand
+) -> &mut CreateApplicationCommand {
+	command.name("stop")
+		.description("Stop all clips currently being played by the bot")
 }
 
 #[command]
@@ -329,20 +321,26 @@ pub async fn stop(ctx: &Context, msg: &Message) -> CommandResult {
 #[help_available]
 #[description("Skip the current song in the queue")]
 pub async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
-	let guild_id = msg_guild_id_or_say(ctx, msg).await?;
-
-	ctx
-		.data
-		.write()
-		.await
-		.clone_expect::<SongbirdKey>()
-		.get_or_insert(guild_id.into())
-		.lock()
-		.await
-		.queue()
-		.skip()?;
+	msg.channel_id.say(&ctx.http, generic::skip(ctx, msg.guild_id).await).await?;
 
 	Ok(())
+}
+
+pub async fn skip_interaction(
+	ctx: &Context,
+	interaction: &ApplicationCommandInteraction,
+) -> serenity::Result<()> {
+	interaction.respond_str(
+		ctx,
+		generic::skip(ctx, interaction.guild_id).await,
+	).await
+}
+
+pub fn skip_interaction_create(
+	command: &mut CreateApplicationCommand
+) -> &mut CreateApplicationCommand {
+	command.name("skip")
+		.description("Skip the current song in the queue")
 }
 
 #[command]
