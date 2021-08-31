@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 use serenity::model::id::{GuildId, UserId};
+use serenity::prelude::TypeMapKey;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
+
+use crate::data::ArcRw;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Config {
@@ -14,6 +17,11 @@ pub struct Config {
 #[derive(Default, Serialize, Deserialize)]
 pub struct GuildConfig {
 	pub bot_intro: Option<String>,
+	pub volume: Option<f32>,
+}
+
+impl TypeMapKey for Config {
+	type Value = ArcRw<Config>;
 }
 
 pub enum Result<T> {

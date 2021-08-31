@@ -1,3 +1,5 @@
+use once_cell::sync::Lazy;
+
 use serde_json::value::Value;
 
 use serenity::builder::CreateApplicationCommand;
@@ -9,6 +11,7 @@ use serenity::model::interactions::application_command::{
 	ApplicationCommandInteraction,
 	ApplicationCommandOptionType,
 };
+use regex::Regex;
 
 use songbird::input::Input;
 
@@ -18,6 +21,10 @@ use std::path::{Path, PathBuf};
 use crate::util::*;
 
 mod generic;
+
+static YOUTUBE: Lazy<Regex> = Lazy::new(|| {
+	Regex::new("^https?://(www\\.youtube\\.com|youtu.be)/").unwrap()
+});
 
 #[group("voice")]
 #[description("Commands to move the bot to voice channels and play clips.")]
@@ -55,7 +62,7 @@ impl fmt::Display for AudioError {
 impl std::error::Error for AudioError {}
 
 pub async fn audio_source(loc: &str) -> Result<Input, AudioError> {
-	Ok(if loc.starts_with("http") {
+	Ok(if YOUTUBE.is_match(loc) {
 		songbird::ytdl(&loc).await?
 	} else {
 		match get_clip(&loc) {
@@ -182,6 +189,7 @@ pub fn clip_interaction_create(
 				.name("clip")
 				.description("Clip to play")
 				.kind(ApplicationCommandOptionType::String)
+				.required(true)
 		)
 }
 
@@ -236,6 +244,7 @@ pub fn play_interaction_create(
 				.name("clip")
 				.description("Clip to play")
 				.kind(ApplicationCommandOptionType::String)
+				.required(true)
 		)
 }
 
@@ -286,6 +295,7 @@ pub fn volume_interaction_create(
 				.name("volume")
 				.description("Volume between 0.0 and 1.0")
 				.kind(ApplicationCommandOptionType::Number)
+				.required(true)
 		)
 }
 

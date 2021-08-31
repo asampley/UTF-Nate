@@ -14,8 +14,8 @@ use std::path::Path;
 
 use crate::configuration;
 use crate::configuration::write_config;
-use crate::data::ConfigResource;
-use crate::util::Respond;
+use crate::configuration::Config;
+use crate::util::{GetExpect, Respond};
 use crate::voice::get_clip;
 
 mod generic;
@@ -179,11 +179,8 @@ pub async fn outro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 		}
 	};
 
-	let mut data_lock = ctx.data.write().await;
-	let config_arc = data_lock
-		.get_mut::<ConfigResource>()
-		.expect("Expected ConfigResource in ShareMap")
-		.clone();
+	let data_lock = ctx.data.write().await;
+	let config_arc = data_lock.clone_expect::<Config>();
 
 	let mut config = config_arc.write().await;
 

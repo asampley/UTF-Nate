@@ -1908,6 +1908,8 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "itertools",
+ "once_cell",
+ "regex",
  "serde",
  "serde_json",
  "serenity",

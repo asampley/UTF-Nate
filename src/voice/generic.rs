@@ -10,6 +10,7 @@ use songbird::error::TrackError;
 use std::fs::read_dir;
 use std::path::Path;
 
+use crate::configuration::{Config, write_config};
 use crate::data::VoiceGuilds;
 use crate::util::*;
 
@@ -94,18 +95,27 @@ pub async fn play(
 			.or_default()
 			.clone();
 
+		let volume = data_lock
+			.clone_expect::<Config>()
+			.read()
+			.await
+			.guilds
+			.get(&guild_id)
+			.and_then(|c| c.volume)
+			.unwrap_or(0.5);
+
 		let mut voice_guild = voice_guild_arc.write().await;
 
 		if let Some(call) = songbird.get(guild_id) {
 			let source = unwrap_or_ret!(audio_source(&path).await.ok(), "Invalid clip".to_string());
 
 			let (mut track, handle) = create_player(source);
-			track.set_volume(voice_guild.volume());
+			track.set_volume(volume);
 
 			match play_type {
 				PlayType::PlayNow => {
 					call.lock().await.play(track);
-					match voice_guild.add_audio(handle) {
+					match voice_guild.add_audio(handle, volume) {
 						Ok(()) => format!("Playing {}", path),
 						Err(_) => format!("Error playing {}", path)
 					}
@@ -193,7 +203,7 @@ pub async fn volume(
 		}
 	}
 
-	match data_lock
+	let ret = match data_lock
 		.clone_expect::<VoiceGuilds>()
 		.write()
 		.await
@@ -206,7 +216,23 @@ pub async fn volume(
 	{
 		Ok(_) => format!("Volume set to {}", volume),
 		Err(_) => "Error setting volume".to_string(),
+	};
+
+	let config_arc = data_lock.clone_expect::<Config>();
+	let mut config = config_arc.write().await;
+
+	config.guilds.entry(guild_id).or_default().volume = Some(volume);
+
+	{
+		use crate::configuration::Result::*;
+		match write_config(Path::new("config.json"), &*config) {
+			Ok(()) => (),
+			JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
+			IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
+		}
 	}
+
+	return ret;
 }
 
 pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> String {

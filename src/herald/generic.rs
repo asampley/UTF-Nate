@@ -5,8 +5,9 @@ use std::path::Path;
 
 use crate::configuration;
 use crate::configuration::write_config;
-use crate::data::ConfigResource;
+use crate::configuration::Config;
 use crate::herald::IntroOutroMode::{self, *};
+use crate::util::GetExpect;
 use crate::voice::get_clip;
 
 pub async fn intro_outro(
@@ -25,11 +26,8 @@ pub async fn intro_outro(
 		None => return format!("Invalid clip: {}", clip),
 	}
 
-	let mut data_lock = ctx.data.write().await;
-	let config_arc = data_lock
-		.get_mut::<ConfigResource>()
-		.expect("Expected ConfigResource in ShareMap")
-		.clone();
+	let data_lock = ctx.data.write().await;
+	let config_arc = data_lock.clone_expect::<Config>();
 
 	let mut config = config_arc.write().await;
 
@@ -66,11 +64,8 @@ pub async fn introbot(ctx: &Context, guild_id: Option<GuildId>, clip: Option<Str
 		None => return format!("Invalid clip: {}", clip),
 	}
 
-	let mut data_lock = ctx.data.write().await;
-	let config_arc = data_lock
-		.get_mut::<ConfigResource>()
-		.expect("Expected ConfigResource in ShareMap")
-		.clone();
+	let data_lock = ctx.data.write().await;
+	let config_arc = data_lock.clone_expect::<Config>();
 
 	let mut config = config_arc.write().await;
 

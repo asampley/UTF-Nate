@@ -8,21 +8,18 @@ use songbird::tracks::TrackHandle;
 
 use uuid::Uuid;
 
-use crate::configuration::Config;
-
 use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct VoiceUserCache;
 
-type ArcRw<T> = Arc<RwLock<T>>;
+pub type ArcRw<T> = Arc<RwLock<T>>;
 
 impl TypeMapKey for VoiceUserCache {
 	type Value = ArcRw<HashMap<GuildId, ArcRw<HashMap<UserId, Option<ChannelId>>>>>;
 }
 
 pub struct VoiceGuild {
-	volume: f32,
 	audios: Vec<TrackHandle>,
 	to_remove: mpsc::UnboundedReceiver<Uuid>,
 	to_remove_sender: mpsc::UnboundedSender<Uuid>,
@@ -32,7 +29,6 @@ impl Default for VoiceGuild {
 	fn default() -> Self {
 		let (to_remove_sender, to_remove) = mpsc::unbounded();
 		VoiceGuild {
-			volume: 0.5,
 			audios: Vec::default(),
 			to_remove,
 			to_remove_sender,
@@ -40,17 +36,11 @@ impl Default for VoiceGuild {
 	}
 }
 
-pub struct ConfigResource;
-
-impl TypeMapKey for ConfigResource {
-	type Value = ArcRw<Config>;
-}
-
 impl VoiceGuild {
-	pub fn add_audio(&mut self, audio: TrackHandle) -> songbird::error::TrackResult<()> {
+	pub fn add_audio(&mut self, audio: TrackHandle, volume: f32) -> songbird::error::TrackResult<()> {
 		self.clean_audios();
 
-		audio.set_volume(self.volume)?;
+		audio.set_volume(volume)?;
 		audio
 			.add_event(
 				songbird::Event::Track(songbird::TrackEvent::End),
@@ -62,7 +52,6 @@ impl VoiceGuild {
 	}
 
 	pub fn set_volume(&mut self, volume: f32) -> songbird::error::TrackResult<()> {
-		self.volume = volume;
 		for audio in &self.audios {
 			match audio.set_volume(volume) {
 				Ok(_) | Err(TrackError::Finished) => (),
@@ -70,10 +59,6 @@ impl VoiceGuild {
 			}
 		}
 		Ok(())
-	}
-
-	pub fn volume(&self) -> f32 {
-		self.volume
 	}
 
 	fn clean_audios(&mut self) {

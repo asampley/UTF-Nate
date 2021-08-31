@@ -10,7 +10,8 @@ use serenity::prelude::EventHandler;
 use songbird::SongbirdKey;
 
 use crate::Opt;
-use crate::data::{ConfigResource, VoiceGuilds, VoiceUserCache};
+use crate::configuration::Config;
+use crate::data::{VoiceGuilds, VoiceUserCache};
 use crate::herald::{
 	IntroOutroMode,
 	intro_outro_interaction, intro_interaction_create, outro_interaction_create,
@@ -155,7 +156,7 @@ impl EventHandler for Handler {
 						.data
 						.read()
 						.await
-						.clone_expect::<ConfigResource>();
+						.clone_expect::<Config>();
 
 					let config = config_arc.read().await;
 
@@ -188,22 +189,28 @@ impl EventHandler for Handler {
 					}
 				};
 
-				let songbird = ctx
-					.data
-					.read()
-					.await
-					.clone_expect::<SongbirdKey>();
+				let (songbird, voice_guild_arc, volume) = {
+					let lock = ctx.data.write().await;
 
-				let voice_guild_arc = ctx
-					.data
-					.write()
-					.await
-					.clone_expect::<VoiceGuilds>()
-					.write()
-					.await
-					.entry(guild_id)
-					.or_default()
-					.clone();
+					let songbird = lock.clone_expect::<SongbirdKey>();
+
+					let voice_guild_arc = lock.clone_expect::<VoiceGuilds>()
+						.write()
+						.await
+						.entry(guild_id)
+						.or_default()
+						.clone();
+
+					let volume = lock.clone_expect::<Config>()
+						.read()
+						.await
+						.guilds
+						.get(&guild_id)
+						.and_then(|c| c.volume)
+						.unwrap_or(0.5);
+
+					(songbird, voice_guild_arc, volume)
+				};
 
 				let mut voice_guild = voice_guild_arc.write().await;
 
@@ -213,7 +220,7 @@ impl EventHandler for Handler {
 					match source {
 						Ok(source) => {
 							voice_guild
-								.add_audio(call.lock().await.play_source(source))
+								.add_audio(call.lock().await.play_source(source), volume)
 								.expect("Error playing source");
 							println!(
 								"Playing {} for user ({})",

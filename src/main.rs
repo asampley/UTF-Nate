@@ -24,7 +24,7 @@ use structopt::StructOpt;
 
 use cmd::EXTERNAL_GROUP;
 use configuration::{read_config, Config};
-use data::{ConfigResource, VoiceGuilds, VoiceUserCache};
+use data::{VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use herald::HERALD_GROUP;
 use unicode::UNICODE_GROUP;
@@ -52,6 +52,8 @@ impl TypeMapKey for Opt {
 async fn main() {
 	let opt = Opt::from_args();
 
+	println!("Options: {:#?}", opt);
+
 	// login with a bot token from an environment variable
 	let mut client = Client::builder(&read_token().expect("Token could not be read"))
 		.application_id(
@@ -77,7 +79,7 @@ async fn main() {
 		.type_map_insert::<Opt>(Arc::new(opt))
 		.type_map_insert::<VoiceUserCache>(Default::default())
 		.type_map_insert::<VoiceGuilds>(Default::default())
-		.type_map_insert::<ConfigResource>(Arc::new(RwLock::new(load_config())))
+		.type_map_insert::<Config>(Arc::new(RwLock::new(load_config())))
 		.register_songbird()
 		.await
 		.expect("Error creating client");
