@@ -29,7 +29,7 @@ use data::{VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use herald::HERALD_GROUP;
 use unicode::UNICODE_GROUP;
-use util::check_msg;
+use util::{Respond, check_msg};
 use voice::VOICE_GROUP;
 
 use std::collections::HashSet;
@@ -132,10 +132,8 @@ async fn help(
 #[hook]
 async fn unrecognised_command(ctx: &Context, msg: &Message, cmd: &str) {
 	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone()).await;
-	check_msg(
-		msg.reply(&ctx, format!("Unrecognised command: {}", cmd))
-			.await,
-	);
+	check_msg(msg.reply(&ctx, format!("Unrecognised command: {}", cmd)).await);
+
 	println!(
 		"User {} ({}) in guild {:?} ({:?}) command {} not recognised with message: {}",
 		msg.author.name, msg.author.id, guild_name, msg.guild_id, cmd, msg.content

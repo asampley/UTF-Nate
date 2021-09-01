@@ -46,27 +46,39 @@ impl std::error::Error for UtilError {}
 
 #[async_trait]
 pub trait Respond {
-	async fn respond_str<T>(&self, ctx: &Context, text: T) -> serenity::Result<()> where
+	type Value;
+
+	async fn respond_str<T>(&self, ctx: &Context, text: T) -> serenity::Result<Self::Value> where
 		T: Send + Sync + AsRef<str>;
 }
 
 #[async_trait]
 impl Respond for Message {
-	async fn respond_str<T>(&self, ctx: &Context, text: T) -> serenity::Result<()> where
+	type Value = Message;
+
+	async fn respond_str<T>(&self, ctx: &Context, text: T) -> serenity::Result<Self> where
 		T: Send + Sync + AsRef<str>
 	{
-		self.channel_id.say(&ctx.http, text.as_ref()).await.map(|_| ())
+		self.channel_id.send_message(&ctx.http, |message|
+			message.embed(|embed|
+				embed.description(text.as_ref())
+			)
+		).await
 	}
 }
 
 #[async_trait]
 impl Respond for ApplicationCommandInteraction {
+	type Value = ();
+
 	async fn respond_str<T>(&self, ctx: &Context, text: T) -> serenity::Result<()> where
 		T: Send + Sync + AsRef<str>
 	{
 		self.create_interaction_response(&ctx.http, |response|
 			response.interaction_response_data(|data|
-				data.content(text.as_ref())
+				data.create_embed(|embed|
+					embed.description(text.as_ref())
+				)
 			)
 		).await
 	}
