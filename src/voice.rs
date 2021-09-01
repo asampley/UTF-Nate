@@ -157,8 +157,8 @@ pub fn banish_interaction_create(
 pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let path = args.current();
 
-	msg.channel_id.say(
-		&ctx.http,
+	msg.respond_str(
+		ctx,
 		generic::play(ctx, generic::PlayType::PlayNow, path, msg.guild_id).await,
 	).await?;
 
@@ -212,8 +212,8 @@ pub fn clip_interaction_create(
 pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let path = args.current();
 
-	msg.channel_id.say(
-		&ctx.http,
+	msg.respond_str(
+		ctx,
 		generic::play(ctx, generic::PlayType::Queue, path, msg.guild_id).await,
 	).await?;
 
@@ -370,9 +370,7 @@ pub fn skip_interaction_create(
 #[example("bnw")]
 pub async fn list(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	if args.len() > 1 {
-		msg.channel_id
-			.say(&ctx.http, "Expected at most one path to be specified")
-			.await?;
+		msg.respond_str(ctx, "Expected at most one path to be specified").await?;
 		return Ok(());
 	}
 

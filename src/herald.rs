@@ -88,9 +88,7 @@ pub fn outro_interaction_create(
 #[example("bnw/angels")]
 pub async fn intro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	if args.len() != 1 {
-		msg.channel_id
-			.say(&ctx.http, "Expected exactly one clip")
-			.await?;
+		msg.respond_str(ctx, "Expected exactly one clip").await?;
 		return Ok(());
 	}
 
@@ -143,9 +141,7 @@ pub fn introbot_interaction_create(
 #[example("bnw/angels")]
 pub async fn introbot(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	if args.len() != 1 {
-		msg.channel_id
-			.say(&ctx.http, "Expected exactly one clip")
-			.await?;
+		msg.respond_str(ctx, "Expected exactly one clip").await?;
 		return Ok(());
 	}
 
@@ -164,9 +160,7 @@ pub async fn introbot(ctx: &Context, msg: &Message, args: Args) -> CommandResult
 #[example("bnw/death")]
 pub async fn outro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	if args.len() != 1 {
-		msg.channel_id
-			.say(&ctx.http, "Expected exactly one clip")
-			.await?;
+		msg.respond_str(ctx, "Expected exactly one clip").await?;
 		return Ok(());
 	}
 
