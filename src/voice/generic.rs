@@ -1,20 +1,20 @@
 use itertools::Itertools;
 
 use serenity::client::Context;
-use serenity::model::prelude::{UserId, GuildId};
+use serenity::model::prelude::{GuildId, UserId};
 
 use songbird::create_player;
-use songbird::SongbirdKey;
 use songbird::error::TrackError;
+use songbird::SongbirdKey;
 
 use std::fs::read_dir;
 use std::path::Path;
 
-use crate::configuration::{Config, write_config};
+use crate::configuration::{write_config, Config};
 use crate::data::VoiceGuilds;
 use crate::util::*;
 
-use crate::voice::{AudioError, clip_path, sandboxed_exists, audio_source};
+use crate::voice::{audio_source, clip_path, sandboxed_exists, AudioError};
 
 pub enum PlayType {
 	PlayNow,
@@ -22,7 +22,10 @@ pub enum PlayType {
 }
 
 pub async fn summon(ctx: &Context, guild_id: Option<GuildId>, user_id: UserId) -> String {
-	let guild_id = unwrap_or_ret!(guild_id, "This command is only available in guilds".to_string());
+	let guild_id = unwrap_or_ret!(
+		guild_id,
+		"This command is only available in guilds".to_string()
+	);
 	let guild = unwrap_or_ret!(
 		guild_id.to_guild_cached(&ctx.cache).await,
 		"Internal bot error".to_string()
@@ -35,26 +38,22 @@ pub async fn summon(ctx: &Context, guild_id: Option<GuildId>, user_id: UserId) -
 
 	let connect_to = unwrap_or_ret!(channel_id, "Not in a voice channel".to_string());
 
-	let songbird = ctx
-		.data
-		.read()
-		.await
-		.clone_expect::<SongbirdKey>();
+	let songbird = ctx.data.read().await.clone_expect::<SongbirdKey>();
 
 	match songbird.join(guild_id, connect_to).await.1 {
 		Ok(()) => "Joined channel",
 		Err(_) => "Error joining the channel",
-	}.to_string()
+	}
+	.to_string()
 }
 
 pub async fn banish(ctx: &Context, guild_id: Option<GuildId>) -> String {
-	let guild_id = unwrap_or_ret!(guild_id, "This command is only available in guilds".to_string());
+	let guild_id = unwrap_or_ret!(
+		guild_id,
+		"This command is only available in guilds".to_string()
+	);
 
-	let songbird = ctx
-		.data
-		.read()
-		.await
-		.clone_expect::<SongbirdKey>();
+	let songbird = ctx.data.read().await.clone_expect::<SongbirdKey>();
 
 	{
 		use songbird::error::JoinError::*;
@@ -63,8 +62,9 @@ pub async fn banish(ctx: &Context, guild_id: Option<GuildId>) -> String {
 			Err(e) => match e {
 				NoCall => "Not in a voice channel",
 				_ => "Internal bot error",
-			}
-		}.to_string()
+			},
+		}
+		.to_string()
 	}
 }
 
@@ -75,13 +75,15 @@ pub async fn play(
 	guild_id: Option<GuildId>,
 ) -> String {
 	let path = unwrap_or_ret!(path, "Must provide a source".to_string());
-	let guild_id = unwrap_or_ret!(guild_id, "This command is only available in guilds".to_string());
+	let guild_id = unwrap_or_ret!(
+		guild_id,
+		"This command is only available in guilds".to_string()
+	);
 
 	{
 		let data_lock = ctx.data.read().await;
 
-		let songbird = data_lock
-			.clone_expect::<SongbirdKey>();
+		let songbird = data_lock.clone_expect::<SongbirdKey>();
 
 		let voice_guild_arc = data_lock
 			.clone_expect::<VoiceGuilds>()
@@ -109,10 +111,10 @@ pub async fn play(
 					eprintln!("Error playing audio: {:?}", e);
 					return match e {
 						AudioError::Songbird(_) => "Playback error".to_string(),
-						AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path), 
+						AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path),
 						AudioError::NoClip => format!("Clip {} not found", path),
 						AudioError::Spotify => "Spotify support coming soon? \u{1f91e}".to_string(),
-					}
+					};
 				}
 			};
 
@@ -124,7 +126,7 @@ pub async fn play(
 					call.lock().await.play(track);
 					match voice_guild.add_audio(handle, volume) {
 						Ok(()) => format!("Playing {}", path),
-						Err(_) => format!("Error playing {}", path)
+						Err(_) => format!("Error playing {}", path),
 					}
 				}
 				PlayType::Queue => {
@@ -138,9 +140,7 @@ pub async fn play(
 	}
 }
 
-pub async fn list(
-	path: Option<&str>,
-) -> String {
+pub async fn list(path: Option<&str>) -> String {
 	let dir = clip_path().join(Path::new(match path {
 		None => "",
 		Some(ref path) => path,
@@ -188,24 +188,36 @@ pub async fn list(
 	}
 }
 
-pub async fn volume(
-	ctx: &Context,
-	guild_id: Option<GuildId>,
-	volume: Option<f32>,
-) -> String {
-	let guild_id = unwrap_or_ret!(guild_id, "This command is only available in guilds".to_string());
-	let volume = unwrap_or_ret!(volume, "Please specify a volume between 0.0 and 1.0".to_string());
+pub async fn volume(ctx: &Context, guild_id: Option<GuildId>, volume: Option<f32>) -> String {
+	let guild_id = unwrap_or_ret!(
+		guild_id,
+		"This command is only available in guilds".to_string()
+	);
+	let volume = unwrap_or_ret!(
+		volume,
+		"Please specify a volume between 0.0 and 1.0".to_string()
+	);
 
 	if volume < 0.0 || volume > 1.0 {
-		return "Volume must be between 0.0 and 1.0".to_string()
+		return "Volume must be between 0.0 and 1.0".to_string();
 	}
 
 	let data_lock = ctx.data.read().await;
 
 	let songbird = data_lock.clone_expect::<SongbirdKey>();
 
-	for handle in songbird.get_or_insert(guild_id.into()).lock().await.queue().current_queue() {
-		if let Some(_) = handle.set_volume(volume).err().filter(|e| e == &TrackError::Finished) {
+	for handle in songbird
+		.get_or_insert(guild_id.into())
+		.lock()
+		.await
+		.queue()
+		.current_queue()
+	{
+		if let Some(_) = handle
+			.set_volume(volume)
+			.err()
+			.filter(|e| e == &TrackError::Finished)
+		{
 			return "Error setting volume".to_string();
 		}
 	}
@@ -243,7 +255,10 @@ pub async fn volume(
 }
 
 pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> String {
-	let guild_id = unwrap_or_ret!(guild_id, "This command is only available in guilds".to_string());
+	let guild_id = unwrap_or_ret!(
+		guild_id,
+		"This command is only available in guilds".to_string()
+	);
 
 	ctx.data
 		.read()
@@ -253,14 +268,18 @@ pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> String {
 		.lock()
 		.await
 		.stop();
-	
+
 	"Cleared queue and stopped playing".to_string()
 }
 
 pub async fn skip(ctx: &Context, guild_id: Option<GuildId>) -> String {
-	let guild_id = unwrap_or_ret!(guild_id, "This command is only available in guilds".to_string());
+	let guild_id = unwrap_or_ret!(
+		guild_id,
+		"This command is only available in guilds".to_string()
+	);
 
-	match ctx.data
+	match ctx
+		.data
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
@@ -276,5 +295,4 @@ pub async fn skip(ctx: &Context, guild_id: Option<GuildId>) -> String {
 			"Error skipping clip".to_string()
 		}
 	}
-
 }

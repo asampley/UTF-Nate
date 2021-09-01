@@ -1,5 +1,5 @@
 use serenity::client::Context;
-use serenity::model::prelude::{UserId, GuildId};
+use serenity::model::prelude::{GuildId, UserId};
 
 use std::path::Path;
 
@@ -45,7 +45,14 @@ pub async fn intro_outro(
 		}
 	}
 
-	format!("Set new {} to {}", match mode { Intro => "intro", Outro => "outro" }, clip)
+	format!(
+		"Set new {} to {}",
+		match mode {
+			Intro => "intro",
+			Outro => "outro",
+		},
+		clip
+	)
 }
 
 pub async fn introbot(ctx: &Context, guild_id: Option<GuildId>, clip: Option<String>) -> String {

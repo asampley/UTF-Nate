@@ -6,8 +6,7 @@ use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{Args, CommandResult};
 use serenity::model::channel::Message;
 use serenity::model::interactions::application_command::{
-	ApplicationCommandInteraction,
-	ApplicationCommandOptionType,
+	ApplicationCommandInteraction, ApplicationCommandOptionType,
 };
 
 use std::path::Path;
@@ -37,8 +36,13 @@ pub async fn intro_outro_interaction(
 	interaction: &ApplicationCommandInteraction,
 	mode: IntroOutroMode,
 ) -> serenity::Result<()> {
-	let clip = interaction.data.options.iter()
-		.find_map(|option| if option.name == "clip" { option.value.as_ref() } else { None });
+	let clip = interaction.data.options.iter().find_map(|option| {
+		if option.name == "clip" {
+			option.value.as_ref()
+		} else {
+			None
+		}
+	});
 
 	let clip = match clip {
 		Some(Value::String(clip)) => Some(clip.clone()),
@@ -49,35 +53,42 @@ pub async fn intro_outro_interaction(
 		}
 	};
 
-	interaction.respond_str(&ctx, generic::intro_outro(&ctx, mode, interaction.user.id, clip).await).await
+	interaction
+		.respond_str(
+			&ctx,
+			generic::intro_outro(&ctx, mode, interaction.user.id, clip).await,
+		)
+		.await
 }
 
 pub fn intro_interaction_create(
-	command: &mut CreateApplicationCommand
+	command: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command.name("intro")
+	command
+		.name("intro")
 		.description("Set the clip to be played when you enter the channel containing the bot")
-		.create_option(|option|
+		.create_option(|option| {
 			option
 				.name("clip")
 				.description("Clip path to play when you enter a channel")
 				.kind(ApplicationCommandOptionType::String)
 				.required(true)
-		)
+		})
 }
 
 pub fn outro_interaction_create(
-	command: &mut CreateApplicationCommand
+	command: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command.name("outro")
+	command
+		.name("outro")
 		.description("Set the clip to be played when you exit the channel containing the bot")
-		.create_option(|option|
+		.create_option(|option| {
 			option
 				.name("clip")
 				.description("Clip path to play when you exit a channel")
 				.kind(ApplicationCommandOptionType::String)
 				.required(true)
-		)
+		})
 }
 
 #[command]
@@ -94,7 +105,11 @@ pub async fn intro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
 	let clip = args.current().map(|s| s.to_string());
 
-	msg.respond_str(ctx, generic::intro_outro(&ctx, Intro, msg.author.id, clip).await).await?;
+	msg.respond_str(
+		ctx,
+		generic::intro_outro(&ctx, Intro, msg.author.id, clip).await,
+	)
+	.await?;
 
 	Ok(())
 }
@@ -103,8 +118,13 @@ pub async fn introbot_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = interaction.data.options.iter()
-		.find_map(|option| if option.name == "clip" { option.value.as_ref() } else { None });
+	let clip = interaction.data.options.iter().find_map(|option| {
+		if option.name == "clip" {
+			option.value.as_ref()
+		} else {
+			None
+		}
+	});
 
 	let clip = match clip {
 		Some(Value::String(clip)) => Some(clip.clone()),
@@ -115,21 +135,27 @@ pub async fn introbot_interaction(
 		}
 	};
 
-	interaction.respond_str(&ctx, generic::introbot(&ctx, interaction.guild_id, clip).await).await
+	interaction
+		.respond_str(
+			&ctx,
+			generic::introbot(&ctx, interaction.guild_id, clip).await,
+		)
+		.await
 }
 
 pub fn introbot_interaction_create(
-	command: &mut CreateApplicationCommand
+	command: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command.name("introbot")
+	command
+		.name("introbot")
 		.description("Set the clip to be played when the bot enters a channel in this guild")
-		.create_option(|option|
+		.create_option(|option| {
 			option
 				.name("clip")
 				.description("Clip path to play when the bot enters a channel in this guild")
 				.kind(ApplicationCommandOptionType::String)
 				.required(true)
-		)
+		})
 }
 
 #[command]
@@ -147,10 +173,11 @@ pub async fn introbot(ctx: &Context, msg: &Message, args: Args) -> CommandResult
 
 	let clip_str = args.current().map(|s| s.to_string());
 
-	msg.respond_str(ctx, generic::introbot(&ctx, msg.guild_id, clip_str).await).await?;
+	msg.respond_str(ctx, generic::introbot(&ctx, msg.guild_id, clip_str).await)
+		.await?;
 
 	Ok(())
-} 
+}
 
 #[command]
 #[help_available]

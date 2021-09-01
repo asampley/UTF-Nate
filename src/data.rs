@@ -37,7 +37,11 @@ impl Default for VoiceGuild {
 }
 
 impl VoiceGuild {
-	pub fn add_audio(&mut self, audio: TrackHandle, volume: f32) -> songbird::error::TrackResult<()> {
+	pub fn add_audio(
+		&mut self,
+		audio: TrackHandle,
+		volume: f32,
+	) -> songbird::error::TrackResult<()> {
 		self.clean_audios();
 
 		audio.set_volume(volume)?;

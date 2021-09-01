@@ -1,34 +1,29 @@
 use serenity::async_trait;
-use serenity::model::interactions::application_command::ApplicationCommand;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
-use serenity::model::voice::VoiceState;
+use serenity::model::interactions::application_command::ApplicationCommand;
 use serenity::model::prelude::Interaction;
+use serenity::model::voice::VoiceState;
 use serenity::prelude::Context;
 use serenity::prelude::EventHandler;
 
 use songbird::SongbirdKey;
 
-use crate::OPT;
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
 use crate::herald::{
-	IntroOutroMode,
-	intro_outro_interaction, intro_interaction_create, outro_interaction_create,
-	introbot_interaction, introbot_interaction_create,
-};
-use crate::voice::{
-	audio_source,
-	summon_interaction, summon_interaction_create,
-	banish_interaction, banish_interaction_create,
-	list_interaction, list_interaction_create,
-	clip_interaction, clip_interaction_create,
-	play_interaction, play_interaction_create,
-	volume_interaction, volume_interaction_create,
-	stop_interaction, stop_interaction_create,
-	skip_interaction, skip_interaction_create,
+	intro_interaction_create, intro_outro_interaction, introbot_interaction,
+	introbot_interaction_create, outro_interaction_create, IntroOutroMode,
 };
 use crate::util::*;
+use crate::voice::{
+	audio_source, banish_interaction, banish_interaction_create, clip_interaction,
+	clip_interaction_create, list_interaction, list_interaction_create, play_interaction,
+	play_interaction_create, skip_interaction, skip_interaction_create, stop_interaction,
+	stop_interaction_create, summon_interaction, summon_interaction_create, volume_interaction,
+	volume_interaction_create,
+};
+use crate::OPT;
 
 pub struct Handler;
 
@@ -51,28 +46,30 @@ impl EventHandler for Handler {
 			let commands = ctx.http.get_global_application_commands().await.unwrap();
 
 			for command in commands {
-				ctx.http.delete_global_application_command(command.id.into()).await.unwrap();
+				ctx.http
+					.delete_global_application_command(command.id.into())
+					.await
+					.unwrap();
 			}
 
-			ApplicationCommand::set_global_application_commands(
-				&ctx.http,
-				|commands| {
-					commands
-						.create_application_command(intro_interaction_create)
-						.create_application_command(outro_interaction_create)
-						.create_application_command(introbot_interaction_create)
-						.create_application_command(summon_interaction_create)
-						.create_application_command(banish_interaction_create)
-						.create_application_command(list_interaction_create)
-						.create_application_command(clip_interaction_create)
-						.create_application_command(play_interaction_create)
-						.create_application_command(volume_interaction_create)
-						.create_application_command(stop_interaction_create)
-						.create_application_command(skip_interaction_create)
-				}
-			).await.unwrap();
+			ApplicationCommand::set_global_application_commands(&ctx.http, |commands| {
+				commands
+					.create_application_command(intro_interaction_create)
+					.create_application_command(outro_interaction_create)
+					.create_application_command(introbot_interaction_create)
+					.create_application_command(summon_interaction_create)
+					.create_application_command(banish_interaction_create)
+					.create_application_command(list_interaction_create)
+					.create_application_command(clip_interaction_create)
+					.create_application_command(play_interaction_create)
+					.create_application_command(volume_interaction_create)
+					.create_application_command(stop_interaction_create)
+					.create_application_command(skip_interaction_create)
+			})
+			.await
+			.unwrap();
 
-			if OPT.verbose { 
+			if OPT.verbose {
 				println!(
 					"Registered slash commands: {:#?}",
 					ApplicationCommand::get_global_application_commands(&ctx.http).await,
@@ -83,22 +80,20 @@ impl EventHandler for Handler {
 
 	async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
 		if let Interaction::ApplicationCommand(command) = interaction {
-			match 
-				match command.data.name.as_str() {
-					"intro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Intro).await,
-					"outro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Outro).await,
-					"introbot" => introbot_interaction(&ctx, &command).await,
-					"summon" => summon_interaction(&ctx, &command).await,
-					"banish" => banish_interaction(&ctx, &command).await,
-					"list" => list_interaction(&ctx, &command).await,
-					"clip" => clip_interaction(&ctx, &command).await,
-					"play" => play_interaction(&ctx, &command).await,
-					"volume" => volume_interaction(&ctx, &command).await,
-					"stop" => stop_interaction(&ctx, &command).await,
-					"skip" => skip_interaction(&ctx, &command).await,
-					_ => command.respond_str(&ctx, "Unknown command").await,
-				}
-			{
+			match match command.data.name.as_str() {
+				"intro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Intro).await,
+				"outro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Outro).await,
+				"introbot" => introbot_interaction(&ctx, &command).await,
+				"summon" => summon_interaction(&ctx, &command).await,
+				"banish" => banish_interaction(&ctx, &command).await,
+				"list" => list_interaction(&ctx, &command).await,
+				"clip" => clip_interaction(&ctx, &command).await,
+				"play" => play_interaction(&ctx, &command).await,
+				"volume" => volume_interaction(&ctx, &command).await,
+				"stop" => stop_interaction(&ctx, &command).await,
+				"skip" => skip_interaction(&ctx, &command).await,
+				_ => command.respond_str(&ctx, "Unknown command").await,
+			} {
 				Ok(_) => (),
 				Err(e) => eprintln!("Error running interaction: {:?}", e),
 			}
@@ -157,11 +152,7 @@ impl EventHandler for Handler {
 				};
 
 				let clip = {
-					let config_arc = ctx
-						.data
-						.read()
-						.await
-						.clone_expect::<Config>();
+					let config_arc = ctx.data.read().await.clone_expect::<Config>();
 
 					let config = config_arc.read().await;
 
@@ -199,14 +190,16 @@ impl EventHandler for Handler {
 
 					let songbird = lock.clone_expect::<SongbirdKey>();
 
-					let voice_guild_arc = lock.clone_expect::<VoiceGuilds>()
+					let voice_guild_arc = lock
+						.clone_expect::<VoiceGuilds>()
 						.write()
 						.await
 						.entry(guild_id)
 						.or_default()
 						.clone();
 
-					let volume = lock.clone_expect::<Config>()
+					let volume = lock
+						.clone_expect::<Config>()
 						.read()
 						.await
 						.guilds

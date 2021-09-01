@@ -3,14 +3,15 @@ mod configuration;
 mod data;
 mod handler;
 mod unicode;
-#[macro_use] mod util;
-mod voice;
+#[macro_use]
+mod util;
 mod herald;
+mod voice;
 
 use once_cell::sync::Lazy;
 
-use serenity::client::Client;
 use serenity::client::bridge::gateway::GatewayIntents;
+use serenity::client::Client;
 use serenity::framework::standard::macros::{help, hook};
 use serenity::framework::standard::{
 	help_commands, Args, CommandGroup, CommandResult, DispatchError, HelpOptions, StandardFramework,
@@ -30,7 +31,7 @@ use data::{VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use herald::HERALD_GROUP;
 use unicode::UNICODE_GROUP;
-use util::{Respond, check_msg};
+use util::{check_msg, Respond};
 use voice::VOICE_GROUP;
 
 use std::collections::HashSet;
@@ -59,14 +60,15 @@ async fn main() {
 		.application_id(
 			read_application_id()
 				.expect("Application id could not be read")
-				.trim().parse()
-				.expect("Application id could not be parsed")
+				.trim()
+				.parse()
+				.expect("Application id could not be parsed"),
 		)
 		.intents(
 			GatewayIntents::GUILD_MESSAGES
-			| GatewayIntents::DIRECT_MESSAGES
-			| GatewayIntents::GUILD_VOICE_STATES
-			| GatewayIntents::GUILDS
+				| GatewayIntents::DIRECT_MESSAGES
+				| GatewayIntents::GUILD_VOICE_STATES
+				| GatewayIntents::GUILDS,
 		)
 		.event_handler(Handler)
 		.framework(
@@ -140,7 +142,10 @@ async fn help(
 #[hook]
 async fn unrecognised_command(ctx: &Context, msg: &Message, cmd: &str) {
 	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone()).await;
-	check_msg(msg.reply(&ctx, format!("Unrecognised command: {}", cmd)).await);
+	check_msg(
+		msg.reply(&ctx, format!("Unrecognised command: {}", cmd))
+			.await,
+	);
 
 	println!(
 		"User {} ({}) in guild {:?} ({:?}) command {} not recognised with message: {}",
@@ -190,7 +195,10 @@ async fn on_dispatch_error(ctx: &Context, msg: &Message, err: DispatchError) {
 			check_msg(msg.respond_str(ctx, &s).await);
 		}
 		OnlyForGuilds => {
-			check_msg(msg.respond_str(ctx, "This command is only available in guilds").await);
+			check_msg(
+				msg.respond_str(ctx, "This command is only available in guilds")
+					.await,
+			);
 		}
 		_ => println!("Unhandled dispatch error: {:?}", err),
 	}

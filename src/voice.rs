@@ -2,16 +2,15 @@ use once_cell::sync::Lazy;
 
 use serde_json::value::Value;
 
+use regex::Regex;
 use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{Args, CommandResult};
 use serenity::model::channel::Message;
 use serenity::model::interactions::application_command::{
-	ApplicationCommandInteraction,
-	ApplicationCommandOptionType,
+	ApplicationCommandInteraction, ApplicationCommandOptionType,
 };
-use regex::Regex;
 
 use songbird::input::Input;
 
@@ -22,17 +21,12 @@ use crate::util::*;
 
 mod generic;
 
-static YOUTUBE: Lazy<Regex> = Lazy::new(|| {
-	Regex::new("^https?://(www\\.youtube\\.com|youtu.be)/").unwrap()
-});
+static YOUTUBE: Lazy<Regex> =
+	Lazy::new(|| Regex::new("^https?://(www\\.youtube\\.com|youtu.be)/").unwrap());
 
-static SPOTIFY: Lazy<Regex> = Lazy::new(|| {
-	Regex::new("^https?://open\\.spotify\\.com/").unwrap()
-});
+static SPOTIFY: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://open\\.spotify\\.com/").unwrap());
 
-static URL: Lazy<Regex> = Lazy::new(|| {
-	Regex::new("^https?://").unwrap()
-});
+static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
 
 #[group("voice")]
 #[description("Commands to move the bot to voice channels and play clips.")]
@@ -104,7 +98,8 @@ fn valid_clip(path: &Path) -> bool {
 #[help_available]
 #[description("Summon the bot to the voice channel the user is currently in")]
 pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond_str(ctx, generic::summon(ctx, msg.guild_id, msg.author.id).await).await?;
+	msg.respond_str(ctx, generic::summon(ctx, msg.guild_id, msg.author.id).await)
+		.await?;
 
 	Ok(())
 }
@@ -113,13 +108,19 @@ pub async fn summon_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	interaction.respond_str(&ctx, generic::summon(ctx, interaction.guild_id, interaction.user.id).await).await
+	interaction
+		.respond_str(
+			&ctx,
+			generic::summon(ctx, interaction.guild_id, interaction.user.id).await,
+		)
+		.await
 }
 
 pub fn summon_interaction_create(
-	command: &mut CreateApplicationCommand
+	command: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command.name("summon")
+	command
+		.name("summon")
 		.description("Summon the bot to your current voice channel")
 }
 
@@ -128,7 +129,8 @@ pub fn summon_interaction_create(
 #[help_available]
 #[description("Remove the bot from the voice channel it is in")]
 pub async fn banish(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond_str(ctx, generic::banish(ctx, msg.guild_id).await).await?;
+	msg.respond_str(ctx, generic::banish(ctx, msg.guild_id).await)
+		.await?;
 
 	Ok(())
 }
@@ -137,13 +139,16 @@ pub async fn banish_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	interaction.respond_str(&ctx, generic::banish(ctx, interaction.guild_id).await).await
+	interaction
+		.respond_str(&ctx, generic::banish(ctx, interaction.guild_id).await)
+		.await
 }
 
 pub fn banish_interaction_create(
-	command: &mut CreateApplicationCommand
+	command: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command.name("banish")
+	command
+		.name("banish")
 		.description("Banish the bot from its current voice channel")
 }
 
@@ -160,7 +165,8 @@ pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	msg.respond_str(
 		ctx,
 		generic::play(ctx, generic::PlayType::PlayNow, path, msg.guild_id).await,
-	).await?;
+	)
+	.await?;
 
 	Ok(())
 }
@@ -169,8 +175,13 @@ pub async fn clip_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = interaction.data.options.iter()
-		.find_map(|option| if option.name == "clip" { option.value.as_ref() } else { None });
+	let clip = interaction.data.options.iter().find_map(|option| {
+		if option.name == "clip" {
+			option.value.as_ref()
+		} else {
+			None
+		}
+	});
 
 	let clip = match clip {
 		Some(Value::String(clip)) => Some(clip.as_str()),
@@ -181,24 +192,27 @@ pub async fn clip_interaction(
 		}
 	};
 
-	interaction.respond_str(
-		ctx,
-		generic::play(ctx, generic::PlayType::PlayNow, clip, interaction.guild_id).await,
-	).await
+	interaction
+		.respond_str(
+			ctx,
+			generic::play(ctx, generic::PlayType::PlayNow, clip, interaction.guild_id).await,
+		)
+		.await
 }
 
 pub fn clip_interaction_create(
-	command: &mut CreateApplicationCommand
+	command: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command.name("clip")
+	command
+		.name("clip")
 		.description("Play the specified clip immediately")
-		.create_option(|option|
+		.create_option(|option| {
 			option
 				.name("clip")
 				.description("Clip to play")
 				.kind(ApplicationCommandOptionType::String)
 				.required(true)
-		)
+		})
 }
 
 #[command]
@@ -215,7 +229,8 @@ pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	msg.respond_str(
 		ctx,
 		generic::play(ctx, generic::PlayType::Queue, path, msg.guild_id).await,
-	).await?;
+	)
+	.await?;
 
 	Ok(())
 }
@@ -224,8 +239,13 @@ pub async fn play_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = interaction.data.options.iter()
-		.find_map(|option| if option.name == "clip" { option.value.as_ref() } else { None });
+	let clip = interaction.data.options.iter().find_map(|option| {
+		if option.name == "clip" {
+			option.value.as_ref()
+		} else {
+			None
+		}
+	});
 
 	let clip = match clip {
 		Some(Value::String(clip)) => Some(clip.as_str()),
@@ -236,24 +256,27 @@ pub async fn play_interaction(
 		}
 	};
 
-	interaction.respond_str(
-		ctx,
-		generic::play(ctx, generic::PlayType::Queue, clip, interaction.guild_id).await,
-	).await
+	interaction
+		.respond_str(
+			ctx,
+			generic::play(ctx, generic::PlayType::Queue, clip, interaction.guild_id).await,
+		)
+		.await
 }
 
 pub fn play_interaction_create(
-	command: &mut CreateApplicationCommand
+	command: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command.name("play")
+	command
+		.name("play")
 		.description("Add the specified clip to the play")
-		.create_option(|option|
+		.create_option(|option| {
 			option
 				.name("clip")
 				.description("Clip to play")
 				.kind(ApplicationCommandOptionType::String)
 				.required(true)
-		)
+		})
 }
 
 #[command]
@@ -264,9 +287,13 @@ pub fn play_interaction_create(
 #[usage("<volume>")]
 #[example("0.5")]
 pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-	let volume = args.single::<f32>().or_err_say(ctx, msg, "Volume must be a valid float between 0.0 and 1.0").await?;
+	let volume = args
+		.single::<f32>()
+		.or_err_say(ctx, msg, "Volume must be a valid float between 0.0 and 1.0")
+		.await?;
 
-	msg.respond_str(ctx, generic::volume(ctx, msg.guild_id, Some(volume)).await).await?;
+	msg.respond_str(ctx, generic::volume(ctx, msg.guild_id, Some(volume)).await)
+		.await?;
 
 	Ok(())
 }
@@ -275,8 +302,13 @@ pub async fn volume_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let volume = interaction.data.options.iter()
-		.find_map(|option| if option.name == "volume" { option.value.as_ref() } else { None });
+	let volume = interaction.data.options.iter().find_map(|option| {
+		if option.name == "volume" {
+			option.value.as_ref()
+		} else {
+			None
+		}
+	});
 
 	let volume = match volume {
 		Some(Value::Number(volume)) => volume.as_f64().map(|v| v as f32),
@@ -287,24 +319,27 @@ pub async fn volume_interaction(
 		}
 	};
 
-	interaction.respond_str(
-		ctx,
-		generic::volume(ctx, interaction.guild_id, volume).await,
-	).await
+	interaction
+		.respond_str(
+			ctx,
+			generic::volume(ctx, interaction.guild_id, volume).await,
+		)
+		.await
 }
 
 pub fn volume_interaction_create(
-	command: &mut CreateApplicationCommand
+	command: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command.name("volume")
+	command
+		.name("volume")
 		.description("Change volume of bot")
-		.create_option(|option|
+		.create_option(|option| {
 			option
 				.name("volume")
 				.description("Volume between 0.0 and 1.0")
 				.kind(ApplicationCommandOptionType::Number)
 				.required(true)
-		)
+		})
 }
 
 #[command]
@@ -312,7 +347,8 @@ pub fn volume_interaction_create(
 #[help_available]
 #[description("Stop all clips currently being played by the bot")]
 pub async fn stop(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond_str(ctx, generic::stop(ctx, msg.guild_id).await).await?;
+	msg.respond_str(ctx, generic::stop(ctx, msg.guild_id).await)
+		.await?;
 
 	Ok(())
 }
@@ -321,16 +357,16 @@ pub async fn stop_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	interaction.respond_str(
-		ctx,
-		generic::stop(ctx, interaction.guild_id).await,
-	).await
+	interaction
+		.respond_str(ctx, generic::stop(ctx, interaction.guild_id).await)
+		.await
 }
 
 pub fn stop_interaction_create(
-	command: &mut CreateApplicationCommand
+	command: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command.name("stop")
+	command
+		.name("stop")
 		.description("Stop all clips currently being played by the bot")
 }
 
@@ -339,7 +375,8 @@ pub fn stop_interaction_create(
 #[help_available]
 #[description("Skip the current song in the queue")]
 pub async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond_str(ctx, generic::skip(ctx, msg.guild_id).await).await?;
+	msg.respond_str(ctx, generic::skip(ctx, msg.guild_id).await)
+		.await?;
 
 	Ok(())
 }
@@ -348,16 +385,16 @@ pub async fn skip_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	interaction.respond_str(
-		ctx,
-		generic::skip(ctx, interaction.guild_id).await,
-	).await
+	interaction
+		.respond_str(ctx, generic::skip(ctx, interaction.guild_id).await)
+		.await
 }
 
 pub fn skip_interaction_create(
-	command: &mut CreateApplicationCommand
+	command: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command.name("skip")
+	command
+		.name("skip")
 		.description("Skip the current song in the queue")
 }
 
@@ -370,7 +407,8 @@ pub fn skip_interaction_create(
 #[example("bnw")]
 pub async fn list(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	if args.len() > 1 {
-		msg.respond_str(ctx, "Expected at most one path to be specified").await?;
+		msg.respond_str(ctx, "Expected at most one path to be specified")
+			.await?;
 		return Ok(());
 	}
 
@@ -384,8 +422,13 @@ pub async fn list_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let path = interaction.data.options.iter()
-		.find_map(|option| if option.name == "path" { option.value.as_ref() } else { None });
+	let path = interaction.data.options.iter().find_map(|option| {
+		if option.name == "path" {
+			option.value.as_ref()
+		} else {
+			None
+		}
+	});
 
 	let path = match path {
 		Some(Value::String(path)) => Some(path.as_str()),
@@ -396,18 +439,21 @@ pub async fn list_interaction(
 		}
 	};
 
-	interaction.respond_str(ctx, generic::list(path).await).await
+	interaction
+		.respond_str(ctx, generic::list(path).await)
+		.await
 }
 
 pub fn list_interaction_create(
-	command: &mut CreateApplicationCommand
+	command: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command.name("list")
+	command
+		.name("list")
 		.description("List all the sections and/or clips available in the section")
-		.create_option(|option|
+		.create_option(|option| {
 			option
 				.name("path")
 				.description("Path to list clips underneath")
 				.kind(ApplicationCommandOptionType::String)
-		)
+		})
 }
