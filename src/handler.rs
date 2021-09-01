@@ -1,7 +1,10 @@
 use serenity::async_trait;
+use serenity::builder::CreateApplicationCommand;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
-use serenity::model::interactions::application_command::ApplicationCommand;
+use serenity::model::interactions::application_command::{
+	ApplicationCommand, ApplicationCommandInteraction,
+};
 use serenity::model::prelude::Interaction;
 use serenity::model::voice::VoiceState;
 use serenity::prelude::Context;
@@ -67,6 +70,7 @@ impl EventHandler for Handler {
 					.create_application_command(volume_interaction_create)
 					.create_application_command(stop_interaction_create)
 					.create_application_command(skip_interaction_create)
+					.create_application_command(help_interaction_create)
 			})
 			.await
 			.unwrap();
@@ -96,6 +100,7 @@ impl EventHandler for Handler {
 				"volume" => volume_interaction(&ctx, &command).await,
 				"stop" => stop_interaction(&ctx, &command).await,
 				"skip" => skip_interaction(&ctx, &command).await,
+				"help" => help_interaction(&ctx, &command).await,
 				_ => command.respond_str(&ctx, "Unknown command").await,
 			} {
 				Ok(_) => (),
@@ -241,4 +246,24 @@ impl EventHandler for Handler {
 			}
 		}
 	}
+}
+
+fn help_interaction_create(
+	command: &mut CreateApplicationCommand,
+) -> &mut CreateApplicationCommand {
+	command
+		.name("help")
+		.description("Get help on the commands the bot supports")
+}
+
+async fn help_interaction(
+	ctx: &Context,
+	interaction: &ApplicationCommandInteraction,
+) -> serenity::Result<()> {
+	interaction
+		.respond_str(
+			&ctx,
+			"Please use !help for now, instead of the slash command",
+		)
+		.await
 }
