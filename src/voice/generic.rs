@@ -14,12 +14,8 @@ use crate::configuration::{write_config, Config};
 use crate::data::VoiceGuilds;
 use crate::util::*;
 
-use crate::voice::{audio_source, clip_path, sandboxed_exists, AudioError};
-
-pub enum PlayType {
-	PlayNow,
-	Queue,
-}
+use crate::voice::{audio_source, clip_path, sandboxed_exists};
+use crate::voice::{AudioError, PlaySource, PlayType};
 
 pub async fn summon(ctx: &Context, guild_id: Option<GuildId>, user_id: UserId) -> String {
 	let guild_id = unwrap_or_ret!(
@@ -71,6 +67,7 @@ pub async fn banish(ctx: &Context, guild_id: Option<GuildId>) -> String {
 pub async fn play(
 	ctx: &Context,
 	play_type: PlayType,
+	play_source: PlaySource,
 	path: Option<&str>,
 	guild_id: Option<GuildId>,
 ) -> String {
@@ -105,7 +102,7 @@ pub async fn play(
 		let mut voice_guild = voice_guild_arc.write().await;
 
 		if let Some(call) = songbird.get(guild_id) {
-			let source = match audio_source(&path).await {
+			let source = match audio_source(&path, play_source).await {
 				Ok(input) => input,
 				Err(e) => {
 					eprintln!("Error playing audio: {:?}", e);

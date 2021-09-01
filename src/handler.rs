@@ -16,6 +16,7 @@ use crate::herald::{
 	introbot_interaction_create, outro_interaction_create, IntroOutroMode,
 };
 use crate::util::*;
+use crate::voice::PlaySource;
 use crate::voice::{
 	audio_source, banish_interaction, banish_interaction_create, clip_interaction,
 	clip_interaction_create, list_interaction, list_interaction_create, play_interaction,
@@ -41,7 +42,7 @@ impl EventHandler for Handler {
 		println!("Bot info {:?}", ctx.cache.current_user_id().await);
 
 		if OPT.reregister {
-			println!("Reregistering slash commands");
+			println!("Reregistering slash commands...");
 
 			let commands = ctx.http.get_global_application_commands().await.unwrap();
 
@@ -51,6 +52,7 @@ impl EventHandler for Handler {
 					.await
 					.unwrap();
 			}
+			println!("Deleted old slash commands");
 
 			ApplicationCommand::set_global_application_commands(&ctx.http, |commands| {
 				commands
@@ -74,6 +76,8 @@ impl EventHandler for Handler {
 					"Registered slash commands: {:#?}",
 					ApplicationCommand::get_global_application_commands(&ctx.http).await,
 				);
+			} else {
+				println!("Reregistered slash commands");
 			}
 		}
 	}
@@ -213,7 +217,7 @@ impl EventHandler for Handler {
 				let mut voice_guild = voice_guild_arc.write().await;
 
 				if let Some(call) = songbird.get(guild_id) {
-					let source = audio_source(&clip).await;
+					let source = audio_source(&clip, PlaySource::Clip).await;
 
 					match source {
 						Ok(source) => {

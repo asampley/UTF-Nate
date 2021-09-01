@@ -33,6 +33,16 @@ static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
 #[commands(summon, banish, clip, play, volume, stop, skip, list)]
 pub struct Voice;
 
+pub enum PlayType {
+	PlayNow,
+	Queue,
+}
+
+pub enum PlaySource {
+	Clip,
+	Stream,
+}
+
 pub fn clip_path() -> PathBuf {
 	return Path::new("./resources/clips").canonicalize().unwrap();
 }
@@ -52,24 +62,30 @@ impl From<songbird::input::error::Error> for AudioError {
 }
 
 impl fmt::Display for AudioError {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		fmt::Debug::fmt(self, f)
 	}
 }
 
 impl std::error::Error for AudioError {}
 
-pub async fn audio_source(loc: &str) -> Result<Input, AudioError> {
-	if YOUTUBE.is_match(loc) {
-		Ok(songbird::ytdl(&loc).await?)
-	} else if SPOTIFY.is_match(loc) {
-		Err(AudioError::Spotify)
-	} else if URL.is_match(loc) {
-		Err(AudioError::UnsupportedUrl)
-	} else {
-		match get_clip(&loc) {
+pub async fn audio_source(loc: &str, source: PlaySource) -> Result<Input, AudioError> {
+	match source {
+		PlaySource::Clip => match get_clip(&loc) {
 			Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
 			None => Err(AudioError::NoClip),
+		},
+		PlaySource::Stream => {
+			if YOUTUBE.is_match(loc) {
+				Ok(songbird::ytdl(&loc).await?)
+			} else if SPOTIFY.is_match(loc) {
+				Err(AudioError::Spotify)
+			} else if URL.is_match(loc) {
+				Err(AudioError::UnsupportedUrl)
+			} else {
+				// TODO ytdl search
+				Err(AudioError::UnsupportedUrl)
+			}
 		}
 	}
 }
@@ -164,7 +180,7 @@ pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
 	msg.respond_str(
 		ctx,
-		generic::play(ctx, generic::PlayType::PlayNow, path, msg.guild_id).await,
+		generic::play(ctx, PlayType::PlayNow, PlaySource::Clip, path, msg.guild_id).await,
 	)
 	.await?;
 
@@ -195,7 +211,14 @@ pub async fn clip_interaction(
 	interaction
 		.respond_str(
 			ctx,
-			generic::play(ctx, generic::PlayType::PlayNow, clip, interaction.guild_id).await,
+			generic::play(
+				ctx,
+				PlayType::PlayNow,
+				PlaySource::Clip,
+				clip,
+				interaction.guild_id,
+			)
+			.await,
 		)
 		.await
 }
@@ -219,16 +242,16 @@ pub fn clip_interaction_create(
 #[aliases(q)]
 #[only_in(guilds)]
 #[help_available]
-#[description("Add the specified clip to the play queue")]
+#[description("Add a youtube or spotify source to the queue")]
 #[num_args(1)]
-#[usage("<clip>")]
-#[example("bnw/needoffspring")]
+#[usage("<source>")]
+#[example("https://www.youtube.com/watch?v=k2mFvwDTTt0")]
 pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let path = args.current();
 
 	msg.respond_str(
 		ctx,
-		generic::play(ctx, generic::PlayType::Queue, path, msg.guild_id).await,
+		generic::play(ctx, PlayType::Queue, PlaySource::Stream, path, msg.guild_id).await,
 	)
 	.await?;
 
@@ -240,7 +263,7 @@ pub async fn play_interaction(
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
 	let clip = interaction.data.options.iter().find_map(|option| {
-		if option.name == "clip" {
+		if option.name == "input" {
 			option.value.as_ref()
 		} else {
 			None
@@ -259,7 +282,14 @@ pub async fn play_interaction(
 	interaction
 		.respond_str(
 			ctx,
-			generic::play(ctx, generic::PlayType::Queue, clip, interaction.guild_id).await,
+			generic::play(
+				ctx,
+				PlayType::Queue,
+				PlaySource::Stream,
+				clip,
+				interaction.guild_id,
+			)
+			.await,
 		)
 		.await
 }
@@ -269,11 +299,11 @@ pub fn play_interaction_create(
 ) -> &mut CreateApplicationCommand {
 	command
 		.name("play")
-		.description("Add the specified clip to the play")
+		.description("Add a youtube or spotify source to the queue")
 		.create_option(|option| {
 			option
-				.name("clip")
-				.description("Clip to play")
+				.name("input")
+				.description("Youtube or Spotify URL, or youtube search")
 				.kind(ApplicationCommandOptionType::String)
 				.required(true)
 		})
