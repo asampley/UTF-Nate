@@ -173,7 +173,7 @@ pub async fn outro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 		}
 	};
 
-	let data_lock = ctx.data.write().await;
+	let data_lock = ctx.data.read().await;
 	let config_arc = data_lock.clone_expect::<Config>();
 
 	let mut config = config_arc.write().await;

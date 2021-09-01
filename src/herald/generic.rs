@@ -26,7 +26,7 @@ pub async fn intro_outro(
 		None => return format!("Invalid clip: {}", clip),
 	}
 
-	let data_lock = ctx.data.write().await;
+	let data_lock = ctx.data.read().await;
 	let config_arc = data_lock.clone_expect::<Config>();
 
 	let mut config = config_arc.write().await;
@@ -64,7 +64,7 @@ pub async fn introbot(ctx: &Context, guild_id: Option<GuildId>, clip: Option<Str
 		None => return format!("Invalid clip: {}", clip),
 	}
 
-	let data_lock = ctx.data.write().await;
+	let data_lock = ctx.data.read().await;
 	let config_arc = data_lock.clone_expect::<Config>();
 
 	let mut config = config_arc.write().await;

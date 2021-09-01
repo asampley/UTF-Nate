@@ -195,7 +195,7 @@ impl EventHandler for Handler {
 				};
 
 				let (songbird, voice_guild_arc, volume) = {
-					let lock = ctx.data.write().await;
+					let lock = ctx.data.read().await;
 
 					let songbird = lock.clone_expect::<SongbirdKey>();
 
