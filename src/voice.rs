@@ -83,8 +83,7 @@ pub async fn audio_source(loc: &str, source: PlaySource) -> Result<Input, AudioE
 			} else if URL.is_match(loc) {
 				Err(AudioError::UnsupportedUrl)
 			} else {
-				// TODO ytdl search
-				Err(AudioError::UnsupportedUrl)
+				Ok(songbird::input::ytdl_search(&loc).await?)
 			}
 		}
 	}
