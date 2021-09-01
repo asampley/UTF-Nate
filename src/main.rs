@@ -10,6 +10,7 @@ mod herald;
 use once_cell::sync::Lazy;
 
 use serenity::client::Client;
+use serenity::client::bridge::gateway::GatewayIntents;
 use serenity::framework::standard::macros::{help, hook};
 use serenity::framework::standard::{
 	help_commands, Args, CommandGroup, CommandResult, DispatchError, HelpOptions, StandardFramework,
@@ -60,7 +61,14 @@ async fn main() {
 				.expect("Application id could not be read")
 				.trim().parse()
 				.expect("Application id could not be parsed")
-		).event_handler(Handler)
+		)
+		.intents(
+			GatewayIntents::GUILD_MESSAGES
+			| GatewayIntents::DIRECT_MESSAGES
+			| GatewayIntents::GUILD_VOICE_STATES
+			| GatewayIntents::GUILDS
+		)
+		.event_handler(Handler)
 		.framework(
 			// create a framework to process message commands
 			StandardFramework::new()

@@ -245,9 +245,8 @@ pub async fn volume(
 pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> String {
 	let guild_id = unwrap_or_ret!(guild_id, "This command is only available in guilds".to_string());
 
-	ctx
-		.data
-		.write()
+	ctx.data
+		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
 		.get_or_insert(guild_id.into())
@@ -261,9 +260,8 @@ pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> String {
 pub async fn skip(ctx: &Context, guild_id: Option<GuildId>) -> String {
 	let guild_id = unwrap_or_ret!(guild_id, "This command is only available in guilds".to_string());
 
-	match ctx
-		.data
-		.write()
+	match ctx.data
+		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
 		.get_or_insert(guild_id.into())
