@@ -14,11 +14,7 @@ use crate::configuration::{Config, write_config};
 use crate::data::VoiceGuilds;
 use crate::util::*;
 
-use super::{
-	clip_path,
-	sandboxed_exists,
-	audio_source,
-};
+use crate::voice::{AudioError, clip_path, sandboxed_exists, audio_source};
 
 pub enum PlayType {
 	PlayNow,
@@ -107,7 +103,18 @@ pub async fn play(
 		let mut voice_guild = voice_guild_arc.write().await;
 
 		if let Some(call) = songbird.get(guild_id) {
-			let source = unwrap_or_ret!(audio_source(&path).await.ok(), "Invalid clip".to_string());
+			let source = match audio_source(&path).await {
+				Ok(input) => input,
+				Err(e) => {
+					eprintln!("Error playing audio: {:?}", e);
+					return match e {
+						AudioError::Songbird(_) => "Playback error".to_string(),
+						AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path), 
+						AudioError::NoClip => format!("Clip {} not found", path),
+						AudioError::Spotify => "Spotify support coming soon? \u{1f91e}".to_string(),
+					}
+				}
+			};
 
 			let (mut track, handle) = create_player(source);
 			track.set_volume(volume);

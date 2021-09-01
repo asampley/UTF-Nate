@@ -9,7 +9,7 @@ use serenity::prelude::EventHandler;
 
 use songbird::SongbirdKey;
 
-use crate::Opt;
+use crate::OPT;
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
 use crate::herald::{
@@ -45,7 +45,7 @@ impl EventHandler for Handler {
 
 		println!("Bot info {:?}", ctx.cache.current_user_id().await);
 
-		if ctx.data.read().await.clone_expect::<Opt>().reregister {
+		if OPT.reregister {
 			println!("Reregistering slash commands");
 
 			let commands = ctx.http.get_global_application_commands().await.unwrap();
@@ -72,7 +72,7 @@ impl EventHandler for Handler {
 				}
 			).await.unwrap();
 
-			if ctx.data.read().await.clone_expect::<Opt>().verbose { 
+			if OPT.verbose { 
 				println!(
 					"Registered slash commands: {:#?}",
 					ApplicationCommand::get_global_application_commands(&ctx.http).await,
@@ -83,20 +83,25 @@ impl EventHandler for Handler {
 
 	async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
 		if let Interaction::ApplicationCommand(command) = interaction {
-			match command.data.name.as_str() {
-				"intro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Intro).await,
-				"outro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Outro).await,
-				"introbot" => introbot_interaction(&ctx, &command).await,
-				"summon" => summon_interaction(&ctx, &command).await,
-				"banish" => banish_interaction(&ctx, &command).await,
-				"list" => list_interaction(&ctx, &command).await,
-				"clip" => clip_interaction(&ctx, &command).await,
-				"play" => play_interaction(&ctx, &command).await,
-				"volume" => volume_interaction(&ctx, &command).await,
-				"stop" => stop_interaction(&ctx, &command).await,
-				"skip" => skip_interaction(&ctx, &command).await,
-				_ => command.respond_str(&ctx, "Unknown command").await,
-			}.expect("Unexpected serenity error");
+			match 
+				match command.data.name.as_str() {
+					"intro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Intro).await,
+					"outro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Outro).await,
+					"introbot" => introbot_interaction(&ctx, &command).await,
+					"summon" => summon_interaction(&ctx, &command).await,
+					"banish" => banish_interaction(&ctx, &command).await,
+					"list" => list_interaction(&ctx, &command).await,
+					"clip" => clip_interaction(&ctx, &command).await,
+					"play" => play_interaction(&ctx, &command).await,
+					"volume" => volume_interaction(&ctx, &command).await,
+					"stop" => stop_interaction(&ctx, &command).await,
+					"skip" => skip_interaction(&ctx, &command).await,
+					_ => command.respond_str(&ctx, "Unknown command").await,
+				}
+			{
+				Ok(_) => (),
+				Err(e) => eprintln!("Error running interaction: {:?}", e),
+			}
 		}
 	}
 

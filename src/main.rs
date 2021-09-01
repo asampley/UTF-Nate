@@ -7,6 +7,8 @@ mod unicode;
 mod voice;
 mod herald;
 
+use once_cell::sync::Lazy;
+
 use serenity::client::Client;
 use serenity::framework::standard::macros::{help, hook};
 use serenity::framework::standard::{
@@ -16,7 +18,6 @@ use serenity::model::channel::Message;
 use serenity::model::id::UserId;
 use serenity::prelude::Context;
 use serenity::prelude::RwLock;
-use serenity::prelude::TypeMapKey;
 
 use songbird::serenity::SerenityInit;
 
@@ -44,17 +45,15 @@ struct Opt {
 	verbose: bool,
 }
 
-impl TypeMapKey for Opt {
-	type Value = Arc<Self>;
-}
+static OPT: Lazy<Opt> = Lazy::new(|| {
+	let opt = Opt::from_args();
+	println!("Options: {:#?}", opt);
+	opt
+});
 
 #[tokio::main]
 async fn main() {
-	let opt = Opt::from_args();
-
-	println!("Options: {:#?}", opt);
-
-	// login with a bot token from an environment variable
+	// login with a bot token from file
 	let mut client = Client::builder(&read_token().expect("Token could not be read"))
 		.application_id(
 			read_application_id()
@@ -76,7 +75,6 @@ async fn main() {
 				.unrecognised_command(unrecognised_command)
 				.on_dispatch_error(on_dispatch_error),
 		)
-		.type_map_insert::<Opt>(Arc::new(opt))
 		.type_map_insert::<VoiceUserCache>(Default::default())
 		.type_map_insert::<VoiceGuilds>(Default::default())
 		.type_map_insert::<Config>(Arc::new(RwLock::new(load_config())))

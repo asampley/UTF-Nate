@@ -26,6 +26,14 @@ static YOUTUBE: Lazy<Regex> = Lazy::new(|| {
 	Regex::new("^https?://(www\\.youtube\\.com|youtu.be)/").unwrap()
 });
 
+static SPOTIFY: Lazy<Regex> = Lazy::new(|| {
+	Regex::new("^https?://open\\.spotify\\.com/").unwrap()
+});
+
+static URL: Lazy<Regex> = Lazy::new(|| {
+	Regex::new("^https?://").unwrap()
+});
+
 #[group("voice")]
 #[description("Commands to move the bot to voice channels and play clips.")]
 #[commands(summon, banish, clip, play, volume, stop, skip, list)]
@@ -38,18 +46,14 @@ pub fn clip_path() -> PathBuf {
 #[derive(Debug)]
 pub enum AudioError {
 	Songbird(songbird::input::error::Error),
-	Serenity(serenity::Error),
+	Spotify,
+	UnsupportedUrl,
+	NoClip,
 }
 
 impl From<songbird::input::error::Error> for AudioError {
 	fn from(e: songbird::input::error::Error) -> Self {
 		AudioError::Songbird(e)
-	}
-}
-
-impl From<serenity::Error> for AudioError {
-	fn from(e: serenity::Error) -> Self {
-		AudioError::Serenity(e)
 	}
 }
 
@@ -62,14 +66,18 @@ impl fmt::Display for AudioError {
 impl std::error::Error for AudioError {}
 
 pub async fn audio_source(loc: &str) -> Result<Input, AudioError> {
-	Ok(if YOUTUBE.is_match(loc) {
-		songbird::ytdl(&loc).await?
+	if YOUTUBE.is_match(loc) {
+		Ok(songbird::ytdl(&loc).await?)
+	} else if SPOTIFY.is_match(loc) {
+		Err(AudioError::Spotify)
+	} else if URL.is_match(loc) {
+		Err(AudioError::UnsupportedUrl)
 	} else {
 		match get_clip(&loc) {
-			Some(clip) => songbird::ffmpeg(&clip).await?,
-			None => Err(serenity::Error::Other("Could not find source"))?,
+			Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
+			None => Err(AudioError::NoClip),
 		}
-	})
+	}
 }
 
 pub fn get_clip(loc: &str) -> Option<PathBuf> {
@@ -96,7 +104,7 @@ fn valid_clip(path: &Path) -> bool {
 #[help_available]
 #[description("Summon the bot to the voice channel the user is currently in")]
 pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.channel_id.say(&ctx.http, generic::summon(ctx, msg.guild_id, msg.author.id).await).await?;
+	msg.respond_str(ctx, generic::summon(ctx, msg.guild_id, msg.author.id).await).await?;
 
 	Ok(())
 }
@@ -120,7 +128,7 @@ pub fn summon_interaction_create(
 #[help_available]
 #[description("Remove the bot from the voice channel it is in")]
 pub async fn banish(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.channel_id.say(&ctx.http, generic::banish(ctx, msg.guild_id).await).await?;
+	msg.respond_str(ctx, generic::banish(ctx, msg.guild_id).await).await?;
 
 	Ok(())
 }
@@ -258,7 +266,7 @@ pub fn play_interaction_create(
 pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let volume = args.single::<f32>().or_err_say(ctx, msg, "Volume must be a valid float between 0.0 and 1.0").await?;
 
-	msg.channel_id.say(&ctx.http, generic::volume(ctx, msg.guild_id, Some(volume)).await).await?;
+	msg.respond_str(ctx, generic::volume(ctx, msg.guild_id, Some(volume)).await).await?;
 
 	Ok(())
 }
@@ -304,7 +312,7 @@ pub fn volume_interaction_create(
 #[help_available]
 #[description("Stop all clips currently being played by the bot")]
 pub async fn stop(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.channel_id.say(&ctx.http, generic::stop(ctx, msg.guild_id).await).await?;
+	msg.respond_str(ctx, generic::stop(ctx, msg.guild_id).await).await?;
 
 	Ok(())
 }
@@ -331,7 +339,7 @@ pub fn stop_interaction_create(
 #[help_available]
 #[description("Skip the current song in the queue")]
 pub async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.channel_id.say(&ctx.http, generic::skip(ctx, msg.guild_id).await).await?;
+	msg.respond_str(ctx, generic::skip(ctx, msg.guild_id).await).await?;
 
 	Ok(())
 }
@@ -369,7 +377,7 @@ pub async fn list(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	}
 
 	let path = args.current();
-	msg.channel_id.say(&ctx.http, generic::list(path).await).await?;
+	msg.respond_str(ctx, generic::list(path).await).await?;
 
 	return Ok(());
 }

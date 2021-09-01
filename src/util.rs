@@ -55,8 +55,7 @@ impl Respond for Message {
 	async fn respond_str<T>(&self, ctx: &Context, text: T) -> serenity::Result<()> where
 		T: Send + Sync + AsRef<str>
 	{
-		self.channel_id.say(&ctx.http, text.as_ref()).await?;
-		Ok(())
+		self.channel_id.say(&ctx.http, text.as_ref()).await.map(|_| ())
 	}
 }
 
