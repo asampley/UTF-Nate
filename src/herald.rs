@@ -96,7 +96,7 @@ pub async fn intro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
 	let clip = args.current().map(|s| s.to_string());
 
-	msg.channel_id.say(&ctx.http, generic::intro_outro(&ctx, Intro, msg.author.id, clip).await).await?;
+	msg.respond_str(ctx, generic::intro_outro(&ctx, Intro, msg.author.id, clip).await).await?;
 
 	Ok(())
 }
@@ -151,7 +151,7 @@ pub async fn introbot(ctx: &Context, msg: &Message, args: Args) -> CommandResult
 
 	let clip_str = args.current().map(|s| s.to_string());
 
-	msg.channel_id.say(&ctx.http, generic::introbot(&ctx, msg.guild_id, clip_str).await).await?;
+	msg.respond_str(ctx, generic::introbot(&ctx, msg.guild_id, clip_str).await).await?;
 
 	Ok(())
 } 
@@ -174,7 +174,7 @@ pub async fn outro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	match get_clip(clip_str) {
 		Some(_) => (),
 		None => {
-			msg.channel_id.say(&ctx.http, "Invalid clip").await?;
+			msg.respond_str(ctx, "Invalid clip").await?;
 			return Ok(());
 		}
 	};
@@ -195,6 +195,6 @@ pub async fn outro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 		}
 	}
 
-	msg.channel_id.say(&ctx.http, "Set new outro").await?;
+	msg.respond_str(ctx, "Set new outro").await?;
 	Ok(())
 }

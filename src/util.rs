@@ -118,7 +118,7 @@ impl<T: Send> Say for Option<T> {
 		say: impl AsRef<str> + Send + Sync + 'static,
 	) -> Result<Self, serenity::Error> {
 		if self.is_some() {
-			msg.channel_id.say(&ctx.http, say.as_ref()).await?;
+			msg.respond_str(ctx, say.as_ref()).await?;
 		}
 
 		Ok(self)
@@ -131,7 +131,7 @@ impl<T: Send> Say for Option<T> {
 		say: impl AsRef<str> + Send + Sync + 'static,
 	) -> Result<Self, serenity::Error> {
 		if self.is_none() {
-			msg.channel_id.say(&ctx.http, say.as_ref()).await?;
+			msg.respond_str(ctx, say.as_ref()).await?;
 		}
 
 		Ok(self)
@@ -145,7 +145,7 @@ impl<T: Send> Say for Option<T> {
 	) -> Result<Self::AndUnwrap, UtilError> {
 		match self {
 			Some(_) => {
-				msg.channel_id.say(&ctx.http, say.as_ref()).await?;
+				msg.respond_str(ctx, say.as_ref()).await?;
 				Err(UtilError::Other(say.to_string()))
 			}
 			None => Ok(()),
@@ -161,7 +161,7 @@ impl<T: Send> Say for Option<T> {
 		match self {
 			Some(v) => Ok(v),
 			None => {
-				msg.channel_id.say(&ctx.http, say.as_ref()).await?;
+				msg.respond_str(ctx, say.as_ref()).await?;
 				Err(UtilError::Other(say.to_string()))
 			}
 		}
@@ -180,7 +180,7 @@ impl<T: Send, E: Send> Say for Result<T, E> {
 		say: impl AsRef<str> + Send + Sync + 'static,
 	) -> Result<Self, serenity::Error> {
 		if self.is_ok() {
-			msg.channel_id.say(&ctx.http, say.as_ref()).await?;
+			msg.respond_str(ctx, say.as_ref()).await?;
 		}
 
 		Ok(self)
@@ -193,7 +193,7 @@ impl<T: Send, E: Send> Say for Result<T, E> {
 		say: impl AsRef<str> + Send + Sync + 'static,
 	) -> Result<Self, serenity::Error> {
 		if self.is_err() {
-			msg.channel_id.say(&ctx.http, say.as_ref()).await?;
+			msg.respond_str(ctx, say.as_ref()).await?;
 		}
 
 		Ok(self)
@@ -207,7 +207,7 @@ impl<T: Send, E: Send> Say for Result<T, E> {
 	) -> Result<Self::AndUnwrap, UtilError> {
 		match self {
 			Ok(_) => {
-				msg.channel_id.say(&ctx.http, say.as_ref()).await?;
+				msg.respond_str(ctx, say.as_ref()).await?;
 				Err(UtilError::Other(say.to_string()))
 			}
 			Err(e) => Ok(e),
@@ -223,7 +223,7 @@ impl<T: Send, E: Send> Say for Result<T, E> {
 		match self {
 			Ok(v) => Ok(v),
 			Err(_) => {
-				msg.channel_id.say(&ctx.http, say.as_ref()).await?;
+				msg.respond_str(ctx, say.as_ref()).await?;
 				Err(UtilError::Other(say.to_string()))
 			}
 		}
