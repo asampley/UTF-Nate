@@ -3,8 +3,7 @@ use serenity::model::prelude::{GuildId, UserId};
 
 use std::path::Path;
 
-use crate::configuration;
-use crate::configuration::write_config;
+use crate::configuration::write_config_eprintln;
 use crate::configuration::Config;
 use crate::herald::IntroOutroMode::{self, *};
 use crate::util::GetExpect;
@@ -36,14 +35,7 @@ pub async fn intro_outro(
 		Outro => config.outros.insert(user_id, clip.clone()),
 	};
 
-	{
-		use configuration::Result::*;
-		match write_config(Path::new("config.json"), &*config) {
-			Ok(()) => (),
-			JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
-			IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
-		}
-	}
+	write_config_eprintln(Path::new("config.json"), &*config);
 
 	format!(
 		"Set new {} to {}",
@@ -78,14 +70,7 @@ pub async fn introbot(ctx: &Context, guild_id: Option<GuildId>, clip: Option<Str
 
 	config.guilds.entry(guild_id).or_default().bot_intro = Some(clip.clone());
 
-	{
-		use configuration::Result::*;
-		match write_config(Path::new("config.json"), &*config) {
-			Ok(()) => (),
-			JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
-			IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
-		}
-	}
+	write_config_eprintln(Path::new("config.json"), &*config);
 
 	format!("Set bot intro to {}", clip)
 }

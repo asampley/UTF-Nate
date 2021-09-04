@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use once_cell::sync::Lazy;
 
 use serde_json::value::Value;
@@ -242,15 +244,16 @@ pub fn clip_interaction_create(
 #[only_in(guilds)]
 #[help_available]
 #[description("Add a youtube or spotify source to the queue")]
-#[num_args(1)]
+#[min_args(1)]
 #[usage("<source>")]
 #[example("https://www.youtube.com/watch?v=k2mFvwDTTt0")]
 pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-	let path = args.current();
+	let query = args.raw().join(" ");
+	let query = if query.len() == 0 { None } else { Some(query.as_str()) };
 
 	msg.respond_str(
 		ctx,
-		generic::play(ctx, PlayType::Queue, PlaySource::Stream, path, msg.guild_id).await,
+		generic::play(ctx, PlayType::Queue, PlaySource::Stream, query, msg.guild_id).await,
 	)
 	.await?;
 

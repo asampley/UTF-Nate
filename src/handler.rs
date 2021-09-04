@@ -88,6 +88,8 @@ impl EventHandler for Handler {
 
 	async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
 		if let Interaction::ApplicationCommand(command) = interaction {
+			println!("Staring interaction name: {:?}, id: {:?}, token: {:?}", command.data.name, command.id, command.token);
+
 			match match command.data.name.as_str() {
 				"intro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Intro).await,
 				"outro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Outro).await,
@@ -106,6 +108,8 @@ impl EventHandler for Handler {
 				Ok(_) => (),
 				Err(e) => eprintln!("Error running interaction: {:?}", e),
 			}
+
+			println!("Completed interaction name: {:?}, id: {:?}, token: {:?}", command.data.name, command.id, command.token);
 		}
 	}
 

@@ -10,7 +10,7 @@ use songbird::SongbirdKey;
 use std::fs::read_dir;
 use std::path::Path;
 
-use crate::configuration::{write_config, Config};
+use crate::configuration::{write_config_eprintln, Config};
 use crate::data::VoiceGuilds;
 use crate::util::*;
 
@@ -77,8 +77,12 @@ pub async fn play(
 		"This command is only available in guilds".to_string()
 	);
 
-	{
+	let (songbird, voice_guild_arc, volume) = {
+		println_v!("Acquiring lock for play");
+
 		let data_lock = ctx.data.read().await;
+
+		println_v!("Acquired lock for play");
 
 		let songbird = data_lock.clone_expect::<SongbirdKey>();
 
@@ -99,41 +103,47 @@ pub async fn play(
 			.and_then(|c| c.volume)
 			.unwrap_or(0.5);
 
-		let mut voice_guild = voice_guild_arc.write().await;
+		(songbird, voice_guild_arc, volume)
+	};
 
-		if let Some(call) = songbird.get(guild_id) {
-			let source = match audio_source(&path, play_source).await {
-				Ok(input) => input,
-				Err(e) => {
-					eprintln!("Error playing audio: {:?}", e);
-					return match e {
-						AudioError::Songbird(_) => "Playback error".to_string(),
-						AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path),
-						AudioError::NoClip => format!("Clip {} not found", path),
-						AudioError::Spotify => "Spotify support coming soon? \u{1f91e}".to_string(),
-					};
-				}
-			};
+	println_v!("Dropped lock for play");
 
-			let (mut track, handle) = create_player(source);
-			track.set_volume(volume);
+	if let Some(call) = songbird.get(guild_id) {
+		println_v!("Fetching audio source");
 
-			match play_type {
-				PlayType::PlayNow => {
-					call.lock().await.play(track);
-					match voice_guild.add_audio(handle, volume) {
-						Ok(()) => format!("Playing {}", path),
-						Err(_) => format!("Error playing {}", path),
-					}
-				}
-				PlayType::Queue => {
-					call.lock().await.enqueue(track);
-					format!("Queued {}", path)
+		let source = match audio_source(&path, play_source).await {
+			Ok(input) => input,
+			Err(e) => {
+				eprintln!("Error playing audio: {:?}", e);
+				return match e {
+					AudioError::Songbird(_) => "Playback error".to_string(),
+					AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path),
+					AudioError::NoClip => format!("Clip {} not found", path),
+					AudioError::Spotify => "Spotify support coming soon? \u{1f91e}".to_string(),
+				};
+			}
+		};
+
+		println_v!("Finished fetching audio source");
+
+		let (mut track, handle) = create_player(source);
+		track.set_volume(volume);
+
+		match play_type {
+			PlayType::PlayNow => {
+				call.lock().await.play(track);
+				match voice_guild_arc.write().await.add_audio(handle, volume) {
+					Ok(()) => format!("Playing {}", path),
+					Err(_) => format!("Error playing {}", path),
 				}
 			}
-		} else {
-			"Not in a voice channel".to_string()
+			PlayType::Queue => {
+				call.lock().await.enqueue(track);
+				format!("Queued {}", path)
+			}
 		}
+	} else {
+		"Not in a voice channel".to_string()
 	}
 }
 
@@ -239,14 +249,7 @@ pub async fn volume(ctx: &Context, guild_id: Option<GuildId>, volume: Option<f32
 
 	config.guilds.entry(guild_id).or_default().volume = Some(volume);
 
-	{
-		use crate::configuration::Result::*;
-		match write_config(Path::new("config.json"), &*config) {
-			Ok(()) => (),
-			JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
-			IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
-		}
-	}
+	write_config_eprintln(Path::new("config.json"), &*config);
 
 	return ret;
 }

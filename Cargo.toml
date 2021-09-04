@@ -28,3 +28,7 @@ features = ["macros", "rt-multi-thread"]
 [dependencies.songbird]
 version = "0.2"
 features = ["driver", "builtin-queue"]
+
+[dependencies.librespot]
+version = "0.2"
+default-features = false

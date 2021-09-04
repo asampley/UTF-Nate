@@ -2,11 +2,14 @@ mod cmd;
 mod configuration;
 mod data;
 mod handler;
+mod spotify;
 mod unicode;
 #[macro_use]
 mod util;
 mod herald;
 mod voice;
+
+use librespot::core::spotify_id::SpotifyId;
 
 use once_cell::sync::Lazy;
 
@@ -30,8 +33,9 @@ use configuration::{read_config, Config};
 use data::{VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use herald::HERALD_GROUP;
+use spotify::UserPassword;
 use unicode::UNICODE_GROUP;
-use util::{check_msg, Respond};
+use util::{check_msg, JsonFileError, Respond};
 use voice::VOICE_GROUP;
 
 use std::collections::HashSet;
@@ -55,6 +59,15 @@ static OPT: Lazy<Opt> = Lazy::new(|| {
 
 #[tokio::main]
 async fn main() {
+	// create spotify player
+	//let mut player = spotify::player(
+	//	spotify::session(
+	//		read_spotify().expect("Spotify credentials could not be read")
+	//	).await.expect("Error creating spotify session")
+	//).await.0;
+
+	//player.load(SpotifyId::from_base62("1iJDsSrrVM1GrToPOMnq0e").unwrap(), true, 0);
+
 	// login with a bot token from file
 	let mut client = Client::builder(&read_token().expect("Token could not be read"))
 		.application_id(
@@ -105,23 +118,29 @@ fn read_application_id() -> std::io::Result<String> {
 	std::fs::read_to_string("application_id")
 }
 
+fn read_spotify() -> Result<UserPassword, JsonFileError> {
+	Ok(serde_json::from_str(&std::fs::read_to_string("spotify")?)?)
+}
+
 fn load_config() -> Config {
-	use configuration::Result::*;
+	use crate::util::JsonFileError::*;
 
 	match read_config(Path::new("config.json")) {
 		Ok(config) => {
 			println!("Read config file from config.json");
 			config
 		}
-		JsonError(reason) => {
-			eprintln!("Error parsing config.json: {:?}", reason);
-			println!("Creating default config");
-			Config::default()
-		}
-		IoError(reason) => {
-			eprintln!("Unable to access config.json: {:?}", reason);
-			println!("Creating default config");
-			Config::default()
+		Err(e) => match e {
+			JsonError(reason) => {
+				eprintln!("Error parsing config.json: {:?}", reason);
+				println!("Creating default config");
+				Config::default()
+			}
+			IoError(reason) => {
+				eprintln!("Unable to access config.json: {:?}", reason);
+				println!("Creating default config");
+				Config::default()
+			}
 		}
 	}
 }

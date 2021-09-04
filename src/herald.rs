@@ -9,13 +9,7 @@ use serenity::model::interactions::application_command::{
 	ApplicationCommandInteraction, ApplicationCommandOptionType,
 };
 
-use std::path::Path;
-
-use crate::configuration;
-use crate::configuration::write_config;
-use crate::configuration::Config;
-use crate::util::{GetExpect, Respond};
-use crate::voice::get_clip;
+use crate::util::Respond;
 
 mod generic;
 
@@ -191,31 +185,13 @@ pub async fn outro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 		return Ok(());
 	}
 
-	let clip_str = args.current().unwrap();
-	match get_clip(clip_str) {
-		Some(_) => (),
-		None => {
-			msg.respond_str(ctx, "Invalid clip").await?;
-			return Ok(());
-		}
-	};
+	let clip = args.current().map(|s| s.to_string());
 
-	let data_lock = ctx.data.read().await;
-	let config_arc = data_lock.clone_expect::<Config>();
+	msg.respond_str(
+		ctx,
+		generic::intro_outro(&ctx, Outro, msg.author.id, clip).await,
+	)
+	.await?;
 
-	let mut config = config_arc.write().await;
-
-	config.outros.insert(msg.author.id, clip_str.to_string());
-
-	{
-		use configuration::Result::*;
-		match write_config(Path::new("config.json"), &*config) {
-			Ok(()) => (),
-			JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
-			IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
-		}
-	}
-
-	msg.respond_str(ctx, "Set new outro").await?;
 	Ok(())
 }

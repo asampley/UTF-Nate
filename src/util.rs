@@ -17,6 +17,16 @@ macro_rules! unwrap_or_ret {
 	};
 }
 
+#[macro_use]
+macro_rules! println_v {
+	( $v:tt ) => {
+		if $crate::OPT.verbose {
+			print!("{}:{}:{}:", file!(), line!(), column!());
+			println!($v);
+		}
+	}
+}
+
 #[derive(Debug)]
 pub enum UtilError {
 	Serenity(serenity::Error),
@@ -43,6 +53,32 @@ impl fmt::Display for UtilError {
 }
 
 impl std::error::Error for UtilError {}
+
+#[derive(Debug)]
+pub enum JsonFileError {
+	JsonError(serde_json::Error),
+	IoError(std::io::Error),
+}
+
+impl From<serde_json::Error> for JsonFileError {
+	fn from(e: serde_json::Error) -> Self {
+		Self::JsonError(e)
+	}
+}
+
+impl From<std::io::Error> for JsonFileError {
+	fn from(e: std::io::Error) -> Self {
+		Self::IoError(e)
+	}
+}
+
+impl fmt::Display for JsonFileError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		fmt::Debug::fmt(self, f)
+	}
+}
+
+impl std::error::Error for JsonFileError {}
 
 #[async_trait]
 pub trait Respond {

@@ -6,6 +6,7 @@ use std::fs::File;
 use std::path::Path;
 
 use crate::data::ArcRw;
+use crate::util::JsonFileError;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Config {
@@ -24,32 +25,27 @@ impl TypeMapKey for Config {
 	type Value = ArcRw<Config>;
 }
 
-pub enum Result<T> {
-	Ok(T),
-	JsonError(serde_json::Error),
-	IoError(std::io::Error),
+pub fn write_config(path: &Path, config: &Config) -> Result<(), JsonFileError> {
+	let file = File::create(path)?;
+
+	Ok(serde_json::to_writer_pretty(file, config)?)
 }
 
-pub fn write_config(path: &Path, config: &Config) -> Result<()> {
-	let file = match File::create(path) {
-		Err(err) => return Result::IoError(err),
-		Ok(file) => file,
-	};
+pub fn write_config_eprintln(path: &Path, config: &Config) {
+	use JsonFileError::*;
 
-	match serde_json::to_writer_pretty(file, config) {
-		Err(err) => Result::JsonError(err),
-		Ok(()) => Result::Ok(()),
+	match write_config(path, &*config) {
+		Ok(()) => (),
+		Err(e) => match e {
+			JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
+			IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
+		}
 	}
 }
+	
 
-pub fn read_config(path: &Path) -> Result<Config> {
-	let file = match File::open(path) {
-		Err(err) => return Result::IoError(err),
-		Ok(file) => file,
-	};
+pub fn read_config(path: &Path) -> Result<Config, JsonFileError> {
+	let file = File::open(path)?;
 
-	match serde_json::from_reader(file) {
-		Err(err) => Result::JsonError(err),
-		Ok(config) => Result::Ok(config),
-	}
+	Ok(serde_json::from_reader(file)?)
 }
