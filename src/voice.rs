@@ -40,14 +40,22 @@ static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
 #[commands(summon, banish, clip, play, volume, stop, skip, list)]
 pub struct Voice;
 
-pub enum PlayType {
-	PlayNow,
-	Queue,
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PlayStyle {
+	Play,
+	Clip,
 }
 
-pub enum PlaySource {
-	Clip,
-	Stream,
+impl std::str::FromStr for PlayStyle {
+	type Err = ();
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s.to_ascii_lowercase().as_str() {
+			"play" => Ok(PlayStyle::Play),
+			"clip" => Ok(PlayStyle::Clip),
+			_ => Err(()),
+		}
+	}
 }
 
 pub fn clip_path() -> PathBuf {
@@ -77,9 +85,9 @@ impl fmt::Display for AudioError {
 
 impl std::error::Error for AudioError {}
 
-pub async fn audio_source(loc: &str, source: PlaySource) -> Result<Input, AudioError> {
+pub async fn audio_source(loc: &str, source: PlayStyle) -> Result<Input, AudioError> {
 	match source {
-		PlaySource::Clip => match find_clip(&loc) {
+		PlayStyle::Clip => match find_clip(&loc) {
 			FindClip::One(clip) => match get_clip(&clip) {
 				Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
 				None => Err(AudioError::NoClip),
@@ -87,7 +95,7 @@ pub async fn audio_source(loc: &str, source: PlaySource) -> Result<Input, AudioE
 			FindClip::Multiple => Err(AudioError::MultipleClip),
 			FindClip::None => Err(AudioError::NoClip),
 		},
-		PlaySource::Stream => {
+		PlayStyle::Play => {
 			if YOUTUBE.is_match(loc) {
 				Ok(songbird::ytdl(&loc).await?)
 			} else if SPOTIFY.is_match(loc) {
@@ -296,7 +304,7 @@ pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
 	msg.respond_str(
 		ctx,
-		generic::play(ctx, PlayType::PlayNow, PlaySource::Clip, path, msg.guild_id).await,
+		generic::play(ctx, PlayStyle::Clip, path, msg.guild_id).await,
 	)
 	.await?;
 
@@ -329,8 +337,7 @@ pub async fn clip_interaction(
 			ctx,
 			generic::play(
 				ctx,
-				PlayType::PlayNow,
-				PlaySource::Clip,
+				PlayStyle::Clip,
 				clip,
 				interaction.guild_id,
 			)
@@ -374,8 +381,7 @@ pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 		ctx,
 		generic::play(
 			ctx,
-			PlayType::Queue,
-			PlaySource::Stream,
+			PlayStyle::Play,
 			query,
 			msg.guild_id,
 		)
@@ -412,8 +418,7 @@ pub async fn play_interaction(
 			ctx,
 			generic::play(
 				ctx,
-				PlayType::Queue,
-				PlaySource::Stream,
+				PlayStyle::Play,
 				clip,
 				interaction.guild_id,
 			)
@@ -441,16 +446,21 @@ pub fn play_interaction_create(
 #[only_in(guilds)]
 #[help_available]
 #[description("Change volume of bot")]
-#[num_args(1)]
-#[usage("<volume>")]
-#[example("0.5")]
+#[num_args(2)]
+#[usage("<play|clip> <volume>")]
+#[example("play 0.5")]
 pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+	let style = args
+		.single::<PlayStyle>()
+		.or_err_say(ctx, msg, "Expected either \"play\" or \"clip\" volume to be selected")
+		.await?;
+
 	let volume = args
 		.single::<f32>()
 		.or_err_say(ctx, msg, "Volume must be a valid float between 0.0 and 1.0")
 		.await?;
 
-	msg.respond_str(ctx, generic::volume(ctx, msg.guild_id, Some(volume)).await)
+	msg.respond_str(ctx, generic::volume(ctx, Some(style), msg.guild_id, Some(volume)).await)
 		.await?;
 
 	Ok(())
@@ -460,6 +470,23 @@ pub async fn volume_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
+	let style = interaction.data.options.iter().find_map(|option| {
+		if option.name == "style" {
+			option.value.as_ref()
+		} else {
+			None
+		}
+	});
+
+	let style = match style {
+		Some(Value::String(style)) => style.parse::<PlayStyle>().ok(),
+		None => None,
+		Some(_) => {
+			error!("Error in volume interaction expecting float argument");
+			return interaction.respond_str(&ctx, "Internal bot error").await;
+		}
+	};
+
 	let volume = interaction.data.options.iter().find_map(|option| {
 		if option.name == "volume" {
 			option.value.as_ref()
@@ -480,7 +507,7 @@ pub async fn volume_interaction(
 	interaction
 		.respond_str(
 			ctx,
-			generic::volume(ctx, interaction.guild_id, volume).await,
+			generic::volume(ctx, style, interaction.guild_id, volume).await,
 		)
 		.await
 }
@@ -491,6 +518,15 @@ pub fn volume_interaction_create(
 	command
 		.name("volume")
 		.description("Change volume of bot")
+		.create_option(|option| {
+			option
+				.name("style")
+				.description("Volume to set, either for play or clip commands")
+				.kind(ApplicationCommandOptionType::SubCommand)
+				.add_string_choice("play", "play")
+				.add_string_choice("clip", "clip")
+				.required(true)
+		})
 		.create_option(|option| {
 			option
 				.name("volume")

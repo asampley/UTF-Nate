@@ -20,7 +20,8 @@ pub struct Config {
 #[derive(Default, Serialize, Deserialize)]
 pub struct GuildConfig {
 	pub bot_intro: Option<String>,
-	pub volume: Option<f32>,
+	pub volume_clip: Option<f32>,
+	pub volume_play: Option<f32>,
 }
 
 impl TypeMapKey for Config {

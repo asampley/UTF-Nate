@@ -17,7 +17,7 @@ use crate::data::VoiceGuilds;
 use crate::util::*;
 
 use crate::voice::{audio_source, clip_path, sandboxed_exists};
-use crate::voice::{AudioError, PlaySource, PlayType};
+use crate::voice::{AudioError, PlayStyle};
 
 pub async fn summon(ctx: &Context, guild_id: Option<GuildId>, user_id: UserId) -> String {
 	let guild_id = unwrap_or_ret!(
@@ -68,8 +68,7 @@ pub async fn banish(ctx: &Context, guild_id: Option<GuildId>) -> String {
 
 pub async fn play(
 	ctx: &Context,
-	play_type: PlayType,
-	play_source: PlaySource,
+	play_style: PlayStyle,
 	path: Option<&str>,
 	guild_id: Option<GuildId>,
 ) -> String {
@@ -102,7 +101,10 @@ pub async fn play(
 			.await
 			.guilds
 			.get(&guild_id)
-			.and_then(|c| c.volume)
+			.and_then(|c| match play_style {
+				PlayStyle::Clip => c.volume_clip,
+				PlayStyle::Play => c.volume_play,
+			})
 			.unwrap_or(0.5);
 
 		(songbird, voice_guild_arc, volume)
@@ -113,7 +115,7 @@ pub async fn play(
 	if let Some(call) = songbird.get(guild_id) {
 		debug!("Fetching audio source");
 
-		let source = match audio_source(&path, play_source).await {
+		let source = match audio_source(&path, play_style).await {
 			Ok(input) => input,
 			Err(e) => {
 				error!("Error playing audio: {:?}", e);
@@ -135,15 +137,15 @@ pub async fn play(
 		let (mut track, handle) = create_player(source);
 		track.set_volume(volume);
 
-		match play_type {
-			PlayType::PlayNow => {
+		match play_style {
+			PlayStyle::Clip => {
 				call.lock().await.play(track);
 				match voice_guild_arc.write().await.add_audio(handle, volume) {
 					Ok(()) => format!("Playing {}", path),
 					Err(_) => format!("Error playing {}", path),
 				}
 			}
-			PlayType::Queue => {
+			PlayStyle::Play => {
 				call.lock().await.enqueue(track);
 				format!("Queued {}", path)
 			}
@@ -201,59 +203,74 @@ pub async fn list(path: Option<&str>) -> String {
 	}
 }
 
-pub async fn volume(ctx: &Context, guild_id: Option<GuildId>, volume: Option<f32>) -> String {
+pub async fn volume(ctx: &Context, style: Option<PlayStyle>, guild_id: Option<GuildId>, volume: Option<f32>) -> String {
 	let guild_id = unwrap_or_ret!(
 		guild_id,
 		"This command is only available in guilds".to_string()
 	);
+
+	let style = unwrap_or_ret!(
+		style,
+		"Please specify either \"play\" or \"clip\" to set the volume for each command".to_string()
+	);
+
 	let volume = unwrap_or_ret!(
 		volume,
 		"Please specify a volume between 0.0 and 1.0".to_string()
 	);
 
-	if volume < 0.0 || volume > 1.0 {
+	if !(volume >= 0.0 || volume <= 1.0) {
 		return "Volume must be between 0.0 and 1.0".to_string();
 	}
 
 	let data_lock = ctx.data.read().await;
 
-	let songbird = data_lock.clone_expect::<SongbirdKey>();
+	let ret = match style {
+		PlayStyle::Play => {
+			let songbird = data_lock.clone_expect::<SongbirdKey>();
 
-	for handle in songbird
-		.get_or_insert(guild_id.into())
-		.lock()
-		.await
-		.queue()
-		.current_queue()
-	{
-		if let Some(_) = handle
-			.set_volume(volume)
-			.err()
-			.filter(|e| e == &TrackError::Finished)
-		{
-			return "Error setting volume".to_string();
+			for handle in songbird
+				.get_or_insert(guild_id.into())
+				.lock()
+				.await
+				.queue()
+				.current_queue()
+			{
+				match handle.set_volume(volume).err().filter(|e| e == &TrackError::Finished)
+				{
+					Some(_) => return "Error setting volume".to_string(),
+					None => (),
+				}
+			}
+
+			format!("Play volume set to {}", volume)
 		}
-	}
-
-	let ret = match data_lock
-		.clone_expect::<VoiceGuilds>()
-		.write()
-		.await
-		.entry(guild_id)
-		.or_default()
-		.clone()
-		.write()
-		.await
-		.set_volume(volume)
-	{
-		Ok(_) => format!("Volume set to {}", volume),
-		Err(_) => "Error setting volume".to_string(),
+		PlayStyle::Clip => {
+			match data_lock
+				.clone_expect::<VoiceGuilds>()
+				.write()
+				.await
+				.entry(guild_id)
+				.or_default()
+				.clone()
+				.write()
+				.await
+				.set_volume(volume)
+			{
+				Ok(_) => format!("Clip volume set to {}", volume),
+				Err(_) => "Error setting volume".to_string(),
+			}
+		}
 	};
 
 	let config_arc = data_lock.clone_expect::<Config>();
 	let mut config = config_arc.write().await;
 
-	config.guilds.entry(guild_id).or_default().volume = Some(volume);
+	let entry = config.guilds.entry(guild_id).or_default();
+	match style {
+		PlayStyle::Clip => entry.volume_clip = Some(volume),
+		PlayStyle::Play => entry.volume_play = Some(volume),
+	}
 
 	write_config_eprintln(Path::new("config.json"), &*config);
 

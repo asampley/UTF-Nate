@@ -21,7 +21,7 @@ use crate::herald::{
 	introbot_interaction_create, outro_interaction_create, IntroOutroMode,
 };
 use crate::util::*;
-use crate::voice::PlaySource;
+use crate::voice::PlayStyle;
 use crate::voice::{
 	audio_source, banish_interaction, banish_interaction_create, clip_interaction,
 	clip_interaction_create, list_interaction, list_interaction_create, play_interaction,
@@ -222,7 +222,7 @@ impl EventHandler for Handler {
 						.await
 						.guilds
 						.get(&guild_id)
-						.and_then(|c| c.volume)
+						.and_then(|c| c.volume_clip)
 						.unwrap_or(0.5);
 
 					(songbird, voice_guild_arc, volume)
@@ -231,7 +231,7 @@ impl EventHandler for Handler {
 				let mut voice_guild = voice_guild_arc.write().await;
 
 				if let Some(call) = songbird.get(guild_id) {
-					let source = audio_source(&clip, PlaySource::Clip).await;
+					let source = audio_source(&clip, PlayStyle::Clip).await;
 
 					match source {
 						Ok(source) => {
