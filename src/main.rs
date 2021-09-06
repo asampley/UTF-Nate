@@ -70,6 +70,13 @@ async fn main() {
 				false => LevelFilter::Info,
 			},
 		)
+		.filter_module(
+			"songbird",
+			match OPT.verbose {
+				true => LevelFilter::Debug,
+				false => LevelFilter::Info,
+			},
+		)
 		.format_timestamp_micros()
 		.init();
 

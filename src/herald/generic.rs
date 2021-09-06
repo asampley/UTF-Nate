@@ -7,7 +7,7 @@ use crate::configuration::write_config_eprintln;
 use crate::configuration::Config;
 use crate::herald::IntroOutroMode::{self, *};
 use crate::util::GetExpect;
-use crate::voice::get_clip;
+use crate::voice::{find_clip, FindClip};
 
 pub async fn intro_outro(
 	ctx: &Context,
@@ -16,14 +16,13 @@ pub async fn intro_outro(
 	clip: Option<String>,
 ) -> String {
 	let clip = match clip {
-		Some(clip) => clip,
+		Some(clip) => match find_clip(&clip) {
+			FindClip::One(clip) => clip,
+			FindClip::Multiple => return format!("Multiple clips matching {} found. Please be more specific.", clip),
+			FindClip::None => format!("Clip {} not found", clip),
+		}
 		None => return "No clip provided".to_string(),
 	};
-
-	match get_clip(&clip) {
-		Some(_) => (),
-		None => return format!("Invalid clip: {}", clip),
-	}
 
 	let data_lock = ctx.data.read().await;
 	let config_arc = data_lock.clone_expect::<Config>();
@@ -54,14 +53,13 @@ pub async fn introbot(ctx: &Context, guild_id: Option<GuildId>, clip: Option<Str
 	};
 
 	let clip = match clip {
-		Some(clip) => clip,
+		Some(clip) => match find_clip(&clip) {
+			FindClip::One(clip) => clip,
+			FindClip::Multiple => return format!("Multiple clips matching {} found. Please be more specific.", clip),
+			FindClip::None => format!("Clip {} not found", clip),
+		}
 		None => return "No clip provided".to_string(),
 	};
-
-	match get_clip(&clip) {
-		Some(_) => (),
-		None => return format!("Invalid clip: {}", clip),
-	}
 
 	let data_lock = ctx.data.read().await;
 	let config_arc = data_lock.clone_expect::<Config>();

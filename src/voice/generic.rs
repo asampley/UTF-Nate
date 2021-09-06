@@ -120,6 +120,7 @@ pub async fn play(
 				return match e {
 					AudioError::Songbird(_) => "Playback error".to_string(),
 					AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path),
+					AudioError::MultipleClip => format!("Multiple clips matching {} found. Please be more specific.", path),
 					AudioError::NoClip => format!("Clip {} not found", path),
 					AudioError::Spotify => "Spotify support coming soon? \u{1f91e}".to_string(),
 				};
