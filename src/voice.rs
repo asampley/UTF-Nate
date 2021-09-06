@@ -79,15 +79,13 @@ impl std::error::Error for AudioError {}
 
 pub async fn audio_source(loc: &str, source: PlaySource) -> Result<Input, AudioError> {
 	match source {
-		PlaySource::Clip => {
-			match find_clip(&loc) {
-				FindClip::One(clip) => match get_clip(&clip) {
-					Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
-					None => Err(AudioError::NoClip),
-				}
-				FindClip::Multiple => Err(AudioError::MultipleClip),
-				FindClip::None => Err(AudioError::NoClip),
-			}
+		PlaySource::Clip => match find_clip(&loc) {
+			FindClip::One(clip) => match get_clip(&clip) {
+				Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
+				None => Err(AudioError::NoClip),
+			},
+			FindClip::Multiple => Err(AudioError::MultipleClip),
+			FindClip::None => Err(AudioError::NoClip),
 		},
 		PlaySource::Stream => {
 			if YOUTUBE.is_match(loc) {
@@ -110,26 +108,35 @@ pub enum FindClip {
 }
 
 #[derive(Debug)]
-struct OrdKey<K,V> {
+struct OrdKey<K, V> {
 	key: K,
 	value: V,
 }
 
-impl<K,V> PartialEq for OrdKey<K,V> where K: PartialEq {
+impl<K, V> PartialEq for OrdKey<K, V>
+where
+	K: PartialEq,
+{
 	fn eq(&self, other: &Self) -> bool {
 		self.key.eq(&other.key)
 	}
 }
 
-impl<K,V> Eq for OrdKey<K,V> where K: Eq {}
+impl<K, V> Eq for OrdKey<K, V> where K: Eq {}
 
-impl<K,V> PartialOrd for OrdKey<K,V> where K: PartialOrd {
+impl<K, V> PartialOrd for OrdKey<K, V>
+where
+	K: PartialOrd,
+{
 	fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
 		self.key.partial_cmp(&other.key)
 	}
 }
 
-impl<K,V> Ord for OrdKey<K,V> where K: Ord {
+impl<K, V> Ord for OrdKey<K, V>
+where
+	K: Ord,
+{
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.key.cmp(&other.key)
 	}
@@ -139,27 +146,31 @@ pub fn find_clip(loc: &str) -> FindClip {
 	let clip_path = clip_path();
 	let components = loc.split('/').collect_vec();
 
-	let top_two = WalkDir::new(&clip_path).into_iter()
+	let top_two = WalkDir::new(&clip_path)
+		.into_iter()
 		.filter_map(|f| f.ok())
 		.filter(|f| f.file_type().is_file())
 		// The name of the clip must match exactly in the path
-		.filter(|f| components.iter().contains(&&*f.path().file_stem().unwrap().to_string_lossy()))
+		.filter(|f| {
+			components
+				.iter()
+				.contains(&&*f.path().file_stem().unwrap().to_string_lossy())
+		})
 		// count the number of components in a path which match the supplied components
 		// the highest score becomes the clip
 		// a tie results in no clip returned
-		.map(|f| 
-			OrdKey {
-				key: -(f.path()
-					.components()
-					.filter(|c|
-						components.iter()
-							.any(|d| d == &c.as_os_str().to_string_lossy())
-					)
-					.count() 
-					as isize),
-				value: f,
-			}
-		)
+		.map(|f| OrdKey {
+			key: -(f
+				.path()
+				.components()
+				.filter(|c| {
+					components
+						.iter()
+						.any(|d| d == &c.as_os_str().to_string_lossy())
+				})
+				.count() as isize),
+			value: f,
+		})
 		.k_smallest(2)
 		.collect_vec();
 
@@ -171,7 +182,14 @@ pub fn find_clip(loc: &str) -> FindClip {
 		FindClip::Multiple
 	} else {
 		FindClip::One(
-			top_two[0].value.path().strip_prefix(&clip_path).unwrap().with_extension("").to_string_lossy().into_owned()
+			top_two[0]
+				.value
+				.path()
+				.strip_prefix(&clip_path)
+				.unwrap()
+				.with_extension("")
+				.to_string_lossy()
+				.into_owned(),
 		)
 	}
 }

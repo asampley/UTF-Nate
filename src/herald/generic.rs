@@ -18,9 +18,14 @@ pub async fn intro_outro(
 	let clip = match clip {
 		Some(clip) => match find_clip(&clip) {
 			FindClip::One(clip) => clip,
-			FindClip::Multiple => return format!("Multiple clips matching {} found. Please be more specific.", clip),
+			FindClip::Multiple => {
+				return format!(
+					"Multiple clips matching {} found. Please be more specific.",
+					clip
+				)
+			}
 			FindClip::None => format!("Clip {} not found", clip),
-		}
+		},
 		None => return "No clip provided".to_string(),
 	};
 
@@ -55,9 +60,14 @@ pub async fn introbot(ctx: &Context, guild_id: Option<GuildId>, clip: Option<Str
 	let clip = match clip {
 		Some(clip) => match find_clip(&clip) {
 			FindClip::One(clip) => clip,
-			FindClip::Multiple => return format!("Multiple clips matching {} found. Please be more specific.", clip),
+			FindClip::Multiple => {
+				return format!(
+					"Multiple clips matching {} found. Please be more specific.",
+					clip
+				)
+			}
 			FindClip::None => format!("Clip {} not found", clip),
-		}
+		},
 		None => return "No clip provided".to_string(),
 	};
 
