@@ -9,7 +9,7 @@ mod util;
 mod herald;
 mod voice;
 
-use log::LevelFilter;
+use log::{error, info, LevelFilter};
 
 use librespot::core::spotify_id::SpotifyId;
 
@@ -63,10 +63,13 @@ static OPT: Lazy<Opt> = Lazy::new(|| {
 async fn main() {
 	// initialize logging
 	env_logger::Builder::new()
-		.filter_module("utf_nate", match OPT.verbose {
-			true => LevelFilter::Debug,
-			false => LevelFilter::Info,
-		})
+		.filter_module(
+			"utf_nate",
+			match OPT.verbose {
+				true => LevelFilter::Debug,
+				false => LevelFilter::Info,
+			},
+		)
 		.format_timestamp_micros()
 		.init();
 
@@ -117,7 +120,7 @@ async fn main() {
 		.expect("Error creating client");
 
 	if let Err(reason) = client.start().await {
-		eprintln!("An error occurred while running the client: {:?}", reason)
+		error!("An error occurred while running the client: {:?}", reason)
 	}
 }
 
@@ -138,21 +141,21 @@ fn load_config() -> Config {
 
 	match read_config(Path::new("config.json")) {
 		Ok(config) => {
-			println!("Read config file from config.json");
+			info!("Read config file from config.json");
 			config
 		}
 		Err(e) => match e {
 			JsonError(reason) => {
-				eprintln!("Error parsing config.json: {:?}", reason);
-				println!("Creating default config");
+				error!("Error parsing config.json: {:?}", reason);
+				info!("Creating default config");
 				Config::default()
 			}
 			IoError(reason) => {
-				eprintln!("Unable to access config.json: {:?}", reason);
-				println!("Creating default config");
+				error!("Unable to access config.json: {:?}", reason);
+				info!("Creating default config");
 				Config::default()
 			}
-		}
+		},
 	}
 }
 
@@ -177,7 +180,7 @@ async fn unrecognised_command(ctx: &Context, msg: &Message, cmd: &str) {
 			.await,
 	);
 
-	println!(
+	info!(
 		"User {} ({}) in guild {:?} ({:?}) command {} not recognised with message: {}",
 		msg.author.name, msg.author.id, guild_name, msg.guild_id, cmd, msg.content
 	);
@@ -186,7 +189,7 @@ async fn unrecognised_command(ctx: &Context, msg: &Message, cmd: &str) {
 #[hook]
 async fn before_hook(ctx: &Context, msg: &Message, cmd: &str) -> bool {
 	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone()).await;
-	println!(
+	info!(
 		"User {} ({}) in guild {:?} ({:?}) running {} with message: {}",
 		msg.author.name, msg.author.id, guild_name, msg.guild_id, cmd, msg.content
 	);
@@ -198,7 +201,7 @@ async fn before_hook(ctx: &Context, msg: &Message, cmd: &str) -> bool {
 async fn after_hook(ctx: &Context, msg: &Message, cmd: &str, res: CommandResult) {
 	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone()).await;
 
-	println!(
+	info!(
 		"User {} ({}) in guild {:?} ({:?}) completed {} with result {:?} with message: {}",
 		msg.author.name, msg.author.id, guild_name, msg.guild_id, cmd, res, msg.content
 	);
@@ -230,6 +233,6 @@ async fn on_dispatch_error(ctx: &Context, msg: &Message, err: DispatchError) {
 					.await,
 			);
 		}
-		_ => println!("Unhandled dispatch error: {:?}", err),
+		_ => error!("Unhandled dispatch error: {:?}", err),
 	}
 }

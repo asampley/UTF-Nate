@@ -1,3 +1,5 @@
+use log::error;
+
 use serenity::async_trait;
 use serenity::client::Context;
 use serenity::model::channel::Message;
@@ -282,7 +284,7 @@ pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
 
 pub fn check_msg(result: serenity::Result<Message>) {
 	if let Err(reason) = result {
-		eprintln!("Error sending message: {:?}", reason);
+		error!("Error sending message: {:?}", reason);
 	}
 }
 

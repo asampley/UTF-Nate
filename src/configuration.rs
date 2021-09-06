@@ -1,3 +1,5 @@
+use log::error;
+
 use serde::{Deserialize, Serialize};
 use serenity::model::id::{GuildId, UserId};
 use serenity::prelude::TypeMapKey;
@@ -37,12 +39,11 @@ pub fn write_config_eprintln(path: &Path, config: &Config) {
 	match write_config(path, &*config) {
 		Ok(()) => (),
 		Err(e) => match e {
-			JsonError(reason) => eprintln!("Error writing config file: {:?}", reason),
-			IoError(reason) => eprintln!("Error writing config file: {:?}", reason),
-		}
+			JsonError(reason) => error!("Error writing config file: {:?}", reason),
+			IoError(reason) => error!("Error writing config file: {:?}", reason),
+		},
 	}
 }
-	
 
 pub fn read_config(path: &Path) -> Result<Config, JsonFileError> {
 	let file = File::open(path)?;

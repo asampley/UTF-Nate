@@ -1,3 +1,5 @@
+use log::{debug, error, info};
+
 use serenity::async_trait;
 use serenity::builder::CreateApplicationCommand;
 use serenity::model::gateway::Ready;
@@ -40,12 +42,12 @@ enum IOClip {
 #[async_trait]
 impl EventHandler for Handler {
 	async fn ready(&self, ctx: Context, _: Ready) {
-		println!("Bot started!");
+		info!("Bot started!");
 
-		println!("Bot info {:?}", ctx.cache.current_user_id().await);
+		info!("Bot info {:?}", ctx.cache.current_user_id().await);
 
 		if OPT.reregister {
-			println!("Reregistering slash commands...");
+			info!("Reregistering slash commands...");
 
 			let commands = ctx.http.get_global_application_commands().await.unwrap();
 
@@ -55,7 +57,7 @@ impl EventHandler for Handler {
 					.await
 					.unwrap();
 			}
-			println!("Deleted old slash commands");
+			info!("Deleted old slash commands");
 
 			ApplicationCommand::set_global_application_commands(&ctx.http, |commands| {
 				commands
@@ -75,20 +77,20 @@ impl EventHandler for Handler {
 			.await
 			.unwrap();
 
-			if OPT.verbose {
-				println!(
-					"Registered slash commands: {:#?}",
-					ApplicationCommand::get_global_application_commands(&ctx.http).await,
-				);
-			} else {
-				println!("Reregistered slash commands");
-			}
+			debug!(
+				"Registered slash commands: {:#?}",
+				ApplicationCommand::get_global_application_commands(&ctx.http).await,
+			);
+			info!("Reregistered slash commands");
 		}
 	}
 
 	async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
 		if let Interaction::ApplicationCommand(command) = interaction {
-			println!("Staring interaction name: {:?}, id: {:?}, token: {:?}", command.data.name, command.id, command.token);
+			info!(
+				"Staring interaction name: {:?}, id: {:?}, token: {:?}",
+				command.data.name, command.id, command.token
+			);
 
 			match match command.data.name.as_str() {
 				"intro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Intro).await,
@@ -106,10 +108,13 @@ impl EventHandler for Handler {
 				_ => command.respond_str(&ctx, "Unknown command").await,
 			} {
 				Ok(_) => (),
-				Err(e) => eprintln!("Error running interaction: {:?}", e),
+				Err(e) => error!("Error running interaction: {:?}", e),
 			}
 
-			println!("Completed interaction name: {:?}, id: {:?}, token: {:?}", command.data.name, command.id, command.token);
+			info!(
+				"Completed interaction name: {:?}, id: {:?}, token: {:?}",
+				command.data.name, command.id, command.token
+			);
 		}
 	}
 
@@ -233,7 +238,7 @@ impl EventHandler for Handler {
 							voice_guild
 								.add_audio(call.lock().await.play_source(source), volume)
 								.expect("Error playing source");
-							println!(
+							info!(
 								"Playing {} for user ({})",
 								match io {
 									IOClip::Intro => "intro",
@@ -243,7 +248,7 @@ impl EventHandler for Handler {
 							);
 						}
 						Err(reason) => {
-							eprintln!("Error trying to intro clip: {:?}", reason);
+							error!("Error trying to intro clip: {:?}", reason);
 						}
 					}
 				}

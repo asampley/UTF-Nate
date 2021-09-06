@@ -7,6 +7,8 @@ use librespot::playback::audio_backend::Sink;
 use librespot::playback::config::PlayerConfig;
 use librespot::playback::player::{Player, PlayerEventChannel};
 
+use log::debug;
+
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -28,8 +30,8 @@ impl Sink for PrintSink {
 
 	fn write(&mut self, packet: &AudioPacket) -> std::io::Result<()> {
 		match packet {
-			AudioPacket::Samples(s) => println!("Samples({:?})", s),
-			AudioPacket::OggData(s) => println!("OggData({:?})", s),
+			AudioPacket::Samples(s) => debug!("Samples({:?})", s),
+			AudioPacket::OggData(s) => debug!("OggData({:?})", s),
 		}
 
 		Ok(())
@@ -41,14 +43,12 @@ pub async fn session(credentials: UserPassword) -> Result<Session, SessionError>
 		SessionConfig::default(),
 		Credentials::with_password(credentials.username, credentials.password),
 		None,
-	).await
+	)
+	.await
 }
 
 pub async fn player(session: Session) -> (Player, PlayerEventChannel) {
-	Player::new(
-		PlayerConfig::default(),
-		session,
-		None,
-		|| Box::new(PrintSink),
-	)
+	Player::new(PlayerConfig::default(), session, None, || {
+		Box::new(PrintSink)
+	})
 }

@@ -1,3 +1,5 @@
+use log::{error, info};
+
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{Args, CommandResult};
@@ -46,11 +48,11 @@ pub async fn cmd(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 	match message {
 		Ok(message) => {
 			msg.respond_str(ctx, &message).await?;
-			println!("Output of command: {}", message);
+			info!("Output of command: {}", message);
 		}
 		Err(reason) => {
 			msg.respond_str(ctx, "Error executing command").await?;
-			eprintln!("Error executing command: {:?}", reason);
+			error!("Error executing command: {:?}", reason);
 			return Ok(());
 		}
 	}

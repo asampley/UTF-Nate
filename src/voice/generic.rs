@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use log::debug;
+use log::{debug, error};
 
 use serenity::client::Context;
 use serenity::model::prelude::{GuildId, UserId};
@@ -116,7 +116,7 @@ pub async fn play(
 		let source = match audio_source(&path, play_source).await {
 			Ok(input) => input,
 			Err(e) => {
-				eprintln!("Error playing audio: {:?}", e);
+				error!("Error playing audio: {:?}", e);
 				return match e {
 					AudioError::Songbird(_) => "Playback error".to_string(),
 					AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path),
@@ -166,7 +166,7 @@ pub async fn list(path: Option<&str>) -> String {
 
 	match read_dir(dir) {
 		Err(reason) => {
-			eprintln!("Unable to read directory: {:?}", reason);
+			error!("Unable to read directory: {:?}", reason);
 			return "Invalid directory".to_string();
 		}
 		Ok(dir_iter) => {
@@ -293,7 +293,7 @@ pub async fn skip(ctx: &Context, guild_id: Option<GuildId>) -> String {
 	{
 		Ok(_) => "Skipping current clip".to_string(),
 		Err(e) => {
-			eprintln!("{:?}", e);
+			error!("{:?}", e);
 			"Error skipping clip".to_string()
 		}
 	}

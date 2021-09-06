@@ -1,3 +1,5 @@
+use log::error;
+
 use serde_json::value::Value;
 
 use serenity::builder::CreateApplicationCommand;
@@ -42,7 +44,7 @@ pub async fn intro_outro_interaction(
 		Some(Value::String(clip)) => Some(clip.clone()),
 		None => None,
 		Some(_) => {
-			eprintln!("Error in intro interaction expecting string argument");
+			error!("Error in intro interaction expecting string argument");
 			return interaction.respond_str(&ctx, "Internal bot error").await;
 		}
 	};
@@ -124,7 +126,7 @@ pub async fn introbot_interaction(
 		Some(Value::String(clip)) => Some(clip.clone()),
 		None => None,
 		Some(_) => {
-			eprintln!("Error in intro interaction expecting string argument");
+			error!("Error in intro interaction expecting string argument");
 			return interaction.respond_str(&ctx, "Internal bot error").await;
 		}
 	};

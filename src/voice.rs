@@ -1,5 +1,7 @@
 use itertools::Itertools;
 
+use log::error;
+
 use once_cell::sync::Lazy;
 
 use serde_json::value::Value;
@@ -204,7 +206,7 @@ pub async fn clip_interaction(
 		Some(Value::String(clip)) => Some(clip.as_str()),
 		None => None,
 		Some(_) => {
-			eprintln!("Error in clip interaction expecting string argument");
+			error!("Error in clip interaction expecting string argument");
 			return interaction.respond_str(&ctx, "Internal bot error").await;
 		}
 	};
@@ -249,11 +251,22 @@ pub fn clip_interaction_create(
 #[example("https://www.youtube.com/watch?v=k2mFvwDTTt0")]
 pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let query = args.raw().join(" ");
-	let query = if query.len() == 0 { None } else { Some(query.as_str()) };
+	let query = if query.len() == 0 {
+		None
+	} else {
+		Some(query.as_str())
+	};
 
 	msg.respond_str(
 		ctx,
-		generic::play(ctx, PlayType::Queue, PlaySource::Stream, query, msg.guild_id).await,
+		generic::play(
+			ctx,
+			PlayType::Queue,
+			PlaySource::Stream,
+			query,
+			msg.guild_id,
+		)
+		.await,
 	)
 	.await?;
 
@@ -276,7 +289,7 @@ pub async fn play_interaction(
 		Some(Value::String(clip)) => Some(clip.as_str()),
 		None => None,
 		Some(_) => {
-			eprintln!("Error in play interaction expecting string argument");
+			error!("Error in play interaction expecting string argument");
 			return interaction.respond_str(&ctx, "Internal bot error").await;
 		}
 	};
@@ -346,7 +359,7 @@ pub async fn volume_interaction(
 		Some(Value::Number(volume)) => volume.as_f64().map(|v| v as f32),
 		None => None,
 		Some(_) => {
-			eprintln!("Error in volume interaction expecting float argument");
+			error!("Error in volume interaction expecting float argument");
 			return interaction.respond_str(&ctx, "Internal bot error").await;
 		}
 	};
@@ -466,7 +479,7 @@ pub async fn list_interaction(
 		Some(Value::String(path)) => Some(path.as_str()),
 		None => None,
 		Some(_) => {
-			eprintln!("Error in list interaction expecting string argument");
+			error!("Error in list interaction expecting string argument");
 			return interaction.respond_str(&ctx, "Internal bot error").await;
 		}
 	};
