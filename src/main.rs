@@ -83,6 +83,9 @@ async fn main() {
 		.format_timestamp_micros()
 		.init();
 
+	// warn if there are duplicate clip names
+	voice::warn_duplicate_clip_names();
+
 	// create spotify player
 	if OPT.spotify {
 		warn!("Spotify is still experimental. This is just a test.");

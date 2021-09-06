@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use log::{debug, error};
+use log::{debug, error, warn};
 
 use once_cell::sync::Lazy;
 
@@ -140,6 +140,18 @@ where
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.key.cmp(&other.key)
 	}
+}
+
+pub fn warn_duplicate_clip_names() {
+	let clip_path = clip_path();
+
+	WalkDir::new(&clip_path)
+		.into_iter()
+		.filter_map(|f| f.ok())
+		.filter(|f| f.file_type().is_file())
+		.map(|f| f.path().file_stem().unwrap().to_string_lossy().into_owned())
+		.duplicates()
+		.for_each(|s| warn!("Multiple clips have the name \"{}\"", s));
 }
 
 pub fn find_clip(loc: &str) -> FindClip {
