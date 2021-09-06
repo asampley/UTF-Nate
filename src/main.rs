@@ -9,7 +9,7 @@ mod util;
 mod herald;
 mod voice;
 
-use log::{error, info, LevelFilter};
+use log::{error, info, warn, LevelFilter};
 
 use librespot::core::spotify_id::SpotifyId;
 
@@ -51,6 +51,9 @@ struct Opt {
 
 	#[structopt(long, short, help = "Run command with additional logging")]
 	verbose: bool,
+
+	#[structopt(long, help = "Enable spotify playback")]
+	spotify: bool,
 }
 
 static OPT: Lazy<Opt> = Lazy::new(|| {
@@ -81,13 +84,23 @@ async fn main() {
 		.init();
 
 	// create spotify player
-	//let mut player = spotify::player(
-	//	spotify::session(
-	//		read_spotify().expect("Spotify credentials could not be read")
-	//	).await.expect("Error creating spotify session")
-	//).await.0;
+	if OPT.spotify {
+		warn!("Spotify is still experimental. This is just a test.");
 
-	//player.load(SpotifyId::from_base62("1iJDsSrrVM1GrToPOMnq0e").unwrap(), true, 0);
+		let mut player = spotify::player(
+			spotify::session(read_spotify().expect("Spotify credentials could not be read"))
+				.await
+				.expect("Error creating spotify session"),
+		)
+		.await
+		.0;
+
+		player.load(
+			SpotifyId::from_base62("1iJDsSrrVM1GrToPOMnq0e").unwrap(),
+			true,
+			0,
+		);
+	}
 
 	// login with a bot token from file
 	let mut client = Client::builder(&read_token().expect("Token could not be read"))
