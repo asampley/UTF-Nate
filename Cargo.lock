@@ -414,6 +414,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_logger"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b2cf0344971ee6c64c31be0d530793fba457d322dfec2810c453d0ef228f9c3"
+dependencies = [
+ "atty",
+ "humantime",
+ "log",
+ "regex",
+ "termcolor",
+]
+
+[[package]]
 name = "flate2"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -946,7 +959,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "450aa724dcc28a06c6f3a070e7f4b84c0800d9152bec3b012a11ff886986bd58"
 dependencies = [
  "base64 0.13.0",
- "env_logger",
+ "env_logger 0.8.4",
  "futures-util",
  "getopts",
  "hex",
@@ -2393,9 +2406,11 @@ checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
 name = "utf_nate"
 version = "0.1.0"
 dependencies = [
+ "env_logger 0.9.0",
  "futures",
  "itertools",
  "librespot",
+ "log",
  "once_cell",
  "regex",
  "serde",

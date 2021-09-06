@@ -24,7 +24,7 @@ use crate::util::*;
 mod generic;
 
 static YOUTUBE: Lazy<Regex> =
-	Lazy::new(|| Regex::new("^https?://(www\\.youtube\\.com|youtu.be)/").unwrap());
+	Lazy::new(|| Regex::new("^https?://((www|m)\\.youtube\\.com|youtu.be)/").unwrap());
 
 static SPOTIFY: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://open\\.spotify\\.com/").unwrap());
 

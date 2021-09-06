@@ -9,6 +9,8 @@ mod util;
 mod herald;
 mod voice;
 
+use log::LevelFilter;
+
 use librespot::core::spotify_id::SpotifyId;
 
 use once_cell::sync::Lazy;
@@ -59,6 +61,15 @@ static OPT: Lazy<Opt> = Lazy::new(|| {
 
 #[tokio::main]
 async fn main() {
+	// initialize logging
+	env_logger::Builder::new()
+		.filter_module("utf_nate", match OPT.verbose {
+			true => LevelFilter::Debug,
+			false => LevelFilter::Info,
+		})
+		.format_timestamp_micros()
+		.init();
+
 	// create spotify player
 	//let mut player = spotify::player(
 	//	spotify::session(

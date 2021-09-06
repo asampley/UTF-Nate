@@ -1,5 +1,7 @@
 use itertools::Itertools;
 
+use log::debug;
+
 use serenity::client::Context;
 use serenity::model::prelude::{GuildId, UserId};
 
@@ -78,11 +80,11 @@ pub async fn play(
 	);
 
 	let (songbird, voice_guild_arc, volume) = {
-		println_v!("Acquiring lock for play");
+		debug!("Acquiring lock for play");
 
 		let data_lock = ctx.data.read().await;
 
-		println_v!("Acquired lock for play");
+		debug!("Acquired lock for play");
 
 		let songbird = data_lock.clone_expect::<SongbirdKey>();
 
@@ -106,10 +108,10 @@ pub async fn play(
 		(songbird, voice_guild_arc, volume)
 	};
 
-	println_v!("Dropped lock for play");
+	debug!("Dropped lock for play");
 
 	if let Some(call) = songbird.get(guild_id) {
-		println_v!("Fetching audio source");
+		debug!("Fetching audio source");
 
 		let source = match audio_source(&path, play_source).await {
 			Ok(input) => input,
@@ -124,7 +126,7 @@ pub async fn play(
 			}
 		};
 
-		println_v!("Finished fetching audio source");
+		debug!("Finished fetching audio source");
 
 		let (mut track, handle) = create_player(source);
 		track.set_volume(volume);

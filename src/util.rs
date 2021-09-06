@@ -17,16 +17,6 @@ macro_rules! unwrap_or_ret {
 	};
 }
 
-#[macro_use]
-macro_rules! println_v {
-	( $v:tt ) => {
-		if $crate::OPT.verbose {
-			print!("{}:{}:{}:", file!(), line!(), column!());
-			println!($v);
-		}
-	}
-}
-
 #[derive(Debug)]
 pub enum UtilError {
 	Serenity(serenity::Error),
