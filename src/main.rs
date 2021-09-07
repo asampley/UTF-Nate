@@ -138,7 +138,11 @@ async fn main() {
 		.type_map_insert::<VoiceUserCache>(Default::default())
 		.type_map_insert::<VoiceGuilds>(Default::default())
 		.type_map_insert::<Config>(Arc::new(RwLock::new(load_config())))
-		.register_songbird()
+		.register_songbird_from_config(
+			songbird::Config::default()
+				.decode_mode(songbird::driver::DecodeMode::Pass)
+				.preallocated_tracks(5)
+		)
 		.await
 		.expect("Error creating client");
 
