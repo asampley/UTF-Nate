@@ -1,3 +1,5 @@
+use dashmap::DashMap;
+
 use serenity::async_trait;
 use serenity::futures::channel::mpsc;
 use serenity::model::id::{ChannelId, GuildId, UserId};
@@ -8,7 +10,6 @@ use songbird::tracks::TrackHandle;
 
 use uuid::Uuid;
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct VoiceUserCache;
@@ -16,7 +17,7 @@ pub struct VoiceUserCache;
 pub type ArcRw<T> = Arc<RwLock<T>>;
 
 impl TypeMapKey for VoiceUserCache {
-	type Value = ArcRw<HashMap<GuildId, ArcRw<HashMap<UserId, Option<ChannelId>>>>>;
+	type Value = Arc<DashMap<GuildId, Arc<DashMap<UserId, Option<ChannelId>>>>>;
 }
 
 pub struct VoiceGuild {
@@ -108,5 +109,5 @@ impl songbird::EventHandler for TrackEventHandler {
 pub struct VoiceGuilds;
 
 impl TypeMapKey for VoiceGuilds {
-	type Value = ArcRw<HashMap<GuildId, ArcRw<VoiceGuild>>>;
+	type Value = Arc<DashMap<GuildId, ArcRw<VoiceGuild>>>;
 }

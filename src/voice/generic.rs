@@ -89,8 +89,6 @@ pub async fn play(
 
 		let voice_guild_arc = data_lock
 			.clone_expect::<VoiceGuilds>()
-			.write()
-			.await
 			.entry(guild_id)
 			.or_default()
 			.clone();
@@ -248,8 +246,6 @@ pub async fn volume(ctx: &Context, style: Option<PlayStyle>, guild_id: Option<Gu
 		PlayStyle::Clip => {
 			match data_lock
 				.clone_expect::<VoiceGuilds>()
-				.write()
-				.await
 				.entry(guild_id)
 				.or_default()
 				.clone()

@@ -132,8 +132,6 @@ impl EventHandler for Handler {
 					.read()
 					.await
 					.clone_expect::<VoiceUserCache>()
-					.write()
-					.await
 					.entry(guild_id)
 					.or_default()
 					.clone();
@@ -142,14 +140,11 @@ impl EventHandler for Handler {
 
 				// update cache if the user is the bot
 				if new_state.user_id == bot_id {
-					cache_guild
-						.write()
-						.await
-						.insert(bot_id, new_state.channel_id);
+					cache_guild.insert(bot_id, new_state.channel_id);
 				}
 
 				// get the bot's channel
-				let bot_channel = cache_guild.read().await.get(&bot_id).cloned().flatten();
+				let bot_channel = cache_guild.get(&bot_id).map(|r| r.value().clone()).flatten();
 
 				// get previous channel for the user
 				let previous_channel = old_state.map(|s| s.channel_id).flatten();
@@ -210,8 +205,6 @@ impl EventHandler for Handler {
 
 					let voice_guild_arc = lock
 						.clone_expect::<VoiceGuilds>()
-						.write()
-						.await
 						.entry(guild_id)
 						.or_default()
 						.clone();
