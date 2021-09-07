@@ -1,5 +1,7 @@
 use dashmap::DashMap;
 
+use fxhash::FxBuildHasher as BuildHasher;
+
 use serenity::async_trait;
 use serenity::futures::channel::mpsc;
 use serenity::model::id::{ChannelId, GuildId, UserId};
@@ -17,7 +19,13 @@ pub struct VoiceUserCache;
 pub type ArcRw<T> = Arc<RwLock<T>>;
 
 impl TypeMapKey for VoiceUserCache {
-	type Value = Arc<DashMap<GuildId, Arc<DashMap<UserId, Option<ChannelId>>>>>;
+	type Value = Arc<
+		DashMap<
+			GuildId, 
+			Arc<DashMap<UserId, Option<ChannelId>, BuildHasher>>,
+			BuildHasher
+		>
+	>;
 }
 
 pub struct VoiceGuild {
@@ -109,5 +117,5 @@ impl songbird::EventHandler for TrackEventHandler {
 pub struct VoiceGuilds;
 
 impl TypeMapKey for VoiceGuilds {
-	type Value = Arc<DashMap<GuildId, ArcRw<VoiceGuild>>>;
+	type Value = Arc<DashMap<GuildId, ArcRw<VoiceGuild>, BuildHasher>>;
 }

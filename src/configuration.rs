@@ -1,3 +1,5 @@
+use fxhash::FxBuildHasher as BuildHasher;
+
 use log::error;
 
 use serde::{Deserialize, Serialize};
@@ -12,9 +14,9 @@ use crate::util::JsonFileError;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Config {
-	pub intros: HashMap<UserId, String>,
-	pub outros: HashMap<UserId, String>,
-	pub guilds: HashMap<GuildId, GuildConfig>,
+	pub intros: HashMap<UserId, String, BuildHasher>,
+	pub outros: HashMap<UserId, String, BuildHasher>,
+	pub guilds: HashMap<GuildId, GuildConfig, BuildHasher>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
