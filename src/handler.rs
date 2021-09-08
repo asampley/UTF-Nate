@@ -144,7 +144,10 @@ impl EventHandler for Handler {
 				}
 
 				// get the bot's channel
-				let bot_channel = cache_guild.get(&bot_id).map(|r| r.value().clone()).flatten();
+				let bot_channel = cache_guild
+					.get(&bot_id)
+					.map(|r| r.value().clone())
+					.flatten();
 
 				// get previous channel for the user
 				let previous_channel = old_state.map(|s| s.channel_id).flatten();

@@ -141,7 +141,7 @@ async fn main() {
 		.register_songbird_from_config(
 			songbird::Config::default()
 				.decode_mode(songbird::driver::DecodeMode::Pass)
-				.preallocated_tracks(5)
+				.preallocated_tracks(5),
 		)
 		.await
 		.expect("Error creating client");

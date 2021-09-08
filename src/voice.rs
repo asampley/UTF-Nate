@@ -7,6 +7,9 @@ use once_cell::sync::Lazy;
 use serde_json::value::Value;
 
 use regex::Regex;
+
+use reqwest::Url;
+
 use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
@@ -16,6 +19,7 @@ use serenity::model::interactions::application_command::{
 	ApplicationCommandInteraction, ApplicationCommandOptionType,
 };
 
+use songbird::input::restartable::Restartable;
 use songbird::input::Input;
 
 use walkdir::WalkDir;
@@ -28,12 +32,12 @@ use crate::util::*;
 
 mod generic;
 
-static YOUTUBE: Lazy<Regex> =
-	Lazy::new(|| Regex::new("^https?://((www|m)\\.youtube\\.com|youtu.be)/").unwrap());
-
-static SPOTIFY: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://open\\.spotify\\.com/").unwrap());
-
 static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
+
+static YOUTUBE_HOST: Lazy<Regex> =
+	Lazy::new(|| Regex::new("^((www|m)\\.youtube\\.com|youtu.be)").unwrap());
+
+static SPOTIFY_HOST: Lazy<Regex> = Lazy::new(|| Regex::new("^open\\.spotify\\.com").unwrap());
 
 #[group("voice")]
 #[description("Commands to move the bot to voice channels and play clips.")]
@@ -66,6 +70,7 @@ pub fn clip_path() -> PathBuf {
 pub enum AudioError {
 	Songbird(songbird::input::error::Error),
 	Spotify,
+	YoutubePlaylist,
 	UnsupportedUrl,
 	MultipleClip,
 	NoClip,
@@ -96,14 +101,31 @@ pub async fn audio_source(loc: &str, source: PlayStyle) -> Result<Input, AudioEr
 			FindClip::None => Err(AudioError::NoClip),
 		},
 		PlayStyle::Play => {
-			if YOUTUBE.is_match(loc) {
-				Ok(songbird::ytdl(&loc).await?)
-			} else if SPOTIFY.is_match(loc) {
-				Err(AudioError::Spotify)
-			} else if URL.is_match(loc) {
-				Err(AudioError::UnsupportedUrl)
+			if URL.is_match(loc) {
+				let url = Url::parse(loc).map_err(|_| AudioError::UnsupportedUrl)?;
+				let host = url.host_str().ok_or(AudioError::UnsupportedUrl)?;
+
+				if YOUTUBE_HOST.is_match(host) {
+					let path = url.path();
+
+					// if it is a single video, even part of a playlist, play only it.
+					if path == "/watch" {
+						Ok(Restartable::ytdl(loc.to_string(), true).await?.into())
+					// if it is a playlist, queue the playlist
+					} else if path == "/playlist" {
+						Err(AudioError::YoutubePlaylist)
+					} else {
+						Err(AudioError::UnsupportedUrl)
+					}
+				} else if SPOTIFY_HOST.is_match(host) {
+					Err(AudioError::Spotify)
+				} else {
+					Err(AudioError::UnsupportedUrl)
+				}
 			} else {
-				Ok(songbird::input::ytdl_search(&loc).await?)
+				Ok(Restartable::ytdl_search(loc.to_string(), true)
+					.await?
+					.into())
 			}
 		}
 	}
@@ -335,13 +357,7 @@ pub async fn clip_interaction(
 	interaction
 		.respond_str(
 			ctx,
-			generic::play(
-				ctx,
-				PlayStyle::Clip,
-				clip,
-				interaction.guild_id,
-			)
-			.await,
+			generic::play(ctx, PlayStyle::Clip, clip, interaction.guild_id).await,
 		)
 		.await
 }
@@ -379,13 +395,7 @@ pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
 	msg.respond_str(
 		ctx,
-		generic::play(
-			ctx,
-			PlayStyle::Play,
-			query,
-			msg.guild_id,
-		)
-		.await,
+		generic::play(ctx, PlayStyle::Play, query, msg.guild_id).await,
 	)
 	.await?;
 
@@ -416,13 +426,7 @@ pub async fn play_interaction(
 	interaction
 		.respond_str(
 			ctx,
-			generic::play(
-				ctx,
-				PlayStyle::Play,
-				clip,
-				interaction.guild_id,
-			)
-			.await,
+			generic::play(ctx, PlayStyle::Play, clip, interaction.guild_id).await,
 		)
 		.await
 }
@@ -452,7 +456,11 @@ pub fn play_interaction_create(
 pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let style = args
 		.single::<PlayStyle>()
-		.or_err_say(ctx, msg, "Expected either \"play\" or \"clip\" volume to be selected")
+		.or_err_say(
+			ctx,
+			msg,
+			"Expected either \"play\" or \"clip\" volume to be selected",
+		)
 		.await?;
 
 	let volume = args
@@ -460,8 +468,11 @@ pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResu
 		.or_err_say(ctx, msg, "Volume must be a valid float between 0.0 and 1.0")
 		.await?;
 
-	msg.respond_str(ctx, generic::volume(ctx, Some(style), msg.guild_id, Some(volume)).await)
-		.await?;
+	msg.respond_str(
+		ctx,
+		generic::volume(ctx, Some(style), msg.guild_id, Some(volume)).await,
+	)
+	.await?;
 
 	Ok(())
 }

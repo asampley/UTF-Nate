@@ -2,6 +2,8 @@ use dashmap::DashMap;
 
 use fxhash::FxBuildHasher as BuildHasher;
 
+use log::debug;
+
 use serenity::async_trait;
 use serenity::futures::channel::mpsc;
 use serenity::model::id::{ChannelId, GuildId, UserId};
@@ -19,13 +21,8 @@ pub struct VoiceUserCache;
 pub type ArcRw<T> = Arc<RwLock<T>>;
 
 impl TypeMapKey for VoiceUserCache {
-	type Value = Arc<
-		DashMap<
-			GuildId, 
-			Arc<DashMap<UserId, Option<ChannelId>, BuildHasher>>,
-			BuildHasher
-		>
-	>;
+	type Value =
+		Arc<DashMap<GuildId, Arc<DashMap<UserId, Option<ChannelId>, BuildHasher>>, BuildHasher>>;
 }
 
 pub struct VoiceGuild {
@@ -75,6 +72,8 @@ impl VoiceGuild {
 	}
 
 	fn clean_audios(&mut self) {
+		debug!("Cleaning audios. List before cleaning: {:?}", self.audios);
+
 		loop {
 			match self.to_remove.try_next() {
 				Ok(Some(uuid)) => {
@@ -91,6 +90,8 @@ impl VoiceGuild {
 				Err(_) => break,
 			}
 		}
+
+		debug!("Cleaned audios. List after cleaning: {:?}", self.audios);
 	}
 }
 

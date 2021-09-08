@@ -126,6 +126,9 @@ pub async fn play(
 					),
 					AudioError::NoClip => format!("Clip {} not found", path),
 					AudioError::Spotify => "Spotify support coming soon? \u{1f91e}".to_string(),
+					AudioError::YoutubePlaylist => {
+						"Youtube playlist support coming soon? \u{1f91e}".to_string()
+					}
 				};
 			}
 		};
@@ -201,7 +204,12 @@ pub async fn list(path: Option<&str>) -> String {
 	}
 }
 
-pub async fn volume(ctx: &Context, style: Option<PlayStyle>, guild_id: Option<GuildId>, volume: Option<f32>) -> String {
+pub async fn volume(
+	ctx: &Context,
+	style: Option<PlayStyle>,
+	guild_id: Option<GuildId>,
+	volume: Option<f32>,
+) -> String {
 	let guild_id = unwrap_or_ret!(
 		guild_id,
 		"This command is only available in guilds".to_string()
@@ -234,7 +242,10 @@ pub async fn volume(ctx: &Context, style: Option<PlayStyle>, guild_id: Option<Gu
 				.queue()
 				.current_queue()
 			{
-				match handle.set_volume(volume).err().filter(|e| e == &TrackError::Finished)
+				match handle
+					.set_volume(volume)
+					.err()
+					.filter(|e| e == &TrackError::Finished)
 				{
 					Some(_) => return "Error setting volume".to_string(),
 					None => (),
