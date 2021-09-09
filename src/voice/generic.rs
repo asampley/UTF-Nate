@@ -13,10 +13,9 @@ use std::fs::read_dir;
 use std::path::Path;
 
 use crate::configuration::{write_config_eprintln, Config};
-use crate::data::VoiceGuilds;
+use crate::data::{Keys, VoiceGuilds};
 use crate::util::*;
-
-use crate::voice::{audio_source, clip_path, sandboxed_exists};
+use crate::voice::{audio_sources, clip_path, sandboxed_exists};
 use crate::voice::{AudioError, PlayStyle};
 
 pub async fn summon(ctx: &Context, guild_id: Option<GuildId>, user_id: UserId) -> String {
@@ -78,7 +77,7 @@ pub async fn play(
 		"This command is only available in guilds".to_string()
 	);
 
-	let (songbird, voice_guild_arc, volume) = {
+	let (songbird, voice_guild_arc, volume, keys) = {
 		debug!("Acquiring lock for play");
 
 		let data_lock = ctx.data.read().await;
@@ -105,7 +104,9 @@ pub async fn play(
 			})
 			.unwrap_or(0.5);
 
-		(songbird, voice_guild_arc, volume)
+		let keys = data_lock.clone_expect::<Keys>();
+
+		(songbird, voice_guild_arc, volume, keys)
 	};
 
 	debug!("Dropped lock for play");
@@ -113,7 +114,7 @@ pub async fn play(
 	if let Some(call) = songbird.get(guild_id) {
 		debug!("Fetching audio source");
 
-		let source = match audio_source(&path, play_style).await {
+		let sources = match audio_sources(&keys, &path, play_style).await {
 			Ok(input) => input,
 			Err(e) => {
 				error!("Error playing audio: {:?}", e);
@@ -126,30 +127,40 @@ pub async fn play(
 					),
 					AudioError::NoClip => format!("Clip {} not found", path),
 					AudioError::Spotify => "Spotify support coming soon? \u{1f91e}".to_string(),
-					AudioError::YoutubePlaylist => {
-						"Youtube playlist support coming soon? \u{1f91e}".to_string()
-					}
+					AudioError::YoutubePlaylist => "Error reading youtube playlist".to_string(),
 				};
 			}
 		};
 
 		debug!("Finished fetching audio source");
 
-		let (mut track, handle) = create_player(source);
-		track.set_volume(volume);
+		let mut successful = true;
 
-		match play_style {
-			PlayStyle::Clip => {
-				call.lock().await.play(track);
-				match voice_guild_arc.write().await.add_audio(handle, volume) {
-					Ok(()) => format!("Playing {}", path),
-					Err(_) => format!("Error playing {}", path),
+		for source in sources {
+			let (mut track, handle) = create_player(source);
+			track.set_volume(volume);
+
+			match play_style {
+				PlayStyle::Clip => {
+					call.lock().await.play(track);
+					match voice_guild_arc.write().await.add_audio(handle, volume) {
+						Ok(()) => (),
+						Err(_) => successful = false,
+					}
+				}
+				PlayStyle::Play => {
+					call.lock().await.enqueue(track);
 				}
 			}
-			PlayStyle::Play => {
-				call.lock().await.enqueue(track);
-				format!("Queued {}", path)
+		}
+
+		if successful {
+			match play_style {
+				PlayStyle::Clip => format!("Playing {}", path),
+				PlayStyle::Play => format!("Queued {}", path),
 			}
+		} else {
+			format!("Error playing {}", path)
 		}
 	} else {
 		"Not in a voice channel".to_string()

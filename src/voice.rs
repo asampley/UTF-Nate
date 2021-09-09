@@ -1,3 +1,5 @@
+use futures::stream::{self, StreamExt};
+
 use itertools::Itertools;
 
 use log::{debug, error, warn};
@@ -29,6 +31,8 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::util::*;
+use crate::youtube;
+use crate::data::Keys;
 
 mod generic;
 
@@ -90,11 +94,11 @@ impl fmt::Display for AudioError {
 
 impl std::error::Error for AudioError {}
 
-pub async fn audio_source(loc: &str, source: PlayStyle) -> Result<Input, AudioError> {
+pub async fn audio_sources(keys: &Keys, loc: &str, source: PlayStyle) -> Result<Vec<Input>, AudioError> {
 	match source {
 		PlayStyle::Clip => match find_clip(&loc) {
 			FindClip::One(clip) => match get_clip(&clip) {
-				Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
+				Some(clip) => Ok(vec![songbird::ffmpeg(&clip).await?]),
 				None => Err(AudioError::NoClip),
 			},
 			FindClip::Multiple => Err(AudioError::MultipleClip),
@@ -108,14 +112,38 @@ pub async fn audio_source(loc: &str, source: PlayStyle) -> Result<Input, AudioEr
 				if YOUTUBE_HOST.is_match(host) {
 					let path = url.path();
 
-					// if it is a single video, even part of a playlist, play only it.
-					if path == "/watch" {
-						Ok(Restartable::ytdl(loc.to_string(), true).await?.into())
 					// if it is a playlist, queue the playlist
-					} else if path == "/playlist" {
-						Err(AudioError::YoutubePlaylist)
+					if path == "/playlist" {
+						let id = url.query_pairs()
+							.filter(|(key, _)| key == "list")
+							.map(|(_, value)| value)
+							.next()
+							.ok_or(AudioError::UnsupportedUrl)?;
+
+						let youtube_api = &keys.youtube_api.as_ref().ok_or(AudioError::YoutubePlaylist)?;
+
+						let playlist = youtube::playlist(youtube_api, &id).await;
+
+						debug!("Youtube playlist: {:#?}", playlist);
+
+						let playlist = playlist.map_err(|_| AudioError::YoutubePlaylist)?;
+
+						Ok(
+							stream::iter(playlist.items.iter())
+								.then(|i| 
+									Restartable::ytdl(
+										"https://youtu.be/".to_string() + &i.content_details.video_id,
+										true,
+									)
+								)
+								.collect::<Vec<_>>()
+								.await
+								.into_iter()
+								.map(|i| i.map(|i| i.into()))
+								.collect::<Result<Vec<_>,_>>()?
+						)
 					} else {
-						Err(AudioError::UnsupportedUrl)
+						Ok(vec![Restartable::ytdl(loc.to_string(), true).await?.into()])
 					}
 				} else if SPOTIFY_HOST.is_match(host) {
 					Err(AudioError::Spotify)
@@ -123,9 +151,11 @@ pub async fn audio_source(loc: &str, source: PlayStyle) -> Result<Input, AudioEr
 					Err(AudioError::UnsupportedUrl)
 				}
 			} else {
-				Ok(Restartable::ytdl_search(loc.to_string(), true)
-					.await?
-					.into())
+				Ok(vec![
+					Restartable::ytdl_search(loc.to_string(), true)
+						.await?
+						.into()
+				])
 			}
 		}
 	}
@@ -533,7 +563,7 @@ pub fn volume_interaction_create(
 			option
 				.name("style")
 				.description("Volume to set, either for play or clip commands")
-				.kind(ApplicationCommandOptionType::SubCommand)
+				.kind(ApplicationCommandOptionType::String)
 				.add_string_choice("play", "play")
 				.add_string_choice("clip", "clip")
 				.required(true)

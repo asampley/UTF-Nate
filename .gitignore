@@ -7,5 +7,11 @@ token
 # store the application id in this file
 application_id
 
+# store keys for things in this file instead
+keys.json
+
+# store username and password for spotify in json
+spotify
+
 # persistent configuration stored here
 config.json

@@ -8,6 +8,7 @@ mod unicode;
 mod util;
 mod herald;
 mod voice;
+mod youtube;
 
 use log::{error, info, warn, LevelFilter};
 
@@ -23,8 +24,7 @@ use serenity::framework::standard::{
 };
 use serenity::model::channel::Message;
 use serenity::model::id::UserId;
-use serenity::prelude::Context;
-use serenity::prelude::RwLock;
+use serenity::prelude::{Context, RwLock};
 
 use songbird::serenity::SerenityInit;
 
@@ -32,7 +32,7 @@ use structopt::StructOpt;
 
 use cmd::EXTERNAL_GROUP;
 use configuration::{read_config, Config};
-use data::{VoiceGuilds, VoiceUserCache};
+use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use herald::HERALD_GROUP;
 use spotify::UserPassword;
@@ -86,6 +86,11 @@ async fn main() {
 	// warn if there are duplicate clip names
 	voice::warn_duplicate_clip_names();
 
+	let keys = serde_json::from_str::<Keys>(
+			&std::fs::read_to_string("keys.json").expect("Unable to read keys file")
+		)
+		.expect("Unable to parse keys file");
+
 	// create spotify player
 	if OPT.spotify {
 		warn!("Spotify is still experimental. This is just a test.");
@@ -106,14 +111,8 @@ async fn main() {
 	}
 
 	// login with a bot token from file
-	let mut client = Client::builder(&read_token().expect("Token could not be read"))
-		.application_id(
-			read_application_id()
-				.expect("Application id could not be read")
-				.trim()
-				.parse()
-				.expect("Application id could not be parsed"),
-		)
+	let mut client = Client::builder(&keys.token)
+		.application_id(keys.application_id)
 		.intents(
 			GatewayIntents::GUILD_MESSAGES
 				| GatewayIntents::DIRECT_MESSAGES
@@ -138,6 +137,7 @@ async fn main() {
 		.type_map_insert::<VoiceUserCache>(Default::default())
 		.type_map_insert::<VoiceGuilds>(Default::default())
 		.type_map_insert::<Config>(Arc::new(RwLock::new(load_config())))
+		.type_map_insert::<Keys>(Arc::new(keys))
 		.register_songbird_from_config(
 			songbird::Config::default()
 				.decode_mode(songbird::driver::DecodeMode::Pass)
@@ -149,14 +149,6 @@ async fn main() {
 	if let Err(reason) = client.start().await {
 		error!("An error occurred while running the client: {:?}", reason)
 	}
-}
-
-fn read_token() -> std::io::Result<String> {
-	std::fs::read_to_string("token")
-}
-
-fn read_application_id() -> std::io::Result<String> {
-	std::fs::read_to_string("application_id")
 }
 
 fn read_spotify() -> Result<UserPassword, JsonFileError> {

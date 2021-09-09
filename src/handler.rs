@@ -15,7 +15,7 @@ use serenity::prelude::EventHandler;
 use songbird::SongbirdKey;
 
 use crate::configuration::Config;
-use crate::data::{VoiceGuilds, VoiceUserCache};
+use crate::data::{Keys, VoiceGuilds, VoiceUserCache};
 use crate::herald::{
 	intro_interaction_create, intro_outro_interaction, introbot_interaction,
 	introbot_interaction_create, outro_interaction_create, IntroOutroMode,
@@ -23,7 +23,7 @@ use crate::herald::{
 use crate::util::*;
 use crate::voice::PlayStyle;
 use crate::voice::{
-	audio_source, banish_interaction, banish_interaction_create, clip_interaction,
+	audio_sources, banish_interaction, banish_interaction_create, clip_interaction,
 	clip_interaction_create, list_interaction, list_interaction_create, play_interaction,
 	play_interaction_create, skip_interaction, skip_interaction_create, stop_interaction,
 	stop_interaction_create, summon_interaction, summon_interaction_create, volume_interaction,
@@ -201,7 +201,7 @@ impl EventHandler for Handler {
 					}
 				};
 
-				let (songbird, voice_guild_arc, volume) = {
+				let (songbird, voice_guild_arc, volume, keys) = {
 					let lock = ctx.data.read().await;
 
 					let songbird = lock.clone_expect::<SongbirdKey>();
@@ -221,27 +221,29 @@ impl EventHandler for Handler {
 						.and_then(|c| c.volume_clip)
 						.unwrap_or(0.5);
 
-					(songbird, voice_guild_arc, volume)
+					let keys = lock.clone_expect::<Keys>();
+
+					(songbird, voice_guild_arc, volume, keys)
 				};
 
 				let mut voice_guild = voice_guild_arc.write().await;
 
 				if let Some(call) = songbird.get(guild_id) {
-					let source = audio_source(&clip, PlayStyle::Clip).await;
-
-					match source {
-						Ok(source) => {
-							voice_guild
-								.add_audio(call.lock().await.play_source(source), volume)
-								.expect("Error playing source");
-							info!(
-								"Playing {} for user ({})",
-								match io {
-									IOClip::Intro => "intro",
-									IOClip::Outro => "outro",
-								},
-								new_state.user_id
-							);
+					match audio_sources(&keys, &clip, PlayStyle::Clip).await {
+						Ok(sources) => {
+							for source in sources {
+								voice_guild
+									.add_audio(call.lock().await.play_source(source), volume)
+									.expect("Error playing source");
+								info!(
+									"Playing {} for user ({})",
+									match io {
+										IOClip::Intro => "intro",
+										IOClip::Outro => "outro",
+									},
+									new_state.user_id
+								);
+							}
 						}
 						Err(reason) => {
 							error!(

@@ -9,12 +9,25 @@ use serenity::futures::channel::mpsc;
 use serenity::model::id::{ChannelId, GuildId, UserId};
 use serenity::prelude::{RwLock, TypeMapKey};
 
+use serde::Deserialize;
+
 use songbird::error::TrackError;
 use songbird::tracks::TrackHandle;
 
 use uuid::Uuid;
 
 use std::sync::Arc;
+
+#[derive(Deserialize)]
+pub struct Keys {
+	pub application_id: u64,
+	pub token: String,
+	pub youtube_api: Option<String>,
+}
+
+impl TypeMapKey for Keys {
+	type Value = Arc<Keys>;
+}
 
 pub struct VoiceUserCache;
 
