@@ -10,9 +10,7 @@ mod herald;
 mod voice;
 mod youtube;
 
-use log::{error, info, warn, LevelFilter};
-
-use librespot::core::spotify_id::SpotifyId;
+use log::{error, info, LevelFilter};
 
 use once_cell::sync::Lazy;
 
@@ -35,9 +33,8 @@ use configuration::{read_config, Config};
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use herald::HERALD_GROUP;
-use spotify::UserPassword;
 use unicode::UNICODE_GROUP;
-use util::{check_msg, JsonFileError, Respond};
+use util::{check_msg, Respond};
 use voice::VOICE_GROUP;
 
 use std::collections::HashSet;
@@ -51,9 +48,6 @@ struct Opt {
 
 	#[structopt(long, short, help = "Run command with additional logging")]
 	verbose: bool,
-
-	#[structopt(long, help = "Enable spotify playback")]
-	spotify: bool,
 }
 
 static OPT: Lazy<Opt> = Lazy::new(|| {
@@ -91,25 +85,6 @@ async fn main() {
 	)
 	.expect("Unable to parse keys file");
 
-	// create spotify player
-	if OPT.spotify {
-		warn!("Spotify is still experimental. This is just a test.");
-
-		let mut player = spotify::player(
-			spotify::session(read_spotify().expect("Spotify credentials could not be read"))
-				.await
-				.expect("Error creating spotify session"),
-		)
-		.await
-		.0;
-
-		player.load(
-			SpotifyId::from_base62("1iJDsSrrVM1GrToPOMnq0e").unwrap(),
-			true,
-			0,
-		);
-	}
-
 	// login with a bot token from file
 	let mut client = Client::builder(&keys.token)
 		.application_id(keys.application_id)
@@ -137,7 +112,7 @@ async fn main() {
 		.type_map_insert::<VoiceUserCache>(Default::default())
 		.type_map_insert::<VoiceGuilds>(Default::default())
 		.type_map_insert::<Config>(Arc::new(RwLock::new(load_config())))
-		.type_map_insert::<Keys>(Arc::new(keys))
+		.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
 		.register_songbird_from_config(
 			songbird::Config::default()
 				.decode_mode(songbird::driver::DecodeMode::Pass)
@@ -149,10 +124,6 @@ async fn main() {
 	if let Err(reason) = client.start().await {
 		error!("An error occurred while running the client: {:?}", reason)
 	}
-}
-
-fn read_spotify() -> Result<UserPassword, JsonFileError> {
-	Ok(serde_json::from_str(&std::fs::read_to_string("spotify")?)?)
 }
 
 fn load_config() -> Config {

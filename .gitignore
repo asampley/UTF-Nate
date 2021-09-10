@@ -1,17 +1,8 @@
 /target
 **/*.rs.bk
 
-# conveniently store your bot token in this file
-token
-
-# store the application id in this file
-application_id
-
-# store keys for things in this file instead
-keys.json
-
-# store username and password for spotify in json
-spotify
+# store api keys and such in this file
+/keys.json
 
 # persistent configuration stored here
 config.json

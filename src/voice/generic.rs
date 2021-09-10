@@ -130,7 +130,7 @@ pub async fn play(
 				Err(e) => Err(e),
 			},
 			PlayStyle::Play => {
-				match play_sources(&keys, &path, move |input| {
+				match play_sources(keys, &path, move |input| {
 					let call = call.clone();
 					let voice_guild_arc = voice_guild_arc.clone();
 
@@ -161,7 +161,7 @@ pub async fn play(
 						path
 					),
 					AudioError::NoClip => format!("Clip {} not found", path),
-					AudioError::Spotify => "Spotify support coming soon? \u{1f91e}".to_string(),
+					AudioError::Spotify => "Error reading from Spotify".to_string(),
 					AudioError::YoutubePlaylist => "Error reading youtube playlist".to_string(),
 				}
 			}

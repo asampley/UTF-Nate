@@ -30,7 +30,8 @@ use std::cmp;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use crate::data::Keys;
+use crate::data::{ArcRw, Keys};
+use crate::spotify;
 use crate::util::*;
 use crate::youtube;
 
@@ -105,7 +106,7 @@ pub async fn clip_source(loc: &str) -> Result<Input, AudioError> {
 	}
 }
 
-pub async fn play_sources<F, T>(keys: &Keys, loc: &str, f: F) -> Result<usize, AudioError>
+pub async fn play_sources<F, T>(keys: ArcRw<Keys>, loc: &str, f: F) -> Result<usize, AudioError>
 where
 	F: Fn(Input) -> T + Send + Sync + 'static,
 	T: Future + Send,
@@ -126,22 +127,24 @@ where
 					.next()
 					.ok_or(AudioError::UnsupportedUrl)?;
 
-				let youtube_api = &keys
+				let youtube_api = keys
+					.read()
+					.await
 					.youtube_api
-					.as_ref()
+					.clone()
 					.ok_or(AudioError::YoutubePlaylist)?;
 
-				let playlist = youtube::playlist(youtube_api, &id).await;
+				let videos = youtube::videos(&youtube_api, &id).await;
 
-				debug!("Youtube playlist: {:#?}", playlist);
+				debug!("Youtube videos: {:#?}", videos);
 
-				let playlist = playlist.map_err(|_| AudioError::YoutubePlaylist)?;
+				let videos = videos.map_err(|_| AudioError::YoutubePlaylist)?;
 
-				let count = playlist.items.len();
+				let count = videos.items.len();
 
 				tokio::spawn(async move {
-					for item in playlist.items {
-						let result = youtube::YtdlLazy::from_item(&item).as_input().await;
+					for video in videos.items {
+						let result = youtube::YtdlLazy::from_video(video).as_input().await;
 
 						match result {
 							Ok(input) => {
@@ -168,7 +171,44 @@ where
 				Ok(1)
 			}
 		} else if SPOTIFY_HOST.is_match(host) {
-			Err(AudioError::Spotify)
+			let mut path_segments = url.path_segments().ok_or(AudioError::UnsupportedUrl)?;
+
+			if path_segments.next().ok_or(AudioError::UnsupportedUrl)? == "track" {
+				let track_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
+
+				let token = keys
+					.write()
+					.await
+					.spotify_api
+					.as_mut()
+					.ok_or(AudioError::Spotify)?
+					.get_token()
+					.await
+					.map_err(|_| AudioError::Spotify)?
+					.access_token
+					.clone();
+
+				let track = spotify::track(&token, track_id).await;
+
+				debug!("Spotify track: {:?}", track);
+
+				let track = track.map_err(|_| AudioError::Spotify)?;
+
+				let search = track.name + &track.artists.iter().map(|a| &a.name).join(" ");
+
+				let result = youtube::YtdlSearchLazy::new(search).as_input().await;
+
+				match result {
+					Ok(input) => {
+						f(input).await;
+					}
+					Err(e) => error!("Error creating input: {:?}", e),
+				}
+
+				Ok(1)
+			} else {
+				Err(AudioError::UnsupportedUrl)
+			}
 		} else {
 			Err(AudioError::UnsupportedUrl)
 		}

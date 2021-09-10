@@ -18,15 +18,18 @@ use uuid::Uuid;
 
 use std::sync::Arc;
 
+use crate::spotify::SpotifyApi;
+
 #[derive(Deserialize)]
 pub struct Keys {
 	pub application_id: u64,
 	pub token: String,
 	pub youtube_api: Option<String>,
+	pub spotify_api: Option<SpotifyApi>,
 }
 
 impl TypeMapKey for Keys {
-	type Value = Arc<Keys>;
+	type Value = ArcRw<Keys>;
 }
 
 pub struct VoiceUserCache;
