@@ -4,18 +4,22 @@ use log::{debug, error};
 
 use serenity::client::Context;
 use serenity::model::prelude::{GuildId, UserId};
+use serenity::prelude::Mutex;
 
 use songbird::create_player;
 use songbird::error::TrackError;
+use songbird::input::Input;
+use songbird::Call;
 use songbird::SongbirdKey;
 
 use std::fs::read_dir;
 use std::path::Path;
+use std::sync::Arc;
 
 use crate::configuration::{write_config_eprintln, Config};
-use crate::data::{Keys, VoiceGuilds};
+use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
 use crate::util::*;
-use crate::voice::{audio_sources, clip_path, sandboxed_exists};
+use crate::voice::{clip_path, clip_source, play_sources, sandboxed_exists};
 use crate::voice::{AudioError, PlayStyle};
 
 pub async fn summon(ctx: &Context, guild_id: Option<GuildId>, user_id: UserId) -> String {
@@ -114,11 +118,42 @@ pub async fn play(
 	if let Some(call) = songbird.get(guild_id) {
 		debug!("Fetching audio source");
 
-		let sources = match audio_sources(&keys, &path, play_style).await {
-			Ok(input) => input,
+		let result = match play_style {
+			PlayStyle::Clip => match clip_source(&path).await {
+				Ok(clip) => {
+					if play_input(play_style, call.clone(), voice_guild_arc, clip, volume).await {
+						Ok(format!("Playing {}", path))
+					} else {
+						Ok(format!("Error playing {}", path))
+					}
+				}
+				Err(e) => Err(e),
+			},
+			PlayStyle::Play => {
+				match play_sources(&keys, &path, move |input| {
+					let call = call.clone();
+					let voice_guild_arc = voice_guild_arc.clone();
+
+					async move { play_input(play_style, call, voice_guild_arc, input, volume).await }
+				})
+				.await
+				{
+					Ok(count) => Ok(match count {
+						1 => format!("Queuing clip from {}", path),
+						count => format!("Queuing {} clips from {}", count, path),
+					}),
+					Err(e) => Err(e),
+				}
+			}
+		};
+
+		debug!("Finished fetching audio source");
+
+		match result {
+			Ok(response) => response,
 			Err(e) => {
 				error!("Error playing audio: {:?}", e);
-				return match e {
+				match e {
 					AudioError::Songbird(_) => "Playback error".to_string(),
 					AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path),
 					AudioError::MultipleClip => format!(
@@ -128,42 +163,37 @@ pub async fn play(
 					AudioError::NoClip => format!("Clip {} not found", path),
 					AudioError::Spotify => "Spotify support coming soon? \u{1f91e}".to_string(),
 					AudioError::YoutubePlaylist => "Error reading youtube playlist".to_string(),
-				};
-			}
-		};
-
-		debug!("Finished fetching audio source");
-
-		let mut successful = true;
-
-		for source in sources {
-			let (mut track, handle) = create_player(source);
-			track.set_volume(volume);
-
-			match play_style {
-				PlayStyle::Clip => {
-					call.lock().await.play(track);
-					match voice_guild_arc.write().await.add_audio(handle, volume) {
-						Ok(()) => (),
-						Err(_) => successful = false,
-					}
-				}
-				PlayStyle::Play => {
-					call.lock().await.enqueue(track);
 				}
 			}
-		}
-
-		if successful {
-			match play_style {
-				PlayStyle::Clip => format!("Playing {}", path),
-				PlayStyle::Play => format!("Queued {}", path),
-			}
-		} else {
-			format!("Error playing {}", path)
 		}
 	} else {
 		"Not in a voice channel".to_string()
+	}
+}
+
+async fn play_input(
+	play_style: PlayStyle,
+	call: Arc<Mutex<Call>>,
+	voice_guild_arc: ArcRw<VoiceGuild>,
+	input: Input,
+	volume: f32,
+) -> bool {
+	let (mut track, handle) = create_player(input);
+	track.set_volume(volume);
+
+	match play_style {
+		PlayStyle::Clip => {
+			call.lock().await.play(track);
+			voice_guild_arc
+				.write()
+				.await
+				.add_audio(handle, volume)
+				.is_ok()
+		}
+		PlayStyle::Play => {
+			call.lock().await.enqueue(track);
+			true
+		}
 	}
 }
 

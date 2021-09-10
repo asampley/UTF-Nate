@@ -87,9 +87,9 @@ async fn main() {
 	voice::warn_duplicate_clip_names();
 
 	let keys = serde_json::from_str::<Keys>(
-			&std::fs::read_to_string("keys.json").expect("Unable to read keys file")
-		)
-		.expect("Unable to parse keys file");
+		&std::fs::read_to_string("keys.json").expect("Unable to read keys file"),
+	)
+	.expect("Unable to parse keys file");
 
 	// create spotify player
 	if OPT.spotify {

@@ -1,4 +1,4 @@
-use futures::stream::{self, StreamExt};
+use futures::Future;
 
 use itertools::Itertools;
 
@@ -30,9 +30,9 @@ use std::cmp;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use crate::data::Keys;
 use crate::util::*;
 use crate::youtube;
-use crate::data::Keys;
 
 mod generic;
 
@@ -94,70 +94,97 @@ impl fmt::Display for AudioError {
 
 impl std::error::Error for AudioError {}
 
-pub async fn audio_sources(keys: &Keys, loc: &str, source: PlayStyle) -> Result<Vec<Input>, AudioError> {
-	match source {
-		PlayStyle::Clip => match find_clip(&loc) {
-			FindClip::One(clip) => match get_clip(&clip) {
-				Some(clip) => Ok(vec![songbird::ffmpeg(&clip).await?]),
-				None => Err(AudioError::NoClip),
-			},
-			FindClip::Multiple => Err(AudioError::MultipleClip),
-			FindClip::None => Err(AudioError::NoClip),
+pub async fn clip_source(loc: &str) -> Result<Input, AudioError> {
+	match find_clip(&loc) {
+		FindClip::One(clip) => match get_clip(&clip) {
+			Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
+			None => Err(AudioError::NoClip),
 		},
-		PlayStyle::Play => {
-			if URL.is_match(loc) {
-				let url = Url::parse(loc).map_err(|_| AudioError::UnsupportedUrl)?;
-				let host = url.host_str().ok_or(AudioError::UnsupportedUrl)?;
+		FindClip::Multiple => Err(AudioError::MultipleClip),
+		FindClip::None => Err(AudioError::NoClip),
+	}
+}
 
-				if YOUTUBE_HOST.is_match(host) {
-					let path = url.path();
+pub async fn play_sources<F, T>(keys: &Keys, loc: &str, f: F) -> Result<usize, AudioError>
+where
+	F: Fn(Input) -> T + Send + Sync + 'static,
+	T: Future + Send,
+{
+	if URL.is_match(loc) {
+		let url = Url::parse(loc).map_err(|_| AudioError::UnsupportedUrl)?;
+		let host = url.host_str().ok_or(AudioError::UnsupportedUrl)?;
 
-					// if it is a playlist, queue the playlist
-					if path == "/playlist" {
-						let id = url.query_pairs()
-							.filter(|(key, _)| key == "list")
-							.map(|(_, value)| value)
-							.next()
-							.ok_or(AudioError::UnsupportedUrl)?;
+		if YOUTUBE_HOST.is_match(host) {
+			let path = url.path();
 
-						let youtube_api = &keys.youtube_api.as_ref().ok_or(AudioError::YoutubePlaylist)?;
+			// if it is a playlist, queue the playlist
+			if path == "/playlist" {
+				let id = url
+					.query_pairs()
+					.filter(|(key, _)| key == "list")
+					.map(|(_, value)| value)
+					.next()
+					.ok_or(AudioError::UnsupportedUrl)?;
 
-						let playlist = youtube::playlist(youtube_api, &id).await;
+				let youtube_api = &keys
+					.youtube_api
+					.as_ref()
+					.ok_or(AudioError::YoutubePlaylist)?;
 
-						debug!("Youtube playlist: {:#?}", playlist);
+				let playlist = youtube::playlist(youtube_api, &id).await;
 
-						let playlist = playlist.map_err(|_| AudioError::YoutubePlaylist)?;
+				debug!("Youtube playlist: {:#?}", playlist);
 
-						Ok(
-							stream::iter(playlist.items.iter())
-								.then(|i| 
-									Restartable::ytdl(
-										"https://youtu.be/".to_string() + &i.content_details.video_id,
-										true,
-									)
-								)
-								.collect::<Vec<_>>()
-								.await
-								.into_iter()
-								.map(|i| i.map(|i| i.into()))
-								.collect::<Result<Vec<_>,_>>()?
-						)
-					} else {
-						Ok(vec![Restartable::ytdl(loc.to_string(), true).await?.into()])
+				let playlist = playlist.map_err(|_| AudioError::YoutubePlaylist)?;
+
+				let count = playlist.items.len();
+
+				tokio::spawn(async move {
+					for item in playlist.items {
+						let result = youtube::YtdlLazy::from_item(&item).as_input().await;
+
+						match result {
+							Ok(input) => {
+								f(input).await;
+							}
+							Err(e) => error!("Error creating input: {:?}", e),
+						}
 					}
-				} else if SPOTIFY_HOST.is_match(host) {
-					Err(AudioError::Spotify)
-				} else {
-					Err(AudioError::UnsupportedUrl)
-				}
+				});
+
+				Ok(count)
 			} else {
-				Ok(vec![
-					Restartable::ytdl_search(loc.to_string(), true)
-						.await?
-						.into()
-				])
+				let loc_string = loc.to_string();
+				tokio::spawn(async move {
+					let result = Restartable::ytdl(loc_string, true).await;
+
+					match result {
+						Ok(restartable) => {
+							f(restartable.into()).await;
+						}
+						Err(e) => error!("Error creating input: {:?}", e),
+					}
+				});
+				Ok(1)
 			}
+		} else if SPOTIFY_HOST.is_match(host) {
+			Err(AudioError::Spotify)
+		} else {
+			Err(AudioError::UnsupportedUrl)
 		}
+	} else {
+		let loc_string = loc.to_string();
+		tokio::spawn(async move {
+			let result = Restartable::ytdl_search(loc_string, true).await;
+
+			match result {
+				Ok(restartable) => {
+					f(restartable.into()).await;
+				}
+				Err(e) => error!("Error creating input: {:?}", e),
+			}
+		});
+		Ok(1)
 	}
 }
 
