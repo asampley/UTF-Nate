@@ -173,41 +173,100 @@ where
 		} else if SPOTIFY_HOST.is_match(host) {
 			let mut path_segments = url.path_segments().ok_or(AudioError::UnsupportedUrl)?;
 
-			if path_segments.next().ok_or(AudioError::UnsupportedUrl)? == "track" {
-				let track_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
+			let token = keys
+				.write()
+				.await
+				.spotify_api
+				.as_mut()
+				.ok_or(AudioError::Spotify)?
+				.get_token()
+				.await
+				.map_err(|_| AudioError::Spotify)?
+				.access_token
+				.clone();
 
-				let token = keys
-					.write()
-					.await
-					.spotify_api
-					.as_mut()
-					.ok_or(AudioError::Spotify)?
-					.get_token()
-					.await
-					.map_err(|_| AudioError::Spotify)?
-					.access_token
-					.clone();
+			match path_segments.next().ok_or(AudioError::UnsupportedUrl)? {
+				"track" => {
+					let track_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
 
-				let track = spotify::track(&token, track_id).await;
+					let track = spotify::track(&token, track_id).await;
 
-				debug!("Spotify track: {:?}", track);
+					debug!("Spotify track: {:?}", track);
 
-				let track = track.map_err(|_| AudioError::Spotify)?;
+					let track = track.map_err(|_| AudioError::Spotify)?;
 
-				let search = track.name + &track.artists.iter().map(|a| &a.name).join(" ");
+					let search = track.name + &track.artists.iter().map(|a| &a.name).join(" ");
 
-				let result = youtube::YtdlSearchLazy::new(search).as_input().await;
+					let result = youtube::YtdlSearchLazy::new(search).as_input().await;
 
-				match result {
-					Ok(input) => {
-						f(input).await;
+					match result {
+						Ok(input) => {
+							f(input).await;
+						}
+						Err(e) => error!("Error creating input: {:?}", e),
 					}
-					Err(e) => error!("Error creating input: {:?}", e),
-				}
 
-				Ok(1)
-			} else {
-				Err(AudioError::UnsupportedUrl)
+					Ok(1)
+				}
+				"playlist" => {
+					let playlist_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
+
+					let playlist = spotify::playlist(&token, playlist_id).await;
+
+					debug!("Spotify playlist: {:?}", playlist);
+
+					let playlist = playlist.map_err(|_| AudioError::Spotify)?;
+
+					let count = playlist.tracks.items.len();
+
+					tokio::spawn(async move {
+						for track in playlist.tracks.items.into_iter().map(|t| t.track) {
+							let search =
+								track.name + &track.artists.iter().map(|a| &a.name).join(" ");
+
+							let result = youtube::YtdlSearchLazy::new(search).as_input().await;
+
+							match result {
+								Ok(input) => {
+									f(input).await;
+								}
+								Err(e) => error!("Error creating input: {:?}", e),
+							}
+						}
+					});
+
+					Ok(count)
+				}
+				"album" => {
+					let album_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
+
+					let album = spotify::album(&token, album_id).await;
+
+					debug!("Spotify album {:?}", album);
+
+					let album = album.map_err(|_| AudioError::Spotify)?;
+
+					let count = album.tracks.items.len();
+
+					tokio::spawn(async move {
+						for track in album.tracks.items {
+							let search =
+								track.name + &track.artists.iter().map(|a| &a.name).join(" ");
+
+							let result = youtube::YtdlSearchLazy::new(search).as_input().await;
+
+							match result {
+								Ok(input) => {
+									f(input).await;
+								}
+								Err(e) => error!("Error creating input: {:?}", e),
+							}
+						}
+					});
+
+					Ok(count)
+				}
+				_ => Err(AudioError::UnsupportedUrl),
 			}
 		} else {
 			Err(AudioError::UnsupportedUrl)
@@ -478,7 +537,9 @@ pub fn clip_interaction_create(
 #[aliases(q)]
 #[only_in(guilds)]
 #[help_available]
-#[description("Add a youtube or spotify source to the queue")]
+#[description(
+	"Add a youtube video, playlist, search, or spotify song, playlist, or album to the queue"
+)]
 #[min_args(1)]
 #[usage("<source>")]
 #[example("https://www.youtube.com/watch?v=k2mFvwDTTt0")]
@@ -533,7 +594,7 @@ pub fn play_interaction_create(
 ) -> &mut CreateApplicationCommand {
 	command
 		.name("play")
-		.description("Add a youtube or spotify source to the queue")
+		.description("Add a youtube video, playlist, search, or spotify song, playlist, or album to the queue")
 		.create_option(|option| {
 			option
 				.name("input")

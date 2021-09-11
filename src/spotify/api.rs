@@ -1,13 +1,28 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
+pub struct Playlist {
+	pub tracks: PlaylistTracks,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct PlaylistTracks {
-	pub items: Vec<Track>,
+	pub items: Vec<PlaylistTracksItem>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct PlaylistTracksItem {
 	pub track: Track,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Album {
+	pub tracks: AlbumTracks,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AlbumTracks {
+	pub items: Vec<Track>,
 }
 
 #[derive(Debug, Deserialize)]

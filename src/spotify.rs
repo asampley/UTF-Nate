@@ -17,7 +17,7 @@ use serde::Deserialize;
 
 use std::time::{Duration, Instant};
 
-use api::{PlaylistTracks, Track};
+use api::{Album, Playlist, Track};
 
 #[derive(Deserialize)]
 pub struct SpotifyApi {
@@ -122,12 +122,22 @@ pub async fn player(session: Session) -> (Player, PlayerEventChannel) {
 	})
 }
 
-pub async fn tracks(token: &str, playlist_id: &str) -> reqwest::Result<PlaylistTracks> {
+pub async fn playlist(token: &str, playlist_id: &str) -> reqwest::Result<Playlist> {
 	Client::new()
 		.get(format!(
 			"https://api.spotify.com/v1/playlists/{}",
 			playlist_id
 		))
+		.bearer_auth(token)
+		.send()
+		.await?
+		.json()
+		.await
+}
+
+pub async fn album(token: &str, album_id: &str) -> reqwest::Result<Album> {
+	Client::new()
+		.get(format!("https://api.spotify.com/v1/albums/{}", album_id))
 		.bearer_auth(token)
 		.send()
 		.await?
