@@ -3,11 +3,12 @@ use serenity::model::prelude::{GuildId, UserId};
 
 use std::path::Path;
 
+use crate::audio::{find_clip, FindClip};
 use crate::configuration::write_config_eprintln;
 use crate::configuration::Config;
-use crate::herald::IntroOutroMode::{self, *};
 use crate::util::GetExpect;
-use crate::voice::{find_clip, FindClip};
+
+use super::IntroOutroMode::{self, *};
 
 pub async fn intro_outro(
 	ctx: &Context,

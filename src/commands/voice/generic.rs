@@ -16,11 +16,11 @@ use std::fs::read_dir;
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::audio::{clip_path, clip_source, play_sources};
+use crate::audio::{AudioError, PlayStyle};
 use crate::configuration::{write_config_eprintln, Config};
 use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
 use crate::util::*;
-use crate::voice::{clip_path, clip_source, play_sources, sandboxed_exists};
-use crate::voice::{AudioError, PlayStyle};
 
 pub async fn summon(ctx: &Context, guild_id: Option<GuildId>, user_id: UserId) -> String {
 	let guild_id = unwrap_or_ret!(

@@ -14,20 +14,20 @@ use serenity::prelude::EventHandler;
 
 use songbird::SongbirdKey;
 
-use crate::configuration::Config;
-use crate::data::{VoiceGuilds, VoiceUserCache};
-use crate::herald::{
+use crate::audio::clip_source;
+use crate::commands::herald::{
 	intro_interaction_create, intro_outro_interaction, introbot_interaction,
 	introbot_interaction_create, outro_interaction_create, IntroOutroMode,
 };
-use crate::util::*;
-use crate::voice::{
+use crate::commands::voice::{
 	banish_interaction, banish_interaction_create, clip_interaction, clip_interaction_create,
-	clip_source, list_interaction, list_interaction_create, play_interaction,
-	play_interaction_create, skip_interaction, skip_interaction_create, stop_interaction,
-	stop_interaction_create, summon_interaction, summon_interaction_create, volume_interaction,
-	volume_interaction_create,
+	list_interaction, list_interaction_create, play_interaction, play_interaction_create,
+	skip_interaction, skip_interaction_create, stop_interaction, stop_interaction_create,
+	summon_interaction, summon_interaction_create, volume_interaction, volume_interaction_create,
 };
+use crate::configuration::Config;
+use crate::data::{VoiceGuilds, VoiceUserCache};
+use crate::util::*;
 use crate::OPT;
 
 pub struct Handler;

@@ -1,13 +1,10 @@
-mod cmd;
+mod audio;
+mod commands;
 mod configuration;
 mod data;
 mod handler;
 mod spotify;
-mod unicode;
-#[macro_use]
 mod util;
-mod herald;
-mod voice;
 mod youtube;
 
 use log::{error, info, LevelFilter};
@@ -28,14 +25,14 @@ use songbird::serenity::SerenityInit;
 
 use structopt::StructOpt;
 
-use cmd::EXTERNAL_GROUP;
+use commands::cmd::EXTERNAL_GROUP;
+use commands::herald::HERALD_GROUP;
+use commands::unicode::UNICODE_GROUP;
+use commands::voice::VOICE_GROUP;
 use configuration::{read_config, Config};
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
-use herald::HERALD_GROUP;
-use unicode::UNICODE_GROUP;
 use util::{check_msg, Respond};
-use voice::VOICE_GROUP;
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -78,7 +75,7 @@ async fn main() {
 		.init();
 
 	// warn if there are duplicate clip names
-	voice::warn_duplicate_clip_names();
+	audio::warn_duplicate_clip_names();
 
 	let keys = serde_json::from_str::<Keys>(
 		&std::fs::read_to_string("keys.json").expect("Unable to read keys file"),

@@ -14,7 +14,6 @@ use serenity::prelude::{TypeMap, TypeMapKey};
 use std::fmt;
 use std::path::Path;
 
-#[macro_use]
 macro_rules! unwrap_or_ret {
 	( $e:expr, $f:expr ) => {
 		match $e {
@@ -23,6 +22,8 @@ macro_rules! unwrap_or_ret {
 		}
 	};
 }
+
+pub(crate) use unwrap_or_ret;
 
 #[derive(Debug)]
 pub enum UtilError {
