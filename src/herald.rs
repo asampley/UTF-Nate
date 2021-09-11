@@ -11,6 +11,7 @@ use serenity::model::interactions::application_command::{
 	ApplicationCommandInteraction, ApplicationCommandOptionType,
 };
 
+use crate::util::interaction::create_interaction;
 use crate::util::Respond;
 
 mod generic;
@@ -58,33 +59,27 @@ pub async fn intro_outro_interaction(
 }
 
 pub fn intro_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("intro")
-		.description("Set the clip to be played when you enter the channel containing the bot")
-		.create_option(|option| {
-			option
-				.name("clip")
-				.description("Clip path to play when you enter a channel")
-				.kind(ApplicationCommandOptionType::String)
-				.required(true)
-		})
+	create_interaction(&INTRO_COMMAND, cmd).create_option(|option| {
+		option
+			.name("clip")
+			.description("Clip path to play when you enter a channel")
+			.kind(ApplicationCommandOptionType::String)
+			.required(true)
+	})
 }
 
 pub fn outro_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("outro")
-		.description("Set the clip to be played when you exit the channel containing the bot")
-		.create_option(|option| {
-			option
-				.name("clip")
-				.description("Clip path to play when you exit a channel")
-				.kind(ApplicationCommandOptionType::String)
-				.required(true)
-		})
+	create_interaction(&OUTRO_COMMAND, cmd).create_option(|option| {
+		option
+			.name("clip")
+			.description("Clip path to play when you exit a channel")
+			.kind(ApplicationCommandOptionType::String)
+			.required(true)
+	})
 }
 
 #[command]
@@ -140,18 +135,15 @@ pub async fn introbot_interaction(
 }
 
 pub fn introbot_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("introbot")
-		.description("Set the clip to be played when the bot enters a channel in this guild")
-		.create_option(|option| {
-			option
-				.name("clip")
-				.description("Clip path to play when the bot enters a channel in this guild")
-				.kind(ApplicationCommandOptionType::String)
-				.required(true)
-		})
+	create_interaction(&INTROBOT_COMMAND, cmd).create_option(|option| {
+		option
+			.name("clip")
+			.description("Clip path to play when the bot enters a channel in this guild")
+			.kind(ApplicationCommandOptionType::String)
+			.required(true)
+	})
 }
 
 #[command]

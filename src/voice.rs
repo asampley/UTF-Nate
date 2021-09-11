@@ -32,6 +32,7 @@ use std::path::{Path, PathBuf};
 
 use crate::data::{ArcRw, Keys};
 use crate::spotify;
+use crate::util::interaction::create_interaction;
 use crate::util::*;
 use crate::youtube;
 
@@ -435,11 +436,9 @@ pub async fn summon_interaction(
 }
 
 pub fn summon_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("summon")
-		.description("Summon the bot to your current voice channel")
+	create_interaction(&SUMMON_COMMAND, cmd)
 }
 
 #[command]
@@ -463,11 +462,9 @@ pub async fn banish_interaction(
 }
 
 pub fn banish_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("banish")
-		.description("Banish the bot from its current voice channel")
+	create_interaction(&BANISH_COMMAND, cmd)
 }
 
 #[command]
@@ -519,18 +516,15 @@ pub async fn clip_interaction(
 }
 
 pub fn clip_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("clip")
-		.description("Play the specified clip immediately")
-		.create_option(|option| {
-			option
-				.name("clip")
-				.description("Clip to play")
-				.kind(ApplicationCommandOptionType::String)
-				.required(true)
-		})
+	create_interaction(&CLIP_COMMAND, cmd).create_option(|option| {
+		option
+			.name("clip")
+			.description("Clip to play")
+			.kind(ApplicationCommandOptionType::String)
+			.required(true)
+	})
 }
 
 #[command]
@@ -590,18 +584,15 @@ pub async fn play_interaction(
 }
 
 pub fn play_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("play")
-		.description("Add a youtube video, playlist, search, or spotify song, playlist, or album to the queue")
-		.create_option(|option| {
-			option
-				.name("input")
-				.description("Youtube or Spotify URL, or youtube search")
-				.kind(ApplicationCommandOptionType::String)
-				.required(true)
-		})
+	create_interaction(&PLAY_COMMAND, cmd).create_option(|option| {
+		option
+			.name("input")
+			.description("Youtube or Spotify URL, or youtube search")
+			.kind(ApplicationCommandOptionType::String)
+			.required(true)
+	})
 }
 
 #[command]
@@ -682,11 +673,9 @@ pub async fn volume_interaction(
 }
 
 pub fn volume_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("volume")
-		.description("Change volume of bot")
+	create_interaction(&VOLUME_COMMAND, cmd)
 		.create_option(|option| {
 			option
 				.name("style")
@@ -726,11 +715,9 @@ pub async fn stop_interaction(
 }
 
 pub fn stop_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("stop")
-		.description("Stop all clips currently being played by the bot")
+	create_interaction(&STOP_COMMAND, cmd)
 }
 
 #[command]
@@ -754,11 +741,9 @@ pub async fn skip_interaction(
 }
 
 pub fn skip_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("skip")
-		.description("Skip the current song in the queue")
+	create_interaction(&SKIP_COMMAND, cmd)
 }
 
 #[command]
@@ -808,15 +793,12 @@ pub async fn list_interaction(
 }
 
 pub fn list_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("list")
-		.description("List all the sections and/or clips available in the section")
-		.create_option(|option| {
-			option
-				.name("path")
-				.description("Path to list clips underneath")
-				.kind(ApplicationCommandOptionType::String)
-		})
+	create_interaction(&LIST_COMMAND, cmd).create_option(|option| {
+		option
+			.name("path")
+			.description("Path to list clips underneath")
+			.kind(ApplicationCommandOptionType::String)
+	})
 }
