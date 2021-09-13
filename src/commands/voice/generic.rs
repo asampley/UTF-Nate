@@ -257,73 +257,93 @@ pub async fn volume(
 		"This command is only available in guilds".to_string()
 	);
 
-	let style = unwrap_or_ret!(
-		style,
-		"Please specify either \"play\" or \"clip\" to set the volume for each command".to_string()
-	);
-
-	let volume = unwrap_or_ret!(
-		volume,
-		"Please specify a volume between 0.0 and 1.0".to_string()
-	);
-
-	if !(volume >= 0.0 || volume <= 1.0) {
-		return "Volume must be between 0.0 and 1.0".to_string();
-	}
-
 	let data_lock = ctx.data.read().await;
 
-	let ret = match style {
-		PlayStyle::Play => {
-			let songbird = data_lock.clone_expect::<SongbirdKey>();
+	match (style, volume) {
+		(None, None) => {
+			let config_arc = data_lock.clone_expect::<Config>();
+			let config = config_arc.read().await;
 
-			for handle in songbird
-				.get_or_insert(guild_id.into())
-				.lock()
-				.await
-				.queue()
-				.current_queue()
-			{
-				match handle
-					.set_volume(volume)
-					.err()
-					.filter(|e| e == &TrackError::Finished)
-				{
-					Some(_) => return "Error setting volume".to_string(),
-					None => (),
+			let guild_config = config.guilds.get(&guild_id);
+			format!(
+				"Play volume: {}\nClip volume: {}",
+				guild_config.and_then(|c| c.volume_play).unwrap_or(0.5),
+				guild_config.and_then(|c| c.volume_clip).unwrap_or(0.5),
+			)
+		}
+		(Some(style), None) => {
+			let config_arc = data_lock.clone_expect::<Config>();
+			let config = config_arc.read().await;
+
+			let guild_config = config.guilds.get(&guild_id);
+			match style {
+				PlayStyle::Clip =>
+					format!("Clip volume: {}", guild_config.and_then(|c| c.volume_clip).unwrap_or(0.5)),
+				PlayStyle::Play =>
+					format!("Play volume: {}", guild_config.and_then(|c| c.volume_play).unwrap_or(0.5)),
+			}
+		}
+		(None, Some(_volume)) => {
+			"Please specify either \"play\" or \"clip\" to set the volume for each command".to_string()
+		}
+		(Some(style), Some(volume)) => {
+			if !(volume >= 0.0 || volume <= 1.0) {
+				return "Volume must be between 0.0 and 1.0".to_string();
+			} else {
+				let ret = match style {
+					PlayStyle::Play => {
+						let songbird = data_lock.clone_expect::<SongbirdKey>();
+
+						for handle in songbird
+							.get_or_insert(guild_id.into())
+							.lock()
+							.await
+							.queue()
+							.current_queue()
+						{
+							match handle
+								.set_volume(volume)
+								.err()
+								.filter(|e| e == &TrackError::Finished)
+							{
+								Some(_) => return "Error setting volume".to_string(),
+								None => (),
+							}
+						}
+
+						format!("Play volume set to {}", volume)
+					}
+					PlayStyle::Clip => {
+						match data_lock
+							.clone_expect::<VoiceGuilds>()
+							.entry(guild_id)
+							.or_default()
+							.clone()
+							.write()
+							.await
+							.set_volume(volume)
+						{
+							Ok(_) => format!("Clip volume set to {}", volume),
+							Err(_) => "Error setting volume".to_string(),
+						}
+					}
+				};
+
+				let config_arc = data_lock.clone_expect::<Config>();
+				let mut config = config_arc.write().await;
+
+				let entry = config.guilds.entry(guild_id).or_default();
+				match style {
+					PlayStyle::Clip => entry.volume_clip = Some(volume),
+					PlayStyle::Play => entry.volume_play = Some(volume),
 				}
-			}
 
-			format!("Play volume set to {}", volume)
-		}
-		PlayStyle::Clip => {
-			match data_lock
-				.clone_expect::<VoiceGuilds>()
-				.entry(guild_id)
-				.or_default()
-				.clone()
-				.write()
-				.await
-				.set_volume(volume)
-			{
-				Ok(_) => format!("Clip volume set to {}", volume),
-				Err(_) => "Error setting volume".to_string(),
+				write_config_eprintln(Path::new("config.json"), &*config);
+
+				return ret;
 			}
 		}
-	};
-
-	let config_arc = data_lock.clone_expect::<Config>();
-	let mut config = config_arc.write().await;
-
-	let entry = config.guilds.entry(guild_id).or_default();
-	match style {
-		PlayStyle::Clip => entry.volume_clip = Some(volume),
-		PlayStyle::Play => entry.volume_play = Some(volume),
 	}
-
-	write_config_eprintln(Path::new("config.json"), &*config);
-
-	return ret;
 }
 
 pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> String {

@@ -89,7 +89,8 @@ pub fn banish_interaction_create(
 #[description("Play the specified clip immediately")]
 #[num_args(1)]
 #[usage("<clip>")]
-#[example("bnw/needoffspring")]
+#[example("dota/bothello")]
+#[example("bothello")]
 pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let path = args.current();
 
@@ -154,7 +155,12 @@ pub fn clip_interaction_create(
 )]
 #[min_args(1)]
 #[usage("<source>")]
+#[example("arbitrary youtube search")]
 #[example("https://www.youtube.com/watch?v=k2mFvwDTTt0")]
+#[example("https://www.youtube.com/playlist?list=PLucOLpdAYaKW1IYuo84R4qIskTfj-ECDp")]
+#[example("https://open.spotify.com/track/009bpReJuXgCv8G2MkJ5Y1")]
+#[example("https://open.spotify.com/album/0G2RxSCixG5Nl6jpjwiw2g")]
+#[example("https://open.spotify.com/playlist/2O18dCV9uoGTyxN5HLJkTo")]
 pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let query = args.raw().join(" ");
 	let query = if query.len() == 0 {
@@ -217,27 +223,42 @@ pub fn play_interaction_create(
 #[only_in(guilds)]
 #[help_available]
 #[description("Change volume of bot")]
-#[num_args(2)]
+#[min_args(0)]
+#[max_args(2)]
 #[usage("<play|clip> <volume>")]
-#[example("play 0.5")]
+#[example("")]
+#[example("play")]
+#[example("clip")]
+#[example("play .25")]
+#[example("clip 0.5")]
 pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-	let style = args
-		.single::<PlayStyle>()
-		.or_err_say(
-			ctx,
-			msg,
-			"Expected either \"play\" or \"clip\" volume to be selected",
-		)
-		.await?;
+	let style = match args.remaining() {
+		0 => None,
+		_ => {
+			Some(args
+				.single::<PlayStyle>()
+				.or_err_say(
+					ctx,
+					msg,
+					"Expected either \"play\" or \"clip\" volume to be selected",
+				)
+				.await?)
+		}
+	};
 
-	let volume = args
-		.single::<f32>()
-		.or_err_say(ctx, msg, "Volume must be a valid float between 0.0 and 1.0")
-		.await?;
+	let volume = match args.remaining() {
+		0 => None,
+		_ => {
+			Some(args
+				.single::<f32>()
+				.or_err_say(ctx, msg, "Volume must be a valid float between 0.0 and 1.0")
+				.await?)
+		}
+	};
 
 	msg.respond_str(
 		ctx,
-		generic::volume(ctx, Some(style), msg.guild_id, Some(volume)).await,
+		generic::volume(ctx, style, msg.guild_id, volume).await,
 	)
 	.await?;
 
@@ -260,7 +281,7 @@ pub async fn volume_interaction(
 		Some(Value::String(style)) => style.parse::<PlayStyle>().ok(),
 		None => None,
 		Some(_) => {
-			error!("Error in volume interaction expecting float argument");
+			error!("Error in volume interaction expecting string argument");
 			return interaction.respond_str(&ctx, "Internal bot error").await;
 		}
 	};
@@ -301,14 +322,12 @@ pub fn volume_interaction_create(
 				.kind(ApplicationCommandOptionType::String)
 				.add_string_choice("play", "play")
 				.add_string_choice("clip", "clip")
-				.required(true)
 		})
 		.create_option(|option| {
 			option
 				.name("volume")
 				.description("Volume between 0.0 and 1.0")
 				.kind(ApplicationCommandOptionType::Number)
-				.required(true)
 		})
 }
 
