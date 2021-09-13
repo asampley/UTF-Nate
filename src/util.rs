@@ -1,7 +1,9 @@
 pub mod interaction;
+mod ord_key;
 mod respond;
 mod say;
 
+pub use ord_key::OrdKey;
 pub use respond::Respond;
 pub use say::Say;
 
