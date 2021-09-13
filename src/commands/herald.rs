@@ -146,7 +146,6 @@ pub fn introbot_interaction_create(
 			.name("clip")
 			.description("Clip path to play when the bot enters a channel in this guild")
 			.kind(ApplicationCommandOptionType::String)
-			.required(true)
 	})
 }
 
