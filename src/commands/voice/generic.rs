@@ -277,14 +277,19 @@ pub async fn volume(
 
 			let guild_config = config.guilds.get(&guild_id);
 			match style {
-				PlayStyle::Clip =>
-					format!("Clip volume: {}", guild_config.and_then(|c| c.volume_clip).unwrap_or(0.5)),
-				PlayStyle::Play =>
-					format!("Play volume: {}", guild_config.and_then(|c| c.volume_play).unwrap_or(0.5)),
+				PlayStyle::Clip => format!(
+					"Clip volume: {}",
+					guild_config.and_then(|c| c.volume_clip).unwrap_or(0.5)
+				),
+				PlayStyle::Play => format!(
+					"Play volume: {}",
+					guild_config.and_then(|c| c.volume_play).unwrap_or(0.5)
+				),
 			}
 		}
 		(None, Some(_volume)) => {
-			"Please specify either \"play\" or \"clip\" to set the volume for each command".to_string()
+			"Please specify either \"play\" or \"clip\" to set the volume for each command"
+				.to_string()
 		}
 		(Some(style), Some(volume)) => {
 			if !(volume >= 0.0 || volume <= 1.0) {

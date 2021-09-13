@@ -234,33 +234,28 @@ pub fn play_interaction_create(
 pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let style = match args.remaining() {
 		0 => None,
-		_ => {
-			Some(args
-				.single::<PlayStyle>()
+		_ => Some(
+			args.single::<PlayStyle>()
 				.or_err_say(
 					ctx,
 					msg,
 					"Expected either \"play\" or \"clip\" volume to be selected",
 				)
-				.await?)
-		}
+				.await?,
+		),
 	};
 
 	let volume = match args.remaining() {
 		0 => None,
-		_ => {
-			Some(args
-				.single::<f32>()
+		_ => Some(
+			args.single::<f32>()
 				.or_err_say(ctx, msg, "Volume must be a valid float between 0.0 and 1.0")
-				.await?)
-		}
+				.await?,
+		),
 	};
 
-	msg.respond_str(
-		ctx,
-		generic::volume(ctx, style, msg.guild_id, volume).await,
-	)
-	.await?;
+	msg.respond_str(ctx, generic::volume(ctx, style, msg.guild_id, volume).await)
+		.await?;
 
 	Ok(())
 }

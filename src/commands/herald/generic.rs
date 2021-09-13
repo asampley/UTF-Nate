@@ -18,38 +18,52 @@ pub async fn intro_outro(
 ) -> String {
 	let clip = match clip {
 		Some(clip) => match find_clip(&clip) {
-			FindClip::One(clip) => clip,
+			FindClip::One(clip) => Some(clip),
 			FindClip::Multiple => {
 				return format!(
 					"Multiple clips matching {} found. Please be more specific.",
 					clip
 				)
 			}
-			FindClip::None => format!("Clip {} not found", clip),
+			FindClip::None => return format!("Clip {} not found", clip),
 		},
-		None => return "No clip provided".to_string(),
+		None => None,
 	};
 
 	let data_lock = ctx.data.read().await;
 	let config_arc = data_lock.clone_expect::<Config>();
 
-	let mut config = config_arc.write().await;
+	match clip {
+		None => {
+			let config = config_arc.read().await;
 
-	match mode {
-		Intro => config.intros.insert(user_id, clip.clone()),
-		Outro => config.outros.insert(user_id, clip.clone()),
-	};
+			let clip = match mode {
+				Intro => config.intros.get(&user_id),
+				Outro => config.outros.get(&user_id),
+			};
 
-	write_config_eprintln(Path::new("config.json"), &*config);
+			format!(
+				"User {} is {}",
+				mode.lowercase(),
+				match clip {
+					None => format!("default"),
+					Some(clip) => format!("\"{}\"", clip),
+				}
+			)
+		}
+		Some(clip) => {
+			let mut config = config_arc.write().await;
 
-	format!(
-		"Set new {} to {}",
-		match mode {
-			Intro => "intro",
-			Outro => "outro",
-		},
-		clip
-	)
+			match mode {
+				Intro => config.intros.insert(user_id, clip.clone()),
+				Outro => config.outros.insert(user_id, clip.clone()),
+			};
+
+			write_config_eprintln(Path::new("config.json"), &*config);
+
+			format!("Set new {} to {}", mode.lowercase(), clip)
+		}
+	}
 }
 
 pub async fn introbot(ctx: &Context, guild_id: Option<GuildId>, clip: Option<String>) -> String {
@@ -60,26 +74,46 @@ pub async fn introbot(ctx: &Context, guild_id: Option<GuildId>, clip: Option<Str
 
 	let clip = match clip {
 		Some(clip) => match find_clip(&clip) {
-			FindClip::One(clip) => clip,
+			FindClip::One(clip) => Some(clip),
 			FindClip::Multiple => {
 				return format!(
 					"Multiple clips matching {} found. Please be more specific.",
 					clip
 				)
 			}
-			FindClip::None => format!("Clip {} not found", clip),
+			FindClip::None => return format!("Clip {} not found", clip),
 		},
-		None => return "No clip provided".to_string(),
+		None => None,
 	};
 
 	let data_lock = ctx.data.read().await;
 	let config_arc = data_lock.clone_expect::<Config>();
 
-	let mut config = config_arc.write().await;
+	match clip {
+		Some(clip) => {
+			let mut config = config_arc.write().await;
 
-	config.guilds.entry(guild_id).or_default().bot_intro = Some(clip.clone());
+			config.guilds.entry(guild_id).or_default().bot_intro = Some(clip.clone());
 
-	write_config_eprintln(Path::new("config.json"), &*config);
+			write_config_eprintln(Path::new("config.json"), &*config);
 
-	format!("Set bot intro to {}", clip)
+			format!("Set bot intro to {}", clip)
+		}
+		None => {
+			let config = config_arc.read().await;
+
+			let intro = config
+				.guilds
+				.get(&guild_id)
+				.and_then(|c| c.bot_intro.as_ref());
+
+			format!(
+				"Bot intro is {}",
+				match intro {
+					None => format!("default"),
+					Some(intro) => format!("\"{}\"", intro),
+				}
+			)
+		}
+	}
 }

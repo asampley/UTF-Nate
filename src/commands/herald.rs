@@ -21,6 +21,15 @@ pub enum IntroOutroMode {
 	Outro,
 }
 
+impl IntroOutroMode {
+	fn lowercase(&self) -> &'static str {
+		match self {
+			Intro => "intro",
+			Outro => "outro",
+		}
+	}
+}
+
 use IntroOutroMode::*;
 
 #[group("herald")]
@@ -66,7 +75,6 @@ pub fn intro_interaction_create(
 			.name("clip")
 			.description("Clip path to play when you enter a channel")
 			.kind(ApplicationCommandOptionType::String)
-			.required(true)
 	})
 }
 
@@ -78,22 +86,18 @@ pub fn outro_interaction_create(
 			.name("clip")
 			.description("Clip path to play when you exit a channel")
 			.kind(ApplicationCommandOptionType::String)
-			.required(true)
 	})
 }
 
 #[command]
 #[help_available]
 #[description("Set the clip to be played when you enter the channel containing the bot")]
-#[num_args(1)]
+#[max_args(1)]
 #[usage("<clip>")]
+#[example("")]
+#[example("angels")]
 #[example("bnw/angels")]
 pub async fn intro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-	if args.len() != 1 {
-		msg.respond_str(ctx, "Expected exactly one clip").await?;
-		return Ok(());
-	}
-
 	let clip = args.current().map(|s| s.to_string());
 
 	msg.respond_str(
@@ -150,15 +154,12 @@ pub fn introbot_interaction_create(
 #[only_in(guilds)]
 #[help_available]
 #[description("Set the clip to be played when the bot enters a channel")]
-#[num_args(1)]
+#[max_args(1)]
 #[usage("<clip>")]
+#[example("")]
+#[example("angels")]
 #[example("bnw/angels")]
 pub async fn introbot(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-	if args.len() != 1 {
-		msg.respond_str(ctx, "Expected exactly one clip").await?;
-		return Ok(());
-	}
-
 	let clip_str = args.current().map(|s| s.to_string());
 
 	msg.respond_str(ctx, generic::introbot(&ctx, msg.guild_id, clip_str).await)
@@ -170,15 +171,12 @@ pub async fn introbot(ctx: &Context, msg: &Message, args: Args) -> CommandResult
 #[command]
 #[help_available]
 #[description("Set the clip to be played when you exit the channel containing the bot")]
-#[num_args(1)]
+#[max_args(1)]
 #[usage("<clip>")]
+#[example("")]
+#[example("death")]
 #[example("bnw/death")]
 pub async fn outro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-	if args.len() != 1 {
-		msg.respond_str(ctx, "Expected exactly one clip").await?;
-		return Ok(());
-	}
-
 	let clip = args.current().map(|s| s.to_string());
 
 	msg.respond_str(
