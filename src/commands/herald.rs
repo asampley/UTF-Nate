@@ -149,7 +149,7 @@ pub fn introbot_interaction_create(
 #[command]
 #[only_in(guilds)]
 #[help_available]
-#[description("Set the clip to be played when you enter the channel containing the bot")]
+#[description("Set the clip to be played when the bot enters a channel")]
 #[num_args(1)]
 #[usage("<clip>")]
 #[example("bnw/angels")]

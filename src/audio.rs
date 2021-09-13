@@ -177,9 +177,7 @@ where
 
 					let track = track.map_err(|_| AudioError::Spotify)?;
 
-					let search = track.name + &track.artists.iter().map(|a| &a.name).join(" ");
-
-					let result = youtube::YtdlSearchLazy::new(search).as_input().await;
+					let result = youtube::YtdlSearchLazy::from_track(&track).as_input().await;
 
 					match result {
 						Ok(input) => {
@@ -203,10 +201,8 @@ where
 
 					tokio::spawn(async move {
 						for track in playlist.tracks.items.into_iter().map(|t| t.track) {
-							let search =
-								track.name + &track.artists.iter().map(|a| &a.name).join(" ");
-
-							let result = youtube::YtdlSearchLazy::new(search).as_input().await;
+							let result =
+								youtube::YtdlSearchLazy::from_track(&track).as_input().await;
 
 							match result {
 								Ok(input) => {
@@ -232,10 +228,8 @@ where
 
 					tokio::spawn(async move {
 						for track in album.tracks.items {
-							let search =
-								track.name + &track.artists.iter().map(|a| &a.name).join(" ");
-
-							let result = youtube::YtdlSearchLazy::new(search).as_input().await;
+							let result =
+								youtube::YtdlSearchLazy::from_track(&track).as_input().await;
 
 							match result {
 								Ok(input) => {

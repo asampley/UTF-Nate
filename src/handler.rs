@@ -10,7 +10,7 @@ use serenity::model::interactions::application_command::{
 use serenity::model::prelude::Interaction;
 use serenity::model::voice::VoiceState;
 use serenity::prelude::Context;
-use serenity::prelude::EventHandler;
+use serenity::prelude::EventHandler as SerenityEventHandler;
 
 use songbird::SongbirdKey;
 
@@ -21,9 +21,10 @@ use crate::commands::herald::{
 };
 use crate::commands::voice::{
 	banish_interaction, banish_interaction_create, clip_interaction, clip_interaction_create,
-	list_interaction, list_interaction_create, play_interaction, play_interaction_create,
-	skip_interaction, skip_interaction_create, stop_interaction, stop_interaction_create,
-	summon_interaction, summon_interaction_create, volume_interaction, volume_interaction_create,
+	list_interaction, list_interaction_create, pause_interaction, pause_interaction_create,
+	play_interaction, play_interaction_create, skip_interaction, skip_interaction_create,
+	stop_interaction, stop_interaction_create, summon_interaction, summon_interaction_create,
+	unpause_interaction, unpause_interaction_create, volume_interaction, volume_interaction_create,
 };
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
@@ -37,9 +38,8 @@ enum IOClip {
 	Outro,
 }
 
-// implement default event handler
 #[async_trait]
-impl EventHandler for Handler {
+impl SerenityEventHandler for Handler {
 	async fn ready(&self, ctx: Context, _: Ready) {
 		info!("Bot started!");
 
@@ -71,6 +71,8 @@ impl EventHandler for Handler {
 					.create_application_command(volume_interaction_create)
 					.create_application_command(stop_interaction_create)
 					.create_application_command(skip_interaction_create)
+					.create_application_command(pause_interaction_create)
+					.create_application_command(unpause_interaction_create)
 					.create_application_command(help_interaction_create)
 			})
 			.await
@@ -103,6 +105,8 @@ impl EventHandler for Handler {
 				"volume" => volume_interaction(&ctx, &command).await,
 				"stop" => stop_interaction(&ctx, &command).await,
 				"skip" => skip_interaction(&ctx, &command).await,
+				"pause" => pause_interaction(&ctx, &command).await,
+				"unpause" => unpause_interaction(&ctx, &command).await,
 				"help" => help_interaction(&ctx, &command).await,
 				_ => command.respond_str(&ctx, "Unknown command").await,
 			} {

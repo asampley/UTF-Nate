@@ -1,4 +1,4 @@
-mod api;
+pub mod api;
 
 use itertools::Itertools;
 
@@ -12,6 +12,8 @@ use songbird::input::restartable::{Restart, Restartable};
 use songbird::input::{ytdl, ytdl_search, Container, Input, Metadata};
 
 use std::time::Duration;
+
+use crate::spotify::api::Track;
 
 use api::{PlaylistItems, Video, VideoList};
 
@@ -73,10 +75,22 @@ impl YtdlSearchLazy {
 		Restartable::new(self, true).await
 	}
 
-	pub fn new(search: String) -> Self {
+	pub fn from_track(track: &Track) -> Self {
+		let artist = if track.artists.len() == 0 {
+			None
+		} else {
+			Some(track.artists.iter().map(|a| &a.name).join(", "))
+		};
+
 		Self {
-			search,
+			search: format!(
+				"{} {}",
+				track.name,
+				track.artists.iter().map(|a| &a.name).join(" ")
+			),
 			metadata: Metadata {
+				title: Some(track.name.clone()),
+				artist: artist,
 				channels: Some(2),
 				sample_rate: Some(SAMPLE_RATE_RAW as u32),
 

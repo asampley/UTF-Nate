@@ -21,7 +21,7 @@ mod generic;
 
 #[group("voice")]
 #[description("Commands to move the bot to voice channels and play clips.")]
-#[commands(summon, banish, clip, play, volume, stop, skip, list)]
+#[commands(summon, banish, clip, play, volume, stop, skip, list, pause, unpause)]
 pub struct Voice;
 
 #[command]
@@ -147,7 +147,6 @@ pub fn clip_interaction_create(
 }
 
 #[command]
-#[aliases(q)]
 #[only_in(guilds)]
 #[help_available]
 #[description(
@@ -420,4 +419,56 @@ pub fn list_interaction_create(
 			.description("Path to list clips underneath")
 			.kind(ApplicationCommandOptionType::String)
 	})
+}
+
+#[command]
+#[only_in(guilds)]
+#[help_available]
+#[description("Pause the queue")]
+pub async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
+	msg.respond_str(ctx, generic::pause(ctx, msg.guild_id).await)
+		.await?;
+
+	Ok(())
+}
+
+pub async fn pause_interaction(
+	ctx: &Context,
+	interaction: &ApplicationCommandInteraction,
+) -> serenity::Result<()> {
+	interaction
+		.respond_str(ctx, generic::pause(ctx, interaction.guild_id).await)
+		.await
+}
+
+pub fn pause_interaction_create(
+	cmd: &mut CreateApplicationCommand,
+) -> &mut CreateApplicationCommand {
+	create_interaction(&PAUSE_COMMAND, cmd)
+}
+
+#[command]
+#[only_in(guilds)]
+#[help_available]
+#[description("Unpause the queue")]
+pub async fn unpause(ctx: &Context, msg: &Message) -> CommandResult {
+	msg.respond_str(ctx, generic::unpause(ctx, msg.guild_id).await)
+		.await?;
+
+	Ok(())
+}
+
+pub async fn unpause_interaction(
+	ctx: &Context,
+	interaction: &ApplicationCommandInteraction,
+) -> serenity::Result<()> {
+	interaction
+		.respond_str(ctx, generic::unpause(ctx, interaction.guild_id).await)
+		.await
+}
+
+pub fn unpause_interaction_create(
+	cmd: &mut CreateApplicationCommand,
+) -> &mut CreateApplicationCommand {
+	create_interaction(&UNPAUSE_COMMAND, cmd)
 }

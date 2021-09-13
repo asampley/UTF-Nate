@@ -77,6 +77,12 @@ impl VoiceGuild {
 		Ok(())
 	}
 
+	pub fn stop(&mut self) {
+		for audio in &self.audios {
+			let _ = audio.stop();
+		}
+	}
+
 	pub fn set_volume(&mut self, volume: f32) -> songbird::error::TrackResult<()> {
 		for audio in &self.audios {
 			match audio.set_volume(volume) {

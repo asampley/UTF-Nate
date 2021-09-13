@@ -40,8 +40,9 @@ pub async fn summon(ctx: &Context, guild_id: Option<GuildId>, user_id: UserId) -
 	let connect_to = unwrap_or_ret!(channel_id, "Not in a voice channel".to_string());
 
 	let songbird = ctx.data.read().await.clone_expect::<SongbirdKey>();
+	let (_call, join_result) = songbird.join(guild_id, connect_to).await;
 
-	match songbird.join(guild_id, connect_to).await.1 {
+	match join_result {
 		Ok(()) => "Joined channel",
 		Err(_) => "Error joining the channel",
 	}
@@ -331,6 +332,12 @@ pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> String {
 		"This command is only available in guilds".to_string()
 	);
 
+	let lock = ctx.data.read().await;
+
+	if let Some(voice_guild) = lock.clone_expect::<VoiceGuilds>().get(&guild_id) {
+		voice_guild.write().await.stop()
+	}
+
 	ctx.data
 		.read()
 		.await
@@ -338,6 +345,7 @@ pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> String {
 		.get_or_insert(guild_id.into())
 		.lock()
 		.await
+		.queue()
 		.stop();
 
 	"Cleared queue and stopped playing".to_string()
@@ -364,6 +372,56 @@ pub async fn skip(ctx: &Context, guild_id: Option<GuildId>) -> String {
 		Err(e) => {
 			error!("{:?}", e);
 			"Error skipping clip".to_string()
+		}
+	}
+}
+
+pub async fn pause(ctx: &Context, guild_id: Option<GuildId>) -> String {
+	let guild_id = unwrap_or_ret!(
+		guild_id,
+		"This command is only available in guilds".to_string()
+	);
+
+	match ctx
+		.data
+		.read()
+		.await
+		.clone_expect::<SongbirdKey>()
+		.get_or_insert(guild_id.into())
+		.lock()
+		.await
+		.queue()
+		.pause()
+	{
+		Ok(_) => "Pausing current clip".to_string(),
+		Err(e) => {
+			error!("{:?}", e);
+			"Error pausing clip".to_string()
+		}
+	}
+}
+
+pub async fn unpause(ctx: &Context, guild_id: Option<GuildId>) -> String {
+	let guild_id = unwrap_or_ret!(
+		guild_id,
+		"This command is only available in guilds".to_string()
+	);
+
+	match ctx
+		.data
+		.read()
+		.await
+		.clone_expect::<SongbirdKey>()
+		.get_or_insert(guild_id.into())
+		.lock()
+		.await
+		.queue()
+		.resume()
+	{
+		Ok(_) => "Unpausing current clip".to_string(),
+		Err(e) => {
+			error!("{:?}", e);
+			"Error unpausing clip".to_string()
 		}
 	}
 }

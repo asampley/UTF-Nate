@@ -1,4 +1,4 @@
-mod api;
+pub mod api;
 
 use log::debug;
 
