@@ -1,7 +1,3 @@
-use log::error;
-
-use serde_json::value::Value;
-
 use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
@@ -12,7 +8,7 @@ use serenity::model::interactions::application_command::{
 };
 
 use crate::util::interaction::create_interaction;
-use crate::util::Respond;
+use crate::util::*;
 
 mod generic;
 
@@ -43,7 +39,7 @@ pub async fn intro_outro_interaction(
 	mode: IntroOutroMode,
 ) -> serenity::Result<()> {
 	let clip = match get_option_string(ctx, interaction, "clip").await {
-		Ok(value) => value,
+		Ok(value) => value.map(|s| s.to_string()),
 		Err(result) => return result,
 	};
 
@@ -106,7 +102,7 @@ pub async fn introbot_interaction(
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
 	let clip = match get_option_string(ctx, interaction, "clip").await {
-		Ok(value) => value,
+		Ok(value) => value.map(|s| s.to_string()),
 		Err(result) => return result,
 	};
 

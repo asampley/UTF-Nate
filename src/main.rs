@@ -38,6 +38,14 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
+static PREFIXES: &[&'static str] = &["!"];
+
+static OPT: Lazy<Opt> = Lazy::new(|| {
+	let opt = Opt::from_args();
+	println!("Options: {:#?}", opt);
+	opt
+});
+
 #[derive(Debug, StructOpt)]
 struct Opt {
 	#[structopt(long, help = "Reregister slash commands with discord")]
@@ -46,12 +54,6 @@ struct Opt {
 	#[structopt(long, short, help = "Run command with additional logging")]
 	verbose: bool,
 }
-
-static OPT: Lazy<Opt> = Lazy::new(|| {
-	let opt = Opt::from_args();
-	println!("Options: {:#?}", opt);
-	opt
-});
 
 #[tokio::main]
 async fn main() {
@@ -95,7 +97,7 @@ async fn main() {
 		.framework(
 			// create a framework to process message commands
 			StandardFramework::new()
-				.configure(|c| c.prefix("!"))
+				.configure(|c| c.prefixes(PREFIXES))
 				.before(before_hook)
 				.after(after_hook)
 				.help(&HELP)
