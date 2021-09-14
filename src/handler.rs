@@ -108,7 +108,7 @@ impl SerenityEventHandler for Handler {
 				"pause" => pause_interaction(&ctx, &command).await,
 				"unpause" => unpause_interaction(&ctx, &command).await,
 				"help" => help_interaction(&ctx, &command).await,
-				_ => command.respond_str(&ctx, "Unknown command").await,
+				_ => command.respond_err(&ctx, &"Unknown command".into()).await,
 			} {
 				Ok(_) => (),
 				Err(e) => error!("Error running interaction: {:?}", e),
@@ -274,9 +274,9 @@ async fn help_interaction(
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
 	interaction
-		.respond_str(
+		.respond_ok(
 			&ctx,
-			"Please use !help for now, instead of the slash command",
+			&"Please use !help for now, instead of the slash command".into(),
 		)
 		.await
 }

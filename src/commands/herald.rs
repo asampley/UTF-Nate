@@ -55,14 +55,18 @@ pub async fn intro_outro_interaction(
 		None => None,
 		Some(_) => {
 			error!("Error in intro interaction expecting string argument");
-			return interaction.respond_str(&ctx, "Internal bot error").await;
+			return interaction
+				.respond_err(&ctx, &"Internal bot error".to_string().into())
+				.await;
 		}
 	};
 
 	interaction
-		.respond_str(
+		.respond(
 			&ctx,
-			generic::intro_outro(&ctx, mode, interaction.user.id, clip).await,
+			generic::intro_outro(&ctx, mode, interaction.user.id, clip)
+				.await
+				.as_ref(),
 		)
 		.await
 }
@@ -100,9 +104,11 @@ pub fn outro_interaction_create(
 pub async fn intro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let clip = args.current().map(|s| s.to_string());
 
-	msg.respond_str(
+	msg.respond(
 		ctx,
-		generic::intro_outro(&ctx, Intro, msg.author.id, clip).await,
+		generic::intro_outro(&ctx, Intro, msg.author.id, clip)
+			.await
+			.as_ref(),
 	)
 	.await?;
 
@@ -126,14 +132,18 @@ pub async fn introbot_interaction(
 		None => None,
 		Some(_) => {
 			error!("Error in intro interaction expecting string argument");
-			return interaction.respond_str(&ctx, "Internal bot error").await;
+			return interaction
+				.respond_err(&ctx, &"Internal bot error".to_string().into())
+				.await;
 		}
 	};
 
 	interaction
-		.respond_str(
+		.respond(
 			&ctx,
-			generic::introbot(&ctx, interaction.guild_id, clip).await,
+			generic::introbot(&ctx, interaction.guild_id, clip)
+				.await
+				.as_ref(),
 		)
 		.await
 }
@@ -161,8 +171,13 @@ pub fn introbot_interaction_create(
 pub async fn introbot(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let clip_str = args.current().map(|s| s.to_string());
 
-	msg.respond_str(ctx, generic::introbot(&ctx, msg.guild_id, clip_str).await)
-		.await?;
+	msg.respond(
+		ctx,
+		generic::introbot(&ctx, msg.guild_id, clip_str)
+			.await
+			.as_ref(),
+	)
+	.await?;
 
 	Ok(())
 }
@@ -178,9 +193,11 @@ pub async fn introbot(ctx: &Context, msg: &Message, args: Args) -> CommandResult
 pub async fn outro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let clip = args.current().map(|s| s.to_string());
 
-	msg.respond_str(
+	msg.respond(
 		ctx,
-		generic::intro_outro(&ctx, Outro, msg.author.id, clip).await,
+		generic::intro_outro(&ctx, Outro, msg.author.id, clip)
+			.await
+			.as_ref(),
 	)
 	.await?;
 

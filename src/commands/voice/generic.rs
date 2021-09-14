@@ -22,51 +22,47 @@ use crate::configuration::{write_config_eprintln, Config};
 use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
 use crate::util::*;
 
-pub async fn summon(ctx: &Context, guild_id: Option<GuildId>, user_id: UserId) -> String {
-	let guild_id = unwrap_or_ret!(
-		guild_id,
-		"This command is only available in guilds".to_string()
-	);
-	let guild = unwrap_or_ret!(
-		guild_id.to_guild_cached(&ctx.cache).await,
-		"Internal bot error".to_string()
-	);
+pub async fn summon(
+	ctx: &Context,
+	guild_id: Option<GuildId>,
+	user_id: UserId,
+) -> Result<Response, Response> {
+	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
+	let guild = guild_id
+		.to_guild_cached(&ctx.cache)
+		.await
+		.ok_or("Internal bot error")?;
 
 	let channel_id = guild
 		.voice_states
 		.get(&user_id)
 		.and_then(|voice_state| voice_state.channel_id);
 
-	let connect_to = unwrap_or_ret!(channel_id, "Not in a voice channel".to_string());
+	let connect_to = channel_id.ok_or("Not in a voice channel")?;
 
 	let songbird = ctx.data.read().await.clone_expect::<SongbirdKey>();
 	let (_call, join_result) = songbird.join(guild_id, connect_to).await;
 
 	match join_result {
-		Ok(()) => "Joined channel",
-		Err(_) => "Error joining the channel",
+		Ok(()) => Ok("Joined channel".into()),
+		Err(_) => Err("Error joining the channel".into()),
 	}
-	.to_string()
 }
 
-pub async fn banish(ctx: &Context, guild_id: Option<GuildId>) -> String {
-	let guild_id = unwrap_or_ret!(
-		guild_id,
-		"This command is only available in guilds".to_string()
-	);
+pub async fn banish(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
+	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
 	let songbird = ctx.data.read().await.clone_expect::<SongbirdKey>();
 
 	{
 		use songbird::error::JoinError::*;
 		match songbird.remove(guild_id).await {
-			Ok(()) => "Left voice channel",
+			Ok(()) => Ok("Left voice channel".into()),
 			Err(e) => match e {
-				NoCall => "Not in a voice channel",
-				_ => "Internal bot error",
+				NoCall => Err("Not in a voice channel".into()),
+				_ => Err("Internal bot error".into()),
 			},
 		}
-		.to_string()
 	}
 }
 
@@ -75,12 +71,9 @@ pub async fn play(
 	play_style: PlayStyle,
 	path: Option<&str>,
 	guild_id: Option<GuildId>,
-) -> String {
-	let path = unwrap_or_ret!(path, "Must provide a source".to_string());
-	let guild_id = unwrap_or_ret!(
-		guild_id,
-		"This command is only available in guilds".to_string()
-	);
+) -> Result<Response, Response> {
+	let path = path.ok_or("Must provide a source")?;
+	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
 	let (songbird, voice_guild_arc, volume, keys) = {
 		debug!("Acquiring lock for play");
@@ -151,24 +144,25 @@ pub async fn play(
 		debug!("Finished fetching audio source");
 
 		match result {
-			Ok(response) => response,
+			Ok(response) => Ok(response.into()),
 			Err(e) => {
 				error!("Error playing audio: {:?}", e);
-				match e {
-					AudioError::Songbird(_) => "Playback error".to_string(),
-					AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path),
+				Err(match e {
+					AudioError::Songbird(_) => "Playback error".into(),
+					AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path).into(),
 					AudioError::MultipleClip => format!(
 						"Multiple clips matching {} found. Please be more specific.",
 						path
-					),
-					AudioError::NoClip => format!("Clip {} not found", path),
-					AudioError::Spotify => "Error reading from Spotify".to_string(),
-					AudioError::YoutubePlaylist => "Error reading youtube playlist".to_string(),
-				}
+					)
+					.into(),
+					AudioError::NoClip => format!("Clip {} not found", path).into(),
+					AudioError::Spotify => "Error reading from Spotify".into(),
+					AudioError::YoutubePlaylist => "Error reading youtube playlist".into(),
+				})
 			}
 		}
 	} else {
-		"Not in a voice channel".to_string()
+		Err("Not in a voice channel".into())
 	}
 }
 
@@ -198,25 +192,22 @@ async fn play_input(
 	}
 }
 
-pub async fn list(path: Option<&str>) -> String {
+pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 	let dir = clip_path().join(Path::new(match path {
 		None => "",
 		Some(ref path) => path,
 	}));
 
-	let dir = match dir.canonicalize() {
-		Ok(dir) => dir,
-		Err(_) => return "Invalid directory".to_string(),
-	};
+	let dir = dir.canonicalize().map_err(|_| "Invalid directory")?;
 
 	if !sandboxed_exists(&clip_path(), &dir) {
-		return "Invalid directory".to_string();
+		return Err("Invalid directory".into());
 	}
 
 	match read_dir(dir) {
 		Err(reason) => {
 			error!("Unable to read directory: {:?}", reason);
-			return "Invalid directory".to_string();
+			return Err("Invalid directory".into());
 		}
 		Ok(dir_iter) => {
 			let message = dir_iter
@@ -241,7 +232,7 @@ pub async fn list(path: Option<&str>) -> String {
 				.map(|chunk| chunk.fold("".to_owned(), |acc, s| acc + &s))
 				.fold("".to_owned(), |acc, s| acc + "\n" + &s);
 
-			return "```\n".to_owned() + &message + "\n```";
+			return Ok(("```\n".to_owned() + &message + "\n```").into());
 		}
 	}
 }
@@ -251,11 +242,8 @@ pub async fn volume(
 	style: Option<PlayStyle>,
 	guild_id: Option<GuildId>,
 	volume: Option<f32>,
-) -> String {
-	let guild_id = unwrap_or_ret!(
-		guild_id,
-		"This command is only available in guilds".to_string()
-	);
+) -> Result<Response, Response> {
+	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
 	let data_lock = ctx.data.read().await;
 
@@ -265,18 +253,19 @@ pub async fn volume(
 			let config = config_arc.read().await;
 
 			let guild_config = config.guilds.get(&guild_id);
-			format!(
+			Ok(format!(
 				"Play volume: {}\nClip volume: {}",
 				guild_config.and_then(|c| c.volume_play).unwrap_or(0.5),
 				guild_config.and_then(|c| c.volume_clip).unwrap_or(0.5),
 			)
+			.into())
 		}
 		(Some(style), None) => {
 			let config_arc = data_lock.clone_expect::<Config>();
 			let config = config_arc.read().await;
 
 			let guild_config = config.guilds.get(&guild_id);
-			match style {
+			Ok(match style {
 				PlayStyle::Clip => format!(
 					"Clip volume: {}",
 					guild_config.and_then(|c| c.volume_clip).unwrap_or(0.5)
@@ -286,14 +275,14 @@ pub async fn volume(
 					guild_config.and_then(|c| c.volume_play).unwrap_or(0.5)
 				),
 			}
+			.into())
 		}
-		(None, Some(_volume)) => {
-			"Please specify either \"play\" or \"clip\" to set the volume for each command"
-				.to_string()
-		}
+		(None, Some(_volume)) => Err(
+			"Please specify either \"play\" or \"clip\" to set the volume for each command".into(),
+		),
 		(Some(style), Some(volume)) => {
 			if !(volume >= 0.0 || volume <= 1.0) {
-				return "Volume must be between 0.0 and 1.0".to_string();
+				return Err("Volume must be between 0.0 and 1.0".into());
 			} else {
 				let ret = match style {
 					PlayStyle::Play => {
@@ -311,27 +300,23 @@ pub async fn volume(
 								.err()
 								.filter(|e| e == &TrackError::Finished)
 							{
-								Some(_) => return "Error setting volume".to_string(),
+								Some(_) => return Err("Error setting volume".into()),
 								None => (),
 							}
 						}
 
-						format!("Play volume set to {}", volume)
+						Ok(format!("Play volume set to {}", volume).into())
 					}
-					PlayStyle::Clip => {
-						match data_lock
-							.clone_expect::<VoiceGuilds>()
-							.entry(guild_id)
-							.or_default()
-							.clone()
-							.write()
-							.await
-							.set_volume(volume)
-						{
-							Ok(_) => format!("Clip volume set to {}", volume),
-							Err(_) => "Error setting volume".to_string(),
-						}
-					}
+					PlayStyle::Clip => data_lock
+						.clone_expect::<VoiceGuilds>()
+						.entry(guild_id)
+						.or_default()
+						.clone()
+						.write()
+						.await
+						.set_volume(volume)
+						.map(|_| format!("Clip volume set to {}", volume).into())
+						.map_err(|_| "Error setting volume".into()),
 				};
 
 				let config_arc = data_lock.clone_expect::<Config>();
@@ -351,11 +336,8 @@ pub async fn volume(
 	}
 }
 
-pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> String {
-	let guild_id = unwrap_or_ret!(
-		guild_id,
-		"This command is only available in guilds".to_string()
-	);
+pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
+	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
 	let lock = ctx.data.read().await;
 
@@ -373,17 +355,13 @@ pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> String {
 		.queue()
 		.stop();
 
-	"Cleared queue and stopped playing".to_string()
+	Ok("Cleared queue and stopped playing".into())
 }
 
-pub async fn skip(ctx: &Context, guild_id: Option<GuildId>) -> String {
-	let guild_id = unwrap_or_ret!(
-		guild_id,
-		"This command is only available in guilds".to_string()
-	);
+pub async fn skip(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
+	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
-	match ctx
-		.data
+	ctx.data
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
@@ -392,23 +370,17 @@ pub async fn skip(ctx: &Context, guild_id: Option<GuildId>) -> String {
 		.await
 		.queue()
 		.skip()
-	{
-		Ok(_) => "Skipping current clip".to_string(),
-		Err(e) => {
+		.map(|_| "Skipping current clip".into())
+		.map_err(|e| {
 			error!("{:?}", e);
-			"Error skipping clip".to_string()
-		}
-	}
+			"Error skipping clip".into()
+		})
 }
 
-pub async fn pause(ctx: &Context, guild_id: Option<GuildId>) -> String {
-	let guild_id = unwrap_or_ret!(
-		guild_id,
-		"This command is only available in guilds".to_string()
-	);
+pub async fn pause(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
+	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
-	match ctx
-		.data
+	ctx.data
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
@@ -417,23 +389,17 @@ pub async fn pause(ctx: &Context, guild_id: Option<GuildId>) -> String {
 		.await
 		.queue()
 		.pause()
-	{
-		Ok(_) => "Pausing current clip".to_string(),
-		Err(e) => {
+		.map(|_| "Pausing current clip".into())
+		.map_err(|e| {
 			error!("{:?}", e);
-			"Error pausing clip".to_string()
-		}
-	}
+			"Error pausing clip".into()
+		})
 }
 
-pub async fn unpause(ctx: &Context, guild_id: Option<GuildId>) -> String {
-	let guild_id = unwrap_or_ret!(
-		guild_id,
-		"This command is only available in guilds".to_string()
-	);
+pub async fn unpause(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
+	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
-	match ctx
-		.data
+	ctx.data
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
@@ -442,11 +408,9 @@ pub async fn unpause(ctx: &Context, guild_id: Option<GuildId>) -> String {
 		.await
 		.queue()
 		.resume()
-	{
-		Ok(_) => "Unpausing current clip".to_string(),
-		Err(e) => {
+		.map(|_| "Unpausing current clip".into())
+		.map_err(|e| {
 			error!("{:?}", e);
-			"Error unpausing clip".to_string()
-		}
-	}
+			"Error unpausing clip".into()
+		})
 }

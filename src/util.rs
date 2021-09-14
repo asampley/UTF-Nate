@@ -1,11 +1,9 @@
 pub mod interaction;
 mod ord_key;
 mod respond;
-mod say;
 
 pub use ord_key::OrdKey;
-pub use respond::Respond;
-pub use say::Say;
+pub use respond::{Respond, Response};
 
 use log::error;
 
@@ -16,22 +14,10 @@ use serenity::prelude::{TypeMap, TypeMapKey};
 use std::fmt;
 use std::path::Path;
 
-macro_rules! unwrap_or_ret {
-	( $e:expr, $f:expr ) => {
-		match $e {
-			Some(x) => x,
-			None => return $f,
-		}
-	};
-}
-
-pub(crate) use unwrap_or_ret;
-
 #[derive(Debug)]
 pub enum UtilError {
 	Serenity(serenity::Error),
 	Songbird(songbird::input::error::Error),
-	Other(String),
 }
 
 impl From<songbird::input::error::Error> for UtilError {

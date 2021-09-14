@@ -29,13 +29,14 @@ pub async fn cmd(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 	let command = match args.single::<String>() {
 		Ok(command) => cmd_path().join(&command),
 		Err(_) => {
-			msg.respond_str(ctx, "Must provide a command").await?;
+			msg.respond_err(ctx, &"Must provide a command".into())
+				.await?;
 			return Ok(());
 		}
 	};
 
 	if !sandboxed_exists(&cmd_path(), &command) {
-		msg.respond_str(ctx, "Invalid command").await?;
+		msg.respond_err(ctx, &"Invalid command".into()).await?;
 		return Ok(());
 	}
 
@@ -47,11 +48,12 @@ pub async fn cmd(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 
 	match message {
 		Ok(message) => {
-			msg.respond_str(ctx, &message).await?;
 			info!("Output of command: {}", message);
+			msg.respond_ok(ctx, &message.into()).await?;
 		}
 		Err(reason) => {
-			msg.respond_str(ctx, "Error executing command").await?;
+			msg.respond_err(ctx, &"Error executing command".into())
+				.await?;
 			error!("Error executing command: {:?}", reason);
 			return Ok(());
 		}

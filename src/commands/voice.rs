@@ -29,8 +29,13 @@ pub struct Voice;
 #[help_available]
 #[description("Summon the bot to the voice channel the user is currently in")]
 pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond_str(ctx, generic::summon(ctx, msg.guild_id, msg.author.id).await)
-		.await?;
+	msg.respond(
+		ctx,
+		generic::summon(ctx, msg.guild_id, msg.author.id)
+			.await
+			.as_ref(),
+	)
+	.await?;
 
 	Ok(())
 }
@@ -40,9 +45,11 @@ pub async fn summon_interaction(
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
 	interaction
-		.respond_str(
+		.respond(
 			&ctx,
-			generic::summon(ctx, interaction.guild_id, interaction.user.id).await,
+			generic::summon(ctx, interaction.guild_id, interaction.user.id)
+				.await
+				.as_ref(),
 		)
 		.await
 }
@@ -60,7 +67,7 @@ pub fn summon_interaction_create(
 #[help_available]
 #[description("Remove the bot from the voice channel it is in")]
 pub async fn banish(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond_str(ctx, generic::banish(ctx, msg.guild_id).await)
+	msg.respond(ctx, generic::banish(ctx, msg.guild_id).await.as_ref())
 		.await?;
 
 	Ok(())
@@ -71,7 +78,10 @@ pub async fn banish_interaction(
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
 	interaction
-		.respond_str(&ctx, generic::banish(ctx, interaction.guild_id).await)
+		.respond(
+			&ctx,
+			generic::banish(ctx, interaction.guild_id).await.as_ref(),
+		)
 		.await
 }
 
@@ -94,9 +104,11 @@ pub fn banish_interaction_create(
 pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let path = args.current();
 
-	msg.respond_str(
+	msg.respond(
 		ctx,
-		generic::play(ctx, PlayStyle::Clip, path, msg.guild_id).await,
+		generic::play(ctx, PlayStyle::Clip, path, msg.guild_id)
+			.await
+			.as_ref(),
 	)
 	.await?;
 
@@ -120,14 +132,18 @@ pub async fn clip_interaction(
 		None => None,
 		Some(_) => {
 			error!("Error in clip interaction expecting string argument");
-			return interaction.respond_str(&ctx, "Internal bot error").await;
+			return interaction
+				.respond_err(&ctx, &"Internal bot error".into())
+				.await;
 		}
 	};
 
 	interaction
-		.respond_str(
+		.respond(
 			ctx,
-			generic::play(ctx, PlayStyle::Clip, clip, interaction.guild_id).await,
+			generic::play(ctx, PlayStyle::Clip, clip, interaction.guild_id)
+				.await
+				.as_ref(),
 		)
 		.await
 }
@@ -169,9 +185,11 @@ pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 		Some(query.as_str())
 	};
 
-	msg.respond_str(
+	msg.respond(
 		ctx,
-		generic::play(ctx, PlayStyle::Play, query, msg.guild_id).await,
+		generic::play(ctx, PlayStyle::Play, query, msg.guild_id)
+			.await
+			.as_ref(),
 	)
 	.await?;
 
@@ -195,14 +213,18 @@ pub async fn play_interaction(
 		None => None,
 		Some(_) => {
 			error!("Error in play interaction expecting string argument");
-			return interaction.respond_str(&ctx, "Internal bot error").await;
+			return interaction
+				.respond_err(&ctx, &"Internal bot error".into())
+				.await;
 		}
 	};
 
 	interaction
-		.respond_str(
+		.respond(
 			ctx,
-			generic::play(ctx, PlayStyle::Play, clip, interaction.guild_id).await,
+			generic::play(ctx, PlayStyle::Play, clip, interaction.guild_id)
+				.await
+				.as_ref(),
 		)
 		.await
 }
@@ -234,28 +256,43 @@ pub fn play_interaction_create(
 pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let style = match args.remaining() {
 		0 => None,
-		_ => Some(
-			args.single::<PlayStyle>()
-				.or_err_say(
+		_ => match args.single::<PlayStyle>() {
+			Ok(style) => Some(style),
+			Err(_) => {
+				msg.respond_err(
 					ctx,
-					msg,
-					"Expected either \"play\" or \"clip\" volume to be selected",
+					&"Expected either \"play\" or \"clip\" volume to be selected".into(),
 				)
-				.await?,
-		),
+				.await?;
+
+				return Ok(());
+			}
+		},
 	};
 
 	let volume = match args.remaining() {
 		0 => None,
-		_ => Some(
-			args.single::<f32>()
-				.or_err_say(ctx, msg, "Volume must be a valid float between 0.0 and 1.0")
-				.await?,
-		),
+		_ => match args.single::<f32>() {
+			Ok(volume) => Some(volume),
+			Err(_) => {
+				msg.respond_err(
+					ctx,
+					&"Volume must be a valid float between 0.0 and 1.0".into(),
+				)
+				.await?;
+
+				return Ok(());
+			}
+		},
 	};
 
-	msg.respond_str(ctx, generic::volume(ctx, style, msg.guild_id, volume).await)
-		.await?;
+	msg.respond(
+		ctx,
+		generic::volume(ctx, style, msg.guild_id, volume)
+			.await
+			.as_ref(),
+	)
+	.await?;
 
 	Ok(())
 }
@@ -277,7 +314,9 @@ pub async fn volume_interaction(
 		None => None,
 		Some(_) => {
 			error!("Error in volume interaction expecting string argument");
-			return interaction.respond_str(&ctx, "Internal bot error").await;
+			return interaction
+				.respond_err(&ctx, &"Internal bot error".into())
+				.await;
 		}
 	};
 
@@ -294,14 +333,18 @@ pub async fn volume_interaction(
 		None => None,
 		Some(_) => {
 			error!("Error in volume interaction expecting float argument");
-			return interaction.respond_str(&ctx, "Internal bot error").await;
+			return interaction
+				.respond_err(&ctx, &"Internal bot error".into())
+				.await;
 		}
 	};
 
 	interaction
-		.respond_str(
+		.respond(
 			ctx,
-			generic::volume(ctx, style, interaction.guild_id, volume).await,
+			generic::volume(ctx, style, interaction.guild_id, volume)
+				.await
+				.as_ref(),
 		)
 		.await
 }
@@ -331,7 +374,7 @@ pub fn volume_interaction_create(
 #[help_available]
 #[description("Stop all clips currently being played by the bot")]
 pub async fn stop(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond_str(ctx, generic::stop(ctx, msg.guild_id).await)
+	msg.respond(ctx, generic::stop(ctx, msg.guild_id).await.as_ref())
 		.await?;
 
 	Ok(())
@@ -342,7 +385,7 @@ pub async fn stop_interaction(
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
 	interaction
-		.respond_str(ctx, generic::stop(ctx, interaction.guild_id).await)
+		.respond(ctx, generic::stop(ctx, interaction.guild_id).await.as_ref())
 		.await
 }
 
@@ -357,7 +400,7 @@ pub fn stop_interaction_create(
 #[help_available]
 #[description("Skip the current song in the queue")]
 pub async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond_str(ctx, generic::skip(ctx, msg.guild_id).await)
+	msg.respond(ctx, generic::skip(ctx, msg.guild_id).await.as_ref())
 		.await?;
 
 	Ok(())
@@ -368,7 +411,7 @@ pub async fn skip_interaction(
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
 	interaction
-		.respond_str(ctx, generic::skip(ctx, interaction.guild_id).await)
+		.respond(ctx, generic::skip(ctx, interaction.guild_id).await.as_ref())
 		.await
 }
 
@@ -387,13 +430,13 @@ pub fn skip_interaction_create(
 #[example("bnw")]
 pub async fn list(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	if args.len() > 1 {
-		msg.respond_str(ctx, "Expected at most one path to be specified")
+		msg.respond_err(ctx, &"Expected at most one path to be specified".into())
 			.await?;
 		return Ok(());
 	}
 
 	let path = args.current();
-	msg.respond_str(ctx, generic::list(path).await).await?;
+	msg.respond(ctx, generic::list(path).await.as_ref()).await?;
 
 	return Ok(());
 }
@@ -415,12 +458,14 @@ pub async fn list_interaction(
 		None => None,
 		Some(_) => {
 			error!("Error in list interaction expecting string argument");
-			return interaction.respond_str(&ctx, "Internal bot error").await;
+			return interaction
+				.respond_err(&ctx, &"Internal bot error".into())
+				.await;
 		}
 	};
 
 	interaction
-		.respond_str(ctx, generic::list(path).await)
+		.respond(ctx, generic::list(path).await.as_ref())
 		.await
 }
 
@@ -440,7 +485,7 @@ pub fn list_interaction_create(
 #[help_available]
 #[description("Pause the queue")]
 pub async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond_str(ctx, generic::pause(ctx, msg.guild_id).await)
+	msg.respond(ctx, generic::pause(ctx, msg.guild_id).await.as_ref())
 		.await?;
 
 	Ok(())
@@ -451,7 +496,10 @@ pub async fn pause_interaction(
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
 	interaction
-		.respond_str(ctx, generic::pause(ctx, interaction.guild_id).await)
+		.respond(
+			ctx,
+			generic::pause(ctx, interaction.guild_id).await.as_ref(),
+		)
 		.await
 }
 
@@ -466,7 +514,7 @@ pub fn pause_interaction_create(
 #[help_available]
 #[description("Unpause the queue")]
 pub async fn unpause(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond_str(ctx, generic::unpause(ctx, msg.guild_id).await)
+	msg.respond(ctx, generic::unpause(ctx, msg.guild_id).await.as_ref())
 		.await?;
 
 	Ok(())
@@ -477,7 +525,10 @@ pub async fn unpause_interaction(
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
 	interaction
-		.respond_str(ctx, generic::unpause(ctx, interaction.guild_id).await)
+		.respond(
+			ctx,
+			generic::unpause(ctx, interaction.guild_id).await.as_ref(),
+		)
 		.await
 }
 

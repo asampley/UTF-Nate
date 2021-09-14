@@ -204,7 +204,7 @@ async fn on_dispatch_error(ctx: &Context, msg: &Message, err: DispatchError) {
 				min, given
 			);
 
-			check_msg(msg.respond_str(ctx, &s).await);
+			check_msg(msg.respond_err(ctx, &s.into()).await);
 		}
 		TooManyArguments { max, given } => {
 			let s = format!(
@@ -212,11 +212,11 @@ async fn on_dispatch_error(ctx: &Context, msg: &Message, err: DispatchError) {
 				max, given
 			);
 
-			check_msg(msg.respond_str(ctx, &s).await);
+			check_msg(msg.respond_err(ctx, &s.into()).await);
 		}
 		OnlyForGuilds => {
 			check_msg(
-				msg.respond_str(ctx, "This command is only available in guilds")
+				msg.respond_err(ctx, &"This command is only available in guilds".into())
 					.await,
 			);
 		}
