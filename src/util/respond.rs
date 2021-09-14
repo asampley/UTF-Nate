@@ -5,6 +5,9 @@ use serenity::model::channel::Message;
 use serenity::model::interactions::application_command::ApplicationCommandInteraction;
 use serenity::utils::Color;
 
+const OK_COLOR: Color = Color::from_rgb(127, 255, 127);
+const ERR_COLOR: Color = Color::from_rgb(255, 127, 127);
+
 #[derive(Debug)]
 pub struct Response {
 	pub text: String,
@@ -30,11 +33,11 @@ impl Response {
 	}
 
 	fn embed_err<'a>(&self, create: &'a mut CreateEmbed) -> &'a mut CreateEmbed {
-		self.embed_color(Color::from_rgb(255, 127, 127), create)
+		self.embed_color(ERR_COLOR, create)
 	}
 
 	fn embed_ok<'a>(&self, create: &'a mut CreateEmbed) -> &'a mut CreateEmbed {
-		self.embed_color(Color::from_rgb(127, 127, 255), create)
+		self.embed_color(OK_COLOR, create)
 	}
 
 	fn embed<'a>(
