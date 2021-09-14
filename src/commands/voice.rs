@@ -119,23 +119,9 @@ pub async fn clip_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = interaction.data.options.iter().find_map(|option| {
-		if option.name == "clip" {
-			option.value.as_ref()
-		} else {
-			None
-		}
-	});
-
-	let clip = match clip {
-		Some(Value::String(clip)) => Some(clip.as_str()),
-		None => None,
-		Some(_) => {
-			error!("Error in clip interaction expecting string argument");
-			return interaction
-				.respond_err(&ctx, &"Internal bot error".into())
-				.await;
-		}
+	let clip = match get_option_string(ctx, interaction, "clip").await {
+		Ok(value) => value,
+		Err(result) => return result,
 	};
 
 	interaction
@@ -200,23 +186,9 @@ pub async fn play_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = interaction.data.options.iter().find_map(|option| {
-		if option.name == "input" {
-			option.value.as_ref()
-		} else {
-			None
-		}
-	});
-
-	let clip = match clip {
-		Some(Value::String(clip)) => Some(clip.as_str()),
-		None => None,
-		Some(_) => {
-			error!("Error in play interaction expecting string argument");
-			return interaction
-				.respond_err(&ctx, &"Internal bot error".into())
-				.await;
-		}
+	let clip = match get_option_string(ctx, interaction, "input").await {
+		Ok(value) => value,
+		Err(result) => return result,
 	};
 
 	interaction
@@ -301,42 +273,14 @@ pub async fn volume_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let style = interaction.data.options.iter().find_map(|option| {
-		if option.name == "style" {
-			option.value.as_ref()
-		} else {
-			None
-		}
-	});
-
-	let style = match style {
-		Some(Value::String(style)) => style.parse::<PlayStyle>().ok(),
-		None => None,
-		Some(_) => {
-			error!("Error in volume interaction expecting string argument");
-			return interaction
-				.respond_err(&ctx, &"Internal bot error".into())
-				.await;
-		}
+	let style = match get_option_string(ctx, interaction, "style").await {
+		Ok(value) => value.and_then(|s| s.parse().ok()),
+		Err(result) => return result,
 	};
 
-	let volume = interaction.data.options.iter().find_map(|option| {
-		if option.name == "volume" {
-			option.value.as_ref()
-		} else {
-			None
-		}
-	});
-
-	let volume = match volume {
-		Some(Value::Number(volume)) => volume.as_f64().map(|v| v as f32),
-		None => None,
-		Some(_) => {
-			error!("Error in volume interaction expecting float argument");
-			return interaction
-				.respond_err(&ctx, &"Internal bot error".into())
-				.await;
-		}
+	let volume = match get_option_f32(ctx, interaction, "volume").await {
+		Ok(value) => value,
+		Err(result) => return result,
 	};
 
 	interaction
@@ -445,15 +389,7 @@ pub async fn list_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let path = interaction.data.options.iter().find_map(|option| {
-		if option.name == "path" {
-			option.value.as_ref()
-		} else {
-			None
-		}
-	});
-
-	let path = match path {
+	let path = match get_option(interaction, "path") {
 		Some(Value::String(path)) => Some(path.as_str()),
 		None => None,
 		Some(_) => {

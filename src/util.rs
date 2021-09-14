@@ -7,12 +7,63 @@ pub use respond::{Respond, Response};
 
 use log::error;
 
+use serde_json::Value;
+
 use serenity::async_trait;
+use serenity::client::Context;
 use serenity::model::channel::Message;
+use serenity::model::interactions::application_command::ApplicationCommandInteraction;
 use serenity::prelude::{TypeMap, TypeMapKey};
 
 use std::fmt;
 use std::path::Path;
+
+pub fn get_option<'a>(
+	interaction: &'a ApplicationCommandInteraction,
+	name: &str,
+) -> Option<&'a Value> {
+	interaction.data.options.iter().find_map(|option| {
+		if option.name == name {
+			option.value.as_ref()
+		} else {
+			None
+		}
+	})
+}
+
+pub async fn get_option_string<'a>(
+	ctx: &Context,
+	interaction: &'a ApplicationCommandInteraction,
+	name: &str,
+) -> Result<Option<&'a str>, serenity::Result<()>> {
+	match get_option(interaction, name) {
+		Some(Value::String(s)) => Ok(Some(s.as_str())),
+		None => Ok(None),
+		_ => {
+			error!("Error in interaction expecting string argument");
+			Err(interaction
+				.respond_err(&ctx, &"Internal bot error".into())
+				.await)
+		}
+	}
+}
+
+pub async fn get_option_f32<'a>(
+	ctx: &Context,
+	interaction: &'a ApplicationCommandInteraction,
+	name: &str,
+) -> Result<Option<f32>, serenity::Result<()>> {
+	match get_option(interaction, name) {
+		Some(Value::Number(n)) => Ok(n.as_f64().map(|v| v as f32)),
+		None => Ok(None),
+		_ => {
+			error!("Error in interaction expecting float argument");
+			Err(interaction
+				.respond_err(&ctx, &"Internal bot error".into())
+				.await)
+		}
+	}
+}
 
 #[derive(Debug)]
 pub enum UtilError {

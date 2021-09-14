@@ -42,23 +42,9 @@ pub async fn intro_outro_interaction(
 	interaction: &ApplicationCommandInteraction,
 	mode: IntroOutroMode,
 ) -> serenity::Result<()> {
-	let clip = interaction.data.options.iter().find_map(|option| {
-		if option.name == "clip" {
-			option.value.as_ref()
-		} else {
-			None
-		}
-	});
-
-	let clip = match clip {
-		Some(Value::String(clip)) => Some(clip.clone()),
-		None => None,
-		Some(_) => {
-			error!("Error in intro interaction expecting string argument");
-			return interaction
-				.respond_err(&ctx, &"Internal bot error".to_string().into())
-				.await;
-		}
+	let clip = match get_option_string(ctx, interaction, "clip").await {
+		Ok(value) => value,
+		Err(result) => return result,
 	};
 
 	interaction
@@ -119,23 +105,9 @@ pub async fn introbot_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = interaction.data.options.iter().find_map(|option| {
-		if option.name == "clip" {
-			option.value.as_ref()
-		} else {
-			None
-		}
-	});
-
-	let clip = match clip {
-		Some(Value::String(clip)) => Some(clip.clone()),
-		None => None,
-		Some(_) => {
-			error!("Error in intro interaction expecting string argument");
-			return interaction
-				.respond_err(&ctx, &"Internal bot error".to_string().into())
-				.await;
-		}
+	let clip = match get_option_string(ctx, interaction, "clip").await {
+		Ok(value) => value,
+		Err(result) => return result,
 	};
 
 	interaction
