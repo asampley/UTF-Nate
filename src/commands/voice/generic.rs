@@ -275,7 +275,7 @@ pub async fn volume(
 			Err("Please specify \"play\" or \"clip\" to set the volume for each command".into())
 		}
 		(Some(style), Some(volume)) => {
-			if !(volume >= 0.0 || volume <= 1.0) {
+			if !(volume >= 0.0 && volume <= 1.0) {
 				return Err("Volume must be between 0.0 and 1.0".into());
 			} else {
 				let ret = match style {
