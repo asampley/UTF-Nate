@@ -98,7 +98,7 @@ pub fn banish_interaction_create(
 #[help_available]
 #[description("Play the specified clip immediately")]
 #[num_args(1)]
-#[usage("<clip>")]
+#[usage("<clip?>")]
 #[example("dota/bothello")]
 #[example("bothello")]
 pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
@@ -156,7 +156,7 @@ pub fn clip_interaction_create(
 	"Add a youtube video, playlist, search, or spotify song, playlist, or album to the queue"
 )]
 #[min_args(1)]
-#[usage("<source>")]
+#[usage("<source?>")]
 #[example("arbitrary youtube search")]
 #[example("https://www.youtube.com/watch?v=k2mFvwDTTt0")]
 #[example("https://www.youtube.com/playlist?list=PLucOLpdAYaKW1IYuo84R4qIskTfj-ECDp")]
@@ -219,7 +219,7 @@ pub fn play_interaction_create(
 #[description("Change volume of bot")]
 #[min_args(0)]
 #[max_args(2)]
-#[usage("<play|clip> <volume>")]
+#[usage("<play|clip> <volume?>")]
 #[example("")]
 #[example("play")]
 #[example("clip")]
@@ -344,7 +344,7 @@ pub fn stop_interaction_create(
 #[help_available]
 #[description("Skip the current song in the queue")]
 #[max_args(1)]
-#[usage("skip <number>")]
+#[usage("<number?>")]
 #[example("")]
 #[example("3")]
 pub async fn skip(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
@@ -353,8 +353,11 @@ pub async fn skip(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 		_ => match args.single::<usize>() {
 			Ok(skip) => Some(skip),
 			Err(_) => {
-				msg.respond_err(ctx, &"Skip count must be a positive integer".into())
-					.await?;
+				msg.respond_err(
+					ctx,
+					&"Skip count must be a positive integer".into(),
+				)
+				.await?;
 
 				return Ok(());
 			}
@@ -376,24 +379,20 @@ pub async fn skip_interaction(
 	};
 
 	interaction
-		.respond(
-			ctx,
-			generic::skip(ctx, interaction.guild_id, skip)
-				.await
-				.as_ref(),
-		)
+		.respond(ctx, generic::skip(ctx, interaction.guild_id, skip).await.as_ref())
 		.await
 }
 
 pub fn skip_interaction_create(
 	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	create_interaction(&SKIP_COMMAND, cmd).create_option(|option| {
-		option
-			.name("count")
-			.description("Number of clips to skip")
-			.kind(ApplicationCommandOptionType::Integer)
-	})
+	create_interaction(&SKIP_COMMAND, cmd)
+		.create_option(|option| {
+			option
+				.name("count")
+				.description("Number of clips to skip")
+				.kind(ApplicationCommandOptionType::Integer)
+		})
 }
 
 #[command]
@@ -401,7 +400,7 @@ pub fn skip_interaction_create(
 #[description("List all the sections and/or clips available in the section")]
 #[min_args(0)]
 #[max_args(1)]
-#[usage("[section]")]
+#[usage("<section?>")]
 #[example("bnw")]
 pub async fn list(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	if args.len() > 1 {
