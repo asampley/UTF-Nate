@@ -12,31 +12,41 @@ use serde_json::Value;
 use serenity::async_trait;
 use serenity::client::Context;
 use serenity::model::channel::Message;
-use serenity::model::interactions::application_command::ApplicationCommandInteraction;
+use serenity::model::interactions::application_command::{
+	ApplicationCommandInteraction, ApplicationCommandInteractionDataOption,
+};
 use serenity::prelude::{TypeMap, TypeMapKey};
 
 use std::fmt;
 use std::path::Path;
 
 pub fn get_option<'a>(
-	interaction: &'a ApplicationCommandInteraction,
+	options: &'a Vec<ApplicationCommandInteractionDataOption>,
 	name: &str,
-) -> Option<&'a Value> {
-	interaction.data.options.iter().find_map(|option| {
+) -> Option<&'a ApplicationCommandInteractionDataOption> {
+	options.iter().find_map(|option| {
 		if option.name == name {
-			option.value.as_ref()
+			Some(option)
 		} else {
 			None
 		}
 	})
 }
 
+pub fn get_option_value<'a>(
+	options: &'a Vec<ApplicationCommandInteractionDataOption>,
+	name: &str,
+) -> Option<&'a Value> {
+	get_option(options, name).and_then(|o| o.value.as_ref())
+}
+
 pub async fn get_option_string<'a>(
 	ctx: &Context,
 	interaction: &'a ApplicationCommandInteraction,
+	options: &'a Vec<ApplicationCommandInteractionDataOption>,
 	name: &str,
 ) -> Result<Option<&'a str>, serenity::Result<()>> {
-	match get_option(interaction, name) {
+	match get_option_value(options, name) {
 		Some(Value::String(s)) => Ok(Some(s.as_str())),
 		None => Ok(None),
 		_ => {
@@ -51,9 +61,10 @@ pub async fn get_option_string<'a>(
 pub async fn get_option_f32<'a>(
 	ctx: &Context,
 	interaction: &'a ApplicationCommandInteraction,
+	options: &'a Vec<ApplicationCommandInteractionDataOption>,
 	name: &str,
 ) -> Result<Option<f32>, serenity::Result<()>> {
-	match get_option(interaction, name) {
+	match get_option_value(options, name) {
 		Some(Value::Number(n)) => Ok(n.as_f64().map(|v| v as f32)),
 		None => Ok(None),
 		_ => {
@@ -68,9 +79,10 @@ pub async fn get_option_f32<'a>(
 pub async fn get_option_usize<'a>(
 	ctx: &Context,
 	interaction: &'a ApplicationCommandInteraction,
+	options: &'a Vec<ApplicationCommandInteractionDataOption>,
 	name: &str,
 ) -> Result<Option<usize>, serenity::Result<()>> {
-	match get_option(interaction, name) {
+	match get_option_value(options, name) {
 		Some(Value::Number(n)) => Ok(n.as_u64().map(|v| v as usize)),
 		None => Ok(None),
 		_ => {

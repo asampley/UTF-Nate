@@ -248,38 +248,32 @@ pub async fn volume(
 	let data_lock = ctx.data.read().await;
 
 	match (style, volume) {
-		(None, None) => {
+		(None, None) | (Some(_), None) => {
 			let config_arc = data_lock.clone_expect::<Config>();
 			let config = config_arc.read().await;
 
 			let guild_config = config.guilds.get(&guild_id);
-			Ok(format!(
-				"Play volume: {}\nClip volume: {}",
-				guild_config.and_then(|c| c.volume_play).unwrap_or(0.5),
-				guild_config.and_then(|c| c.volume_clip).unwrap_or(0.5),
-			)
-			.into())
-		}
-		(Some(style), None) => {
-			let config_arc = data_lock.clone_expect::<Config>();
-			let config = config_arc.read().await;
 
-			let guild_config = config.guilds.get(&guild_id);
 			Ok(match style {
-				PlayStyle::Clip => format!(
+				None => format!(
+					"Play volume: {}\nClip volume: {}",
+					guild_config.and_then(|c| c.volume_play).unwrap_or(0.5),
+					guild_config.and_then(|c| c.volume_clip).unwrap_or(0.5),
+				),
+				Some(PlayStyle::Clip) => format!(
 					"Clip volume: {}",
 					guild_config.and_then(|c| c.volume_clip).unwrap_or(0.5)
 				),
-				PlayStyle::Play => format!(
+				Some(PlayStyle::Play) => format!(
 					"Play volume: {}",
 					guild_config.and_then(|c| c.volume_play).unwrap_or(0.5)
 				),
 			}
 			.into())
 		}
-		(None, Some(_volume)) => Err(
-			"Please specify either \"play\" or \"clip\" to set the volume for each command".into(),
-		),
+		(None, Some(_)) => {
+			Err("Please specify \"play\" or \"clip\" to set the volume for each command".into())
+		}
 		(Some(style), Some(volume)) => {
 			if !(volume >= 0.0 || volume <= 1.0) {
 				return Err("Volume must be between 0.0 and 1.0".into());

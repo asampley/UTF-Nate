@@ -38,7 +38,7 @@ pub async fn intro_outro_interaction(
 	interaction: &ApplicationCommandInteraction,
 	mode: IntroOutroMode,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, interaction, "clip").await {
+	let clip = match get_option_string(ctx, interaction, &interaction.data.options, "clip").await {
 		Ok(value) => value.map(|s| s.to_string()),
 		Err(result) => return result,
 	};
@@ -101,7 +101,7 @@ pub async fn introbot_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, interaction, "clip").await {
+	let clip = match get_option_string(ctx, interaction, &interaction.data.options, "clip").await {
 		Ok(value) => value.map(|s| s.to_string()),
 		Err(result) => return result,
 	};

@@ -1,9 +1,5 @@
 use itertools::Itertools;
 
-use log::error;
-
-use serde_json::value::Value;
-
 use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
@@ -119,7 +115,7 @@ pub async fn clip_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, interaction, "clip").await {
+	let clip = match get_option_string(ctx, interaction, &interaction.data.options, "clip").await {
 		Ok(value) => value,
 		Err(result) => return result,
 	};
@@ -186,7 +182,7 @@ pub async fn play_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, interaction, "input").await {
+	let clip = match get_option_string(ctx, interaction, &interaction.data.options, "input").await {
 		Ok(value) => value,
 		Err(result) => return result,
 	};
@@ -216,11 +212,11 @@ pub fn play_interaction_create(
 #[command]
 #[only_in(guilds)]
 #[help_available]
-#[description("Change volume of bot")]
+#[description("Get or change the volume of the bot")]
 #[min_args(0)]
 #[max_args(2)]
-#[usage("<play|clip> <volume?>")]
-#[example("")]
+#[usage("<get|play|clip> <volume?>")]
+#[example("get")]
 #[example("play")]
 #[example("clip")]
 #[example("play .25")]
@@ -228,19 +224,22 @@ pub fn play_interaction_create(
 pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let style = match args.remaining() {
 		0 => None,
-		_ => match args.single::<PlayStyle>() {
-			Ok(style) => Some(style),
-			Err(_) => {
-				msg.respond_err(
-					ctx,
-					&"Expected either \"play\" or \"clip\" volume to be selected".into(),
-				)
-				.await?;
+		_ => match args.parse::<PlayStyle>().ok() {
+			Some(v) => Some(v),
+			None => {
+				if args.current().unwrap() == "get" {
+					None
+				} else {
+					msg.respond_err(ctx, &"Specify \"get\", \"play\", or \"clip\"".into())
+						.await?;
 
-				return Ok(());
+					return Ok(());
+				}
 			}
 		},
 	};
+
+	args.advance();
 
 	let volume = match args.remaining() {
 		0 => None,
@@ -273,14 +272,27 @@ pub async fn volume_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let style = match get_option_string(ctx, interaction, "style").await {
-		Ok(value) => value.and_then(|s| s.parse().ok()),
-		Err(result) => return result,
-	};
+	let options = &interaction.data.options;
 
-	let volume = match get_option_f32(ctx, interaction, "volume").await {
-		Ok(value) => value,
-		Err(result) => return result,
+	let opt = get_option(options, "play")
+		.or_else(|| get_option(options, "clip"))
+		.map(|sub| {
+			(
+				sub.name.parse().ok(),
+				get_option_f32(ctx, interaction, &sub.options, "volume"),
+			)
+		});
+
+	let (style, volume) = if let Some((style, volume_fut_res)) = opt {
+		(
+			style,
+			match volume_fut_res.await {
+				Ok(value) => value,
+				Err(result) => return result,
+			},
+		)
+	} else {
+		(None, None)
 	};
 
 	interaction
@@ -299,17 +311,33 @@ pub fn volume_interaction_create(
 	create_interaction(&VOLUME_COMMAND, cmd)
 		.create_option(|option| {
 			option
-				.name("style")
-				.description("Volume to set, either for play or clip commands")
-				.kind(ApplicationCommandOptionType::String)
-				.add_string_choice("play", "play")
-				.add_string_choice("clip", "clip")
+				.name("get")
+				.description("Get the volume for both play and clip commands")
+				.kind(ApplicationCommandOptionType::SubCommand)
 		})
 		.create_option(|option| {
 			option
-				.name("volume")
-				.description("Volume between 0.0 and 1.0")
-				.kind(ApplicationCommandOptionType::Number)
+				.name("play")
+				.description("Get or set the volume for play commands")
+				.kind(ApplicationCommandOptionType::SubCommand)
+				.create_sub_option(|option| {
+					option
+						.name("volume")
+						.description("Volume between 0.0 and 1.0")
+						.kind(ApplicationCommandOptionType::Number)
+				})
+		})
+		.create_option(|option| {
+			option
+				.name("clip")
+				.description("Get or set the volume for play commands")
+				.kind(ApplicationCommandOptionType::SubCommand)
+				.create_sub_option(|option| {
+					option
+						.name("volume")
+						.description("Volume between 0.0 and 1.0")
+						.kind(ApplicationCommandOptionType::Number)
+				})
 		})
 }
 
@@ -353,11 +381,8 @@ pub async fn skip(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 		_ => match args.single::<usize>() {
 			Ok(skip) => Some(skip),
 			Err(_) => {
-				msg.respond_err(
-					ctx,
-					&"Skip count must be a positive integer".into(),
-				)
-				.await?;
+				msg.respond_err(ctx, &"Skip count must be a positive integer".into())
+					.await?;
 
 				return Ok(());
 			}
@@ -373,26 +398,30 @@ pub async fn skip_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let skip = match get_option_usize(ctx, interaction, "count").await {
+	let skip = match get_option_usize(ctx, interaction, &interaction.data.options, "count").await {
 		Ok(value) => value,
 		Err(result) => return result,
 	};
 
 	interaction
-		.respond(ctx, generic::skip(ctx, interaction.guild_id, skip).await.as_ref())
+		.respond(
+			ctx,
+			generic::skip(ctx, interaction.guild_id, skip)
+				.await
+				.as_ref(),
+		)
 		.await
 }
 
 pub fn skip_interaction_create(
 	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	create_interaction(&SKIP_COMMAND, cmd)
-		.create_option(|option| {
-			option
-				.name("count")
-				.description("Number of clips to skip")
-				.kind(ApplicationCommandOptionType::Integer)
-		})
+	create_interaction(&SKIP_COMMAND, cmd).create_option(|option| {
+		option
+			.name("count")
+			.description("Number of clips to skip")
+			.kind(ApplicationCommandOptionType::Integer)
+	})
 }
 
 #[command]
@@ -419,15 +448,9 @@ pub async fn list_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let path = match get_option(interaction, "path") {
-		Some(Value::String(path)) => Some(path.as_str()),
-		None => None,
-		Some(_) => {
-			error!("Error in list interaction expecting string argument");
-			return interaction
-				.respond_err(&ctx, &"Internal bot error".into())
-				.await;
-		}
+	let path = match get_option_string(ctx, interaction, &interaction.data.options, "path").await {
+		Ok(value) => value,
+		Err(result) => return result,
 	};
 
 	interaction
