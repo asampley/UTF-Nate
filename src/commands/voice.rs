@@ -343,8 +343,24 @@ pub fn stop_interaction_create(
 #[only_in(guilds)]
 #[help_available]
 #[description("Skip the current song in the queue")]
-pub async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond(ctx, generic::skip(ctx, msg.guild_id).await.as_ref())
+#[max_args(1)]
+#[usage("skip <number>")]
+#[example("")]
+#[example("3")]
+pub async fn skip(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+	let skip = match args.remaining() {
+		0 => None,
+		_ => match args.single::<usize>() {
+			Ok(skip) => Some(skip),
+			Err(_) => {
+				msg.respond_err(ctx, &"Skip count must be a positive integer".into())
+					.await?;
+
+				return Ok(());
+			}
+		},
+	};
+	msg.respond(ctx, generic::skip(ctx, msg.guild_id, skip).await.as_ref())
 		.await?;
 
 	Ok(())
@@ -354,15 +370,30 @@ pub async fn skip_interaction(
 	ctx: &Context,
 	interaction: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
+	let skip = match get_option_usize(ctx, interaction, "count").await {
+		Ok(value) => value,
+		Err(result) => return result,
+	};
+
 	interaction
-		.respond(ctx, generic::skip(ctx, interaction.guild_id).await.as_ref())
+		.respond(
+			ctx,
+			generic::skip(ctx, interaction.guild_id, skip)
+				.await
+				.as_ref(),
+		)
 		.await
 }
 
 pub fn skip_interaction_create(
 	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	create_interaction(&SKIP_COMMAND, cmd)
+	create_interaction(&SKIP_COMMAND, cmd).create_option(|option| {
+		option
+			.name("count")
+			.description("Number of clips to skip")
+			.kind(ApplicationCommandOptionType::Integer)
+	})
 }
 
 #[command]

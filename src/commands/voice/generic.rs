@@ -358,22 +358,47 @@ pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, 
 	Ok("Cleared queue and stopped playing".into())
 }
 
-pub async fn skip(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
+pub async fn skip(
+	ctx: &Context,
+	guild_id: Option<GuildId>,
+	skip_count: Option<usize>,
+) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
-	ctx.data
+	let call = ctx
+		.data
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
 		.get_or_insert(guild_id.into())
-		.lock()
-		.await
-		.queue()
-		.skip()
-		.map(|_| "Skipping current clip".into())
+		.clone();
+
+	let call = call.lock().await;
+
+	let queue = call.queue();
+
+	let result = if let Some(count) = skip_count {
+		queue
+			.modify_queue(|deque| {
+				(0..count)
+					.filter_map(|_| deque.pop_front())
+					.fuse()
+					.map(|queued| queued.stop())
+					.fold_ok(0, |acc, _| acc + 1)
+			})
+			.and_then(|count| queue.resume().map(|_| count))
+	} else {
+		queue.skip().map(|_| 1)
+	};
+
+	result
+		.map(|count| match count {
+			1 => "Skipped current clip".into(),
+			_ => format!("Skipped {} clips", count).into(),
+		})
 		.map_err(|e| {
 			error!("{:?}", e);
-			"Error skipping clip".into()
+			"Error skipping clips".into()
 		})
 }
 

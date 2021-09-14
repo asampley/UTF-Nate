@@ -65,6 +65,23 @@ pub async fn get_option_f32<'a>(
 	}
 }
 
+pub async fn get_option_usize<'a>(
+	ctx: &Context,
+	interaction: &'a ApplicationCommandInteraction,
+	name: &str,
+) -> Result<Option<usize>, serenity::Result<()>> {
+	match get_option(interaction, name) {
+		Some(Value::Number(n)) => Ok(n.as_u64().map(|v| v as usize)),
+		None => Ok(None),
+		_ => {
+			error!("Error in interaction expecting float argument");
+			Err(interaction
+				.respond_err(&ctx, &"Internal bot error".into())
+				.await)
+		}
+	}
+}
+
 #[derive(Debug)]
 pub enum UtilError {
 	Serenity(serenity::Error),
