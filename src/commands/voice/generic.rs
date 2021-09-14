@@ -128,7 +128,9 @@ pub async fn play(
 					let call = call.clone();
 					let voice_guild_arc = voice_guild_arc.clone();
 
-					async move { play_input(play_style, call, voice_guild_arc, input, volume).await }
+					async move {
+						play_input(play_style, call, voice_guild_arc, input, volume).await;
+					}
 				})
 				.await
 				{
