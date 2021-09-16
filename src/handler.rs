@@ -23,9 +23,9 @@ use crate::commands::voice::{
 	banish_interaction, banish_interaction_create, clip_interaction, clip_interaction_create,
 	list_interaction, list_interaction_create, pause_interaction, pause_interaction_create,
 	play_interaction, play_interaction_create, playnext_interaction, playnext_interaction_create,
-	skip_interaction, skip_interaction_create, stop_interaction, stop_interaction_create,
-	summon_interaction, summon_interaction_create, unpause_interaction, unpause_interaction_create,
-	volume_interaction, volume_interaction_create,
+	playnow_interaction, playnow_interaction_create, skip_interaction, skip_interaction_create,
+	stop_interaction, stop_interaction_create, summon_interaction, summon_interaction_create,
+	unpause_interaction, unpause_interaction_create, volume_interaction, volume_interaction_create,
 };
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
@@ -70,6 +70,7 @@ impl SerenityEventHandler for Handler {
 					.create_application_command(clip_interaction_create)
 					.create_application_command(play_interaction_create)
 					.create_application_command(playnext_interaction_create)
+					.create_application_command(playnow_interaction_create)
 					.create_application_command(volume_interaction_create)
 					.create_application_command(stop_interaction_create)
 					.create_application_command(skip_interaction_create)
@@ -105,6 +106,7 @@ impl SerenityEventHandler for Handler {
 				"clip" => clip_interaction(&ctx, &command).await,
 				"play" => play_interaction(&ctx, &command).await,
 				"playnext" => playnext_interaction(&ctx, &command).await,
+				"playnow" => playnow_interaction(&ctx, &command).await,
 				"volume" => volume_interaction(&ctx, &command).await,
 				"stop" => stop_interaction(&ctx, &command).await,
 				"skip" => skip_interaction(&ctx, &command).await,

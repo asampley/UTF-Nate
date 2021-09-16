@@ -71,7 +71,7 @@ pub async fn play(
 	play_style: PlayStyle,
 	path: Option<&str>,
 	guild_id: Option<GuildId>,
-	play_next: bool,
+	play_index: Option<usize>,
 ) -> Result<Response, Response> {
 	let path = path.ok_or("Must provide a source")?;
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
@@ -122,7 +122,7 @@ pub async fn play(
 						voice_guild_arc,
 						clip,
 						volume,
-						play_next,
+						play_index,
 					)
 					.await
 					{
@@ -134,12 +134,12 @@ pub async fn play(
 				Err(e) => Err(e),
 			},
 			PlayStyle::Play => {
-				match play_sources(keys, &path, !play_next, move |input| {
+				match play_sources(keys, &path, play_index.is_none(), move |input| {
 					let call = call.clone();
 					let voice_guild_arc = voice_guild_arc.clone();
 
 					async move {
-						play_input(play_style, call, voice_guild_arc, input, volume, play_next)
+						play_input(play_style, call, voice_guild_arc, input, volume, play_index)
 							.await;
 					}
 				})
@@ -199,7 +199,7 @@ async fn play_input(
 	voice_guild_arc: ArcRw<VoiceGuild>,
 	input: Input,
 	volume: f32,
-	play_next: bool,
+	play_index: Option<usize>,
 ) -> bool {
 	let (mut track, handle) = create_player(input);
 	track.set_volume(volume);
@@ -214,13 +214,22 @@ async fn play_input(
 				.is_ok()
 		}
 		PlayStyle::Play => {
-			call.lock().await.enqueue(track);
+			let mut lock = call.lock().await;
+			lock.enqueue(track);
 
-			if play_next {
-				call.lock().await.queue().modify_queue(|q| {
-					q.rotate_right(1);
-					q.swap(0, 1);
-				});
+			if let Some(index) = play_index {
+				if index < lock.queue().len() {
+					lock.queue().modify_queue(|q| {
+						let v = q.pop_back().unwrap();
+
+						if index == 0 {
+							q.front().map(|f| f.handle().pause());
+							let _ = v.handle().play();
+						}
+
+						q.insert(index, v);
+					})
+				}
 			}
 
 			true
