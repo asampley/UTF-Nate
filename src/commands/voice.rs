@@ -261,7 +261,7 @@ pub async fn playnext_interaction(
 pub fn playnext_interaction_create(
 	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	create_interaction(&PLAY_COMMAND, cmd).create_option(|option| {
+	create_interaction(&PLAYNEXT_COMMAND, cmd).create_option(|option| {
 		option
 			.name("input")
 			.description("Youtube or Spotify URL, or youtube search")
