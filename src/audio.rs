@@ -56,6 +56,7 @@ pub fn clip_path() -> PathBuf {
 #[derive(Debug)]
 pub enum AudioError {
 	Songbird(songbird::input::error::Error),
+	PlaylistNotAllowed,
 	Spotify,
 	YoutubePlaylist,
 	UnsupportedUrl,
@@ -98,6 +99,7 @@ pub struct SourceInfo {
 pub async fn play_sources<F, T>(
 	keys: ArcRw<Keys>,
 	loc: &str,
+	allow_playlist: bool,
 	f: F,
 ) -> Result<SourceInfo, AudioError>
 where
@@ -120,6 +122,10 @@ where
 
 			// if it is a playlist, queue the playlist
 			if path == "/playlist" {
+				if !allow_playlist {
+					return Err(AudioError::PlaylistNotAllowed);
+				}
+
 				let id = url
 					.query_pairs()
 					.filter(|(key, _)| key == "list")
@@ -182,7 +188,7 @@ where
 				let video = youtube::video(&youtube_api, &id)
 					.await
 					.map_err(|e| {
-						error!("Youtube playlist error: {:?}", e);
+						error!("Youtube video error: {:?}", e);
 						AudioError::YoutubePlaylist
 					})?
 					.ok_or_else(|| {
@@ -241,6 +247,10 @@ where
 					})
 				}
 				"playlist" => {
+					if !allow_playlist {
+						return Err(AudioError::PlaylistNotAllowed);
+					}
+
 					let playlist_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
 
 					let playlist = spotify::playlist(&token, playlist_id).await.map_err(|e| {
@@ -266,6 +276,10 @@ where
 					Ok(info)
 				}
 				"album" => {
+					if !allow_playlist {
+						return Err(AudioError::PlaylistNotAllowed);
+					}
+
 					let album_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
 
 					let album = spotify::album(&token, album_id).await.map_err(|e| {

@@ -71,6 +71,7 @@ pub async fn play(
 	play_style: PlayStyle,
 	path: Option<&str>,
 	guild_id: Option<GuildId>,
+	play_next: bool,
 ) -> Result<Response, Response> {
 	let path = path.ok_or("Must provide a source")?;
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
@@ -115,7 +116,16 @@ pub async fn play(
 		let result = match play_style {
 			PlayStyle::Clip => match clip_source(&path).await {
 				Ok(clip) => {
-					if play_input(play_style, call.clone(), voice_guild_arc, clip, volume).await {
+					if play_input(
+						play_style,
+						call.clone(),
+						voice_guild_arc,
+						clip,
+						volume,
+						play_next,
+					)
+					.await
+					{
 						Ok(format!("Playing {}", path))
 					} else {
 						Ok(format!("Error playing {}", path))
@@ -124,12 +134,13 @@ pub async fn play(
 				Err(e) => Err(e),
 			},
 			PlayStyle::Play => {
-				match play_sources(keys, &path, move |input| {
+				match play_sources(keys, &path, !play_next, move |input| {
 					let call = call.clone();
 					let voice_guild_arc = voice_guild_arc.clone();
 
 					async move {
-						play_input(play_style, call, voice_guild_arc, input, volume).await;
+						play_input(play_style, call, voice_guild_arc, input, volume, play_next)
+							.await;
 					}
 				})
 				.await
@@ -171,6 +182,9 @@ pub async fn play(
 					AudioError::NotFound => format!("Clip {} not found", path).into(),
 					AudioError::Spotify => "Error reading from Spotify".into(),
 					AudioError::YoutubePlaylist => "Error reading youtube playlist".into(),
+					AudioError::PlaylistNotAllowed => {
+						"A playlist is not allowed in this context".into()
+					}
 				})
 			}
 		}
@@ -185,6 +199,7 @@ async fn play_input(
 	voice_guild_arc: ArcRw<VoiceGuild>,
 	input: Input,
 	volume: f32,
+	play_next: bool,
 ) -> bool {
 	let (mut track, handle) = create_player(input);
 	track.set_volume(volume);
@@ -200,6 +215,14 @@ async fn play_input(
 		}
 		PlayStyle::Play => {
 			call.lock().await.enqueue(track);
+
+			if play_next {
+				call.lock().await.queue().modify_queue(|q| {
+					q.rotate_right(1);
+					q.swap(0, 1);
+				});
+			}
+
 			true
 		}
 	}

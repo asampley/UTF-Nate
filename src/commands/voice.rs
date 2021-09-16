@@ -17,7 +17,9 @@ mod generic;
 
 #[group("voice")]
 #[description("Commands to move the bot to voice channels and play clips.")]
-#[commands(summon, banish, clip, play, volume, stop, skip, list, pause, unpause)]
+#[commands(
+	summon, banish, clip, play, playnext, volume, stop, skip, list, pause, unpause
+)]
 pub struct Voice;
 
 #[command]
@@ -102,7 +104,7 @@ pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
 	msg.respond(
 		ctx,
-		generic::play(ctx, PlayStyle::Clip, path, msg.guild_id)
+		generic::play(ctx, PlayStyle::Clip, path, msg.guild_id, false)
 			.await
 			.as_ref(),
 	)
@@ -123,7 +125,7 @@ pub async fn clip_interaction(
 	interaction
 		.respond(
 			ctx,
-			generic::play(ctx, PlayStyle::Clip, clip, interaction.guild_id)
+			generic::play(ctx, PlayStyle::Clip, clip, interaction.guild_id, false)
 				.await
 				.as_ref(),
 		)
@@ -169,7 +171,7 @@ pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
 	msg.respond(
 		ctx,
-		generic::play(ctx, PlayStyle::Play, query, msg.guild_id)
+		generic::play(ctx, PlayStyle::Play, query, msg.guild_id, false)
 			.await
 			.as_ref(),
 	)
@@ -190,7 +192,7 @@ pub async fn play_interaction(
 	interaction
 		.respond(
 			ctx,
-			generic::play(ctx, PlayStyle::Play, clip, interaction.guild_id)
+			generic::play(ctx, PlayStyle::Play, clip, interaction.guild_id, false)
 				.await
 				.as_ref(),
 		)
@@ -198,6 +200,65 @@ pub async fn play_interaction(
 }
 
 pub fn play_interaction_create(
+	cmd: &mut CreateApplicationCommand,
+) -> &mut CreateApplicationCommand {
+	create_interaction(&PLAY_COMMAND, cmd).create_option(|option| {
+		option
+			.name("input")
+			.description("Youtube or Spotify URL, or youtube search")
+			.kind(ApplicationCommandOptionType::String)
+			.required(true)
+	})
+}
+
+#[command]
+#[only_in(guilds)]
+#[help_available]
+#[description("Play after the previous item in the queue finishes")]
+#[min_args(1)]
+#[usage("<source?>")]
+#[example("arbitrary youtube search")]
+#[example("https://www.youtube.com/watch?v=k2mFvwDTTt0")]
+#[example("https://open.spotify.com/track/009bpReJuXgCv8G2MkJ5Y1")]
+pub async fn playnext(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+	let query = args.raw().join(" ");
+	let query = if query.len() == 0 {
+		None
+	} else {
+		Some(query.as_str())
+	};
+
+	msg.respond(
+		ctx,
+		generic::play(ctx, PlayStyle::Play, query, msg.guild_id, true)
+			.await
+			.as_ref(),
+	)
+	.await?;
+
+	Ok(())
+}
+
+pub async fn playnext_interaction(
+	ctx: &Context,
+	interaction: &ApplicationCommandInteraction,
+) -> serenity::Result<()> {
+	let clip = match get_option_string(ctx, interaction, &interaction.data.options, "input").await {
+		Ok(value) => value,
+		Err(result) => return result,
+	};
+
+	interaction
+		.respond(
+			ctx,
+			generic::play(ctx, PlayStyle::Play, clip, interaction.guild_id, true)
+				.await
+				.as_ref(),
+		)
+		.await
+}
+
+pub fn playnext_interaction_create(
 	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
 	create_interaction(&PLAY_COMMAND, cmd).create_option(|option| {
