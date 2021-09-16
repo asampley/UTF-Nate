@@ -134,10 +134,21 @@ pub async fn play(
 				})
 				.await
 				{
-					Ok(count) => Ok(match count {
-						1 => format!("Queuing clip from {}", path),
-						count => format!("Queuing {} clips from {}", count, path),
-					}),
+					Ok(info) => {
+						let title = info.title.as_deref().unwrap_or(path);
+
+						Ok(format!(
+							"Queuing {} {}",
+							match info.count {
+								1 => "".to_string(),
+								count => format!("{} clips from", count),
+							},
+							match info.url {
+								Some(url) => format!("[{}]({})", title, url),
+								None => format!("{}", title),
+							}
+						))
+					}
 					Err(e) => Err(e),
 				}
 			}
@@ -157,7 +168,7 @@ pub async fn play(
 						path
 					)
 					.into(),
-					AudioError::NoClip => format!("Clip {} not found", path).into(),
+					AudioError::NotFound => format!("Clip {} not found", path).into(),
 					AudioError::Spotify => "Error reading from Spotify".into(),
 					AudioError::YoutubePlaylist => "Error reading youtube playlist".into(),
 				})

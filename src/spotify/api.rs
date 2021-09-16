@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct Playlist {
+	pub name: String,
 	pub tracks: PlaylistTracks,
 }
 
@@ -17,6 +18,7 @@ pub struct PlaylistTracksItem {
 
 #[derive(Debug, Deserialize)]
 pub struct Album {
+	pub name: String,
 	pub tracks: AlbumTracks,
 }
 

@@ -1,70 +1,93 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-pub struct PlaylistItems {
-	#[serde(rename = "nextPageToken")]
+#[serde(rename_all = "camelCase")]
+pub struct ListResponse<T> {
 	pub next_page_token: Option<String>,
-	#[serde(rename = "prevPageToken")]
 	pub prev_page_token: Option<String>,
-	#[serde(rename = "pageInfo")]
 	pub page_info: PageInfo,
-	pub items: Vec<PlaylistItem>,
+	pub items: Vec<T>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PageInfo {
-	#[serde(rename = "totalResults")]
 	pub total_results: u64,
-	#[serde(rename = "resultsPerPage")]
 	pub results_per_page: u64,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PlaylistItem {
+#[serde(rename_all = "camelCase")]
+pub struct Playlist {
 	pub id: String,
-	#[serde(rename = "contentDetails")]
-	pub content_details: ContentDetails,
+	pub snippet: PlaylistSnippet,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ContentDetails {
-	#[serde(rename = "videoId")]
-	pub video_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct VideoList {
-	#[serde(rename = "nextPageToken")]
-	pub next_page_token: Option<String>,
-	#[serde(rename = "prevPageToken")]
-	pub prev_page_token: Option<String>,
-	#[serde(rename = "pageInfo")]
-	pub page_info: PageInfo,
-	pub items: Vec<Video>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Video {
-	pub id: String,
-	pub snippet: VideoSnippet,
-	#[serde(rename = "contentDetails")]
-	pub content_details: VideoContentDetails,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct VideoSnippet {
+#[serde(rename_all = "camelCase")]
+pub struct PlaylistSnippet {
 	pub title: String,
-	#[serde(rename = "channelTitle")]
 	pub channel_title: String,
 	pub thumbnails: Thumbnails,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaylistItem {
+	pub id: String,
+	pub snippet: PlaylistItemSnippet,
+	pub content_details: ContentDetails,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaylistItemSnippet {
+	pub title: String,
+	pub channel_title: String,
+	pub video_owner_channel_title: Option<String>,
+	pub video_owner_channel_id: Option<String>,
+	pub thumbnails: Thumbnails,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContentDetails {
+	pub video_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VideoList {
+	pub next_page_token: Option<String>,
+	pub prev_page_token: Option<String>,
+	pub page_info: PageInfo,
+	pub items: Vec<Video>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Video {
+	pub id: String,
+	pub snippet: VideoSnippet,
+	pub content_details: VideoContentDetails,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VideoSnippet {
+	pub title: String,
+	pub channel_title: String,
+	pub thumbnails: Thumbnails,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VideoContentDetails {
 	pub duration: String,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Thumbnails {
 	pub default: Option<Thumbnail>,
 	pub medium: Option<Thumbnail>,
@@ -74,6 +97,7 @@ pub struct Thumbnails {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Thumbnail {
 	pub url: String,
 	pub width: u64,

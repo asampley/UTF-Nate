@@ -1,12 +1,18 @@
 pub mod api;
 
+use itertools::Itertools;
+
 use log::debug;
 
 use reqwest::Client;
 
 use serde::Deserialize;
 
+use songbird::input::Metadata;
+
 use std::time::{Duration, Instant};
+
+use crate::youtube::YtdlSearchLazy;
 
 use api::{Album, Playlist, Track};
 
@@ -68,6 +74,30 @@ impl SpotifyToken {
 		self.refresh_after
 			.map(|t| t < Instant::now())
 			.unwrap_or(true)
+	}
+}
+
+impl From<&Track> for YtdlSearchLazy {
+	fn from(track: &Track) -> Self {
+		let artist = if track.artists.len() == 0 {
+			None
+		} else {
+			Some(track.artists.iter().map(|a| &a.name).join(", "))
+		};
+
+		Self::new(
+			format!(
+				"{} {}",
+				track.name,
+				track.artists.iter().map(|a| &a.name).join(" ")
+			),
+			Metadata {
+				title: Some(track.name.clone()),
+				artist: artist,
+
+				..Default::default()
+			},
+		)
 	}
 }
 

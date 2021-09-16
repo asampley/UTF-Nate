@@ -1,8 +1,8 @@
 pub mod api;
 
-use itertools::Itertools;
-
 use reqwest::Client;
+
+use serde::{Deserialize, Serialize};
 
 use serenity::async_trait;
 
@@ -13,9 +13,7 @@ use songbird::input::{ytdl, ytdl_search, Container, Input, Metadata};
 
 use std::time::Duration;
 
-use crate::spotify::api::Track;
-
-use api::{PlaylistItems, Video, VideoList};
+use api::{ListResponse, Playlist, PlaylistItem, Video};
 
 pub struct YtdlLazy {
 	uri: String,
@@ -28,6 +26,13 @@ pub struct YtdlSearchLazy {
 }
 
 impl YtdlLazy {
+	pub fn new(uri: String, mut metadata: Metadata) -> Self {
+		metadata.channels = Some(2);
+		metadata.sample_rate = Some(SAMPLE_RATE_RAW as u32);
+
+		Self { uri, metadata }
+	}
+
 	pub async fn as_input(self) -> songbird::input::error::Result<Input> {
 		self.as_restartable().await.map(|v| v.into())
 	}
@@ -35,23 +40,19 @@ impl YtdlLazy {
 	pub async fn as_restartable(self) -> songbird::input::error::Result<Restartable> {
 		Restartable::new(self, true).await
 	}
+}
 
-	pub fn from_video(video: Video) -> Self {
-		let url = format!("https://youtu.be/{}", video.id);
-		let tn = video.snippet.thumbnails;
+impl From<PlaylistItem> for YtdlLazy {
+	fn from(item: PlaylistItem) -> Self {
+		let url = format!("https://youtu.be/{}", item.content_details.video_id);
+		let tn = item.snippet.thumbnails;
 
-		Self {
-			uri: url.clone(),
-			metadata: Metadata {
-				track: None,
-				artist: None,
-				date: None,
-				channels: Some(2),
-				channel: Some(video.snippet.channel_title),
-				duration: None,
-				sample_rate: Some(SAMPLE_RATE_RAW as u32),
+		Self::new(
+			url.clone(),
+			Metadata {
+				channel: item.snippet.video_owner_channel_title,
 				source_url: Some(url),
-				title: Some(video.snippet.title),
+				title: Some(item.snippet.title),
 				thumbnail: tn
 					.default
 					.or(tn.medium)
@@ -62,41 +63,24 @@ impl YtdlLazy {
 
 				..Default::default()
 			},
-		}
+		)
 	}
 }
 
 impl YtdlSearchLazy {
+	pub fn new(search: String, mut metadata: Metadata) -> Self {
+		metadata.channels = Some(2);
+		metadata.sample_rate = Some(SAMPLE_RATE_RAW as u32);
+
+		Self { search, metadata }
+	}
+
 	pub async fn as_input(self) -> songbird::input::error::Result<Input> {
 		self.as_restartable().await.map(|v| v.into())
 	}
 
 	pub async fn as_restartable(self) -> songbird::input::error::Result<Restartable> {
 		Restartable::new(self, true).await
-	}
-
-	pub fn from_track(track: &Track) -> Self {
-		let artist = if track.artists.len() == 0 {
-			None
-		} else {
-			Some(track.artists.iter().map(|a| &a.name).join(", "))
-		};
-
-		Self {
-			search: format!(
-				"{} {}",
-				track.name,
-				track.artists.iter().map(|a| &a.name).join(" ")
-			),
-			metadata: Metadata {
-				title: Some(track.name.clone()),
-				artist: artist,
-				channels: Some(2),
-				sample_rate: Some(SAMPLE_RATE_RAW as u32),
-
-				..Default::default()
-			},
-		}
 	}
 }
 
@@ -132,37 +116,79 @@ impl Restart for YtdlSearchLazy {
 	}
 }
 
-pub async fn videos(api_key: &str, playlist_id: &str) -> reqwest::Result<VideoList> {
-	let playlist = Client::new()
-		.get("https://youtube.googleapis.com/youtube/v3/playlistItems")
-		.query(&[
-			("key", api_key),
-			("part", "contentDetails"),
-			("playlistId", playlist_id),
-			("maxResults", "50"),
-		])
+pub async fn collect_all<T, Q>(url: &str, query: &Q) -> reqwest::Result<Vec<T>>
+where
+	for<'a> T: Deserialize<'a>,
+	Q: Serialize + ?Sized,
+{
+	let mut collect = Vec::new();
+	let mut response = Client::new()
+		.get(url)
+		.query(query)
 		.send()
 		.await?
-		.json::<PlaylistItems>()
+		.json::<ListResponse<T>>()
 		.await?;
 
-	Client::new()
+	collect.append(&mut response.items);
+
+	while let Some(next) = response.next_page_token {
+		response = Client::new()
+			.get(url)
+			.query(query)
+			.query(&[("pageToken", next)])
+			.send()
+			.await?
+			.json::<ListResponse<T>>()
+			.await?;
+
+		collect.append(&mut response.items);
+	}
+
+	Ok(collect)
+}
+
+pub async fn playlist(api_key: &str, playlist_id: &str) -> reqwest::Result<Option<Playlist>> {
+	Ok(Client::new()
+		.get("https://www.googleapis.com/youtube/v3/playlists")
+		.query(&[("key", api_key), ("part", "snippet"), ("id", playlist_id)])
+		.send()
+		.await?
+		.json::<ListResponse<Playlist>>()
+		.await?
+		.items
+		.drain(..)
+		.next())
+}
+
+pub async fn playlist_items(
+	api_key: &str,
+	playlist_id: &str,
+) -> reqwest::Result<Vec<PlaylistItem>> {
+	let url = "https://youtube.googleapis.com/youtube/v3/playlistItems";
+	let query = &[
+		("key", api_key),
+		("part", "contentDetails,snippet"),
+		("playlistId", playlist_id),
+		("maxResults", "50"),
+	];
+
+	collect_all(url, query).await
+}
+
+pub async fn video(api_key: &str, video_id: &str) -> reqwest::Result<Option<Video>> {
+	Ok(Client::new()
 		.get("https://www.googleapis.com/youtube/v3/videos")
 		.query(&[
 			("key", api_key),
-			("part", "contentDetails,snippet,id"),
-			(
-				"id",
-				&playlist
-					.items
-					.into_iter()
-					.map(|i| i.content_details.video_id)
-					.join(","),
-			),
-			("maxResults", "50"),
+			("part", "contentDetails,snippet"),
+			("id", video_id),
 		])
 		.send()
 		.await?
-		.json()
-		.await
+		.json::<ListResponse<Video>>()
+		.await?
+		.items
+		.drain(..)
+		.next())
 }

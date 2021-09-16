@@ -15,13 +15,14 @@ use songbird::input::Input;
 
 use walkdir::WalkDir;
 
+use std::borrow::Cow;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::data::{ArcRw, Keys};
 use crate::spotify;
 use crate::util::*;
-use crate::youtube;
+use crate::youtube::{self, YtdlLazy, YtdlSearchLazy};
 
 static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
 
@@ -59,7 +60,7 @@ pub enum AudioError {
 	YoutubePlaylist,
 	UnsupportedUrl,
 	MultipleClip,
-	NoClip,
+	NotFound,
 }
 
 impl From<songbird::input::error::Error> for AudioError {
@@ -80,14 +81,25 @@ pub async fn clip_source(loc: &str) -> Result<Input, AudioError> {
 	match find_clip(&loc) {
 		FindClip::One(clip) => match get_clip(&clip) {
 			Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
-			None => Err(AudioError::NoClip),
+			None => Err(AudioError::NotFound),
 		},
 		FindClip::Multiple => Err(AudioError::MultipleClip),
-		FindClip::None => Err(AudioError::NoClip),
+		FindClip::None => Err(AudioError::NotFound),
 	}
 }
 
-pub async fn play_sources<F, T>(keys: ArcRw<Keys>, loc: &str, f: F) -> Result<usize, AudioError>
+#[derive(Debug)]
+pub struct SourceInfo {
+	pub title: Option<String>,
+	pub url: Option<String>,
+	pub count: usize,
+}
+
+pub async fn play_sources<F, T>(
+	keys: ArcRw<Keys>,
+	loc: &str,
+	f: F,
+) -> Result<SourceInfo, AudioError>
 where
 	F: Fn(Input) -> T + Send + Sync + 'static,
 	T: Future<Output = ()> + Send,
@@ -99,15 +111,15 @@ where
 		if YOUTUBE_HOST.is_match(host) {
 			let path = url.path();
 
+			let youtube_api = keys
+				.read()
+				.await
+				.youtube_api
+				.clone()
+				.ok_or(AudioError::YoutubePlaylist)?;
+
 			// if it is a playlist, queue the playlist
 			if path == "/playlist" {
-				let youtube_api = keys
-					.read()
-					.await
-					.youtube_api
-					.clone()
-					.ok_or(AudioError::YoutubePlaylist)?;
-
 				let id = url
 					.query_pairs()
 					.filter(|(key, _)| key == "list")
@@ -118,24 +130,66 @@ where
 						AudioError::UnsupportedUrl
 					})?;
 
-				let videos = youtube::videos(&youtube_api, &id).await.map_err(|e| {
-					error!("Youtube playlist error: {:?}", e);
-					AudioError::YoutubePlaylist
-				})?;
+				let playlist = youtube::playlist(&youtube_api, &id)
+					.await
+					.map_err(|e| {
+						error!("Error in youtube data api for playlists: {:?}", e);
+						AudioError::YoutubePlaylist
+					})?
+					.ok_or_else(|| {
+						error!("No playlist found");
+						AudioError::NotFound
+					})?;
 
-				let count = videos.items.len();
+				let playlist_items =
+					youtube::playlist_items(&youtube_api, &id)
+						.await
+						.map_err(|e| {
+							error!("Error in youtube data api for playlist items: {:?}", e);
+							AudioError::YoutubePlaylist
+						})?;
+
+				let info = SourceInfo {
+					title: Some(playlist.snippet.title),
+					url: Some(loc.to_string()),
+					count: playlist_items.len(),
+				};
 
 				tokio::spawn(async move {
-					for video in videos.items {
-						match youtube::YtdlLazy::from_video(video).as_input().await {
+					for item in playlist_items {
+						match YtdlLazy::from(item).as_input().await {
 							Ok(input) => f(input).await,
 							Err(e) => error!("Error creating input: {:?}", e),
 						}
 					}
 				});
 
-				Ok(count)
+				Ok(info)
 			} else {
+				let id = if path == "/watch" {
+					url.query_pairs()
+						.filter(|(key, _)| key == "v")
+						.map(|(_, value)| value)
+						.next()
+						.ok_or_else(|| {
+							debug!("Missing \"list\" in query parameters: {}", url);
+							AudioError::UnsupportedUrl
+						})?
+				} else {
+					Cow::Borrowed(path)
+				};
+
+				let video = youtube::video(&youtube_api, &id)
+					.await
+					.map_err(|e| {
+						error!("Youtube playlist error: {:?}", e);
+						AudioError::YoutubePlaylist
+					})?
+					.ok_or_else(|| {
+						error!("No video found");
+						AudioError::NotFound
+					})?;
+
 				let loc_string = loc.to_string();
 
 				tokio::spawn(async move {
@@ -145,7 +199,11 @@ where
 					}
 				});
 
-				Ok(1)
+				Ok(SourceInfo {
+					title: Some(video.snippet.title),
+					url: Some(loc.to_string()),
+					count: 1,
+				})
 			}
 		} else if SPOTIFY_HOST.is_match(host) {
 			let mut path_segments = url.path_segments().ok_or(AudioError::UnsupportedUrl)?;
@@ -171,12 +229,16 @@ where
 						AudioError::Spotify
 					})?;
 
-					match youtube::YtdlSearchLazy::from_track(&track).as_input().await {
+					match YtdlSearchLazy::from(&track).as_input().await {
 						Ok(input) => f(input).await,
 						Err(e) => error!("Error creating input: {:?}", e),
 					}
 
-					Ok(1)
+					Ok(SourceInfo {
+						title: Some(track.name),
+						url: Some(loc.to_string()),
+						count: 1,
+					})
 				}
 				"playlist" => {
 					let playlist_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
@@ -186,18 +248,22 @@ where
 						AudioError::Spotify
 					})?;
 
-					let count = playlist.tracks.items.len();
+					let info = SourceInfo {
+						title: Some(playlist.name.clone()),
+						url: Some(loc.to_string()),
+						count: playlist.tracks.items.len(),
+					};
 
 					tokio::spawn(async move {
 						for track in playlist.tracks.items.into_iter().map(|t| t.track) {
-							match youtube::YtdlSearchLazy::from_track(&track).as_input().await {
+							match YtdlSearchLazy::from(&track).as_input().await {
 								Ok(input) => f(input).await,
 								Err(e) => error!("Error creating input: {:?}", e),
 							}
 						}
 					});
 
-					Ok(count)
+					Ok(info)
 				}
 				"album" => {
 					let album_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
@@ -207,18 +273,22 @@ where
 						AudioError::Spotify
 					})?;
 
-					let count = album.tracks.items.len();
+					let info = SourceInfo {
+						title: Some(album.name.clone()),
+						url: Some(loc.to_string()),
+						count: album.tracks.items.len(),
+					};
 
 					tokio::spawn(async move {
 						for track in album.tracks.items {
-							match youtube::YtdlSearchLazy::from_track(&track).as_input().await {
+							match YtdlSearchLazy::from(&track).as_input().await {
 								Ok(input) => f(input).await,
 								Err(e) => error!("Error creating input: {:?}", e),
 							}
 						}
 					});
 
-					Ok(count)
+					Ok(info)
 				}
 				_ => Err(AudioError::UnsupportedUrl),
 			}
@@ -227,13 +297,19 @@ where
 		}
 	} else {
 		let loc_string = loc.to_string();
+
 		tokio::spawn(async move {
 			match Restartable::ytdl_search(loc_string, true).await {
 				Ok(restartable) => f(restartable.into()).await,
 				Err(e) => error!("Error creating input: {:?}", e),
 			}
 		});
-		Ok(1)
+
+		Ok(SourceInfo {
+			title: None,
+			url: None,
+			count: 1,
+		})
 	}
 }
 
