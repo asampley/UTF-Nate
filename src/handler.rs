@@ -23,9 +23,10 @@ use crate::commands::voice::{
 	banish_interaction, banish_interaction_create, clip_interaction, clip_interaction_create,
 	list_interaction, list_interaction_create, pause_interaction, pause_interaction_create,
 	play_interaction, play_interaction_create, playnext_interaction, playnext_interaction_create,
-	playnow_interaction, playnow_interaction_create, skip_interaction, skip_interaction_create,
-	stop_interaction, stop_interaction_create, summon_interaction, summon_interaction_create,
-	unpause_interaction, unpause_interaction_create, volume_interaction, volume_interaction_create,
+	playnow_interaction, playnow_interaction_create, queue_interaction, queue_interaction_create,
+	skip_interaction, skip_interaction_create, stop_interaction, stop_interaction_create,
+	summon_interaction, summon_interaction_create, unpause_interaction, unpause_interaction_create,
+	volume_interaction, volume_interaction_create,
 };
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
@@ -76,6 +77,7 @@ impl SerenityEventHandler for Handler {
 					.create_application_command(skip_interaction_create)
 					.create_application_command(pause_interaction_create)
 					.create_application_command(unpause_interaction_create)
+					.create_application_command(queue_interaction_create)
 					.create_application_command(help_interaction_create)
 			})
 			.await
@@ -112,6 +114,7 @@ impl SerenityEventHandler for Handler {
 				"skip" => skip_interaction(&ctx, &command).await,
 				"pause" => pause_interaction(&ctx, &command).await,
 				"unpause" => unpause_interaction(&ctx, &command).await,
+				"queue" => queue_interaction(&ctx, &command).await,
 				"help" => help_interaction(&ctx, &command).await,
 				_ => command.respond_err(&ctx, &"Unknown command".into()).await,
 			} {

@@ -478,3 +478,44 @@ pub async fn unpause(ctx: &Context, guild_id: Option<GuildId>) -> Result<Respons
 			"Error unpausing clip".into()
 		})
 }
+
+pub async fn queue(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
+	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
+
+	let call = ctx
+		.data
+		.read()
+		.await
+		.clone_expect::<SongbirdKey>()
+		.get_or_insert(guild_id.into());
+
+	let lock = call.lock().await;
+
+	let current_queue = lock.queue().current_queue();
+	let len = current_queue.len();
+
+	Ok(if len == 0 {
+		format!("Nothing queued")
+	} else {
+		let queue = current_queue
+			.into_iter()
+			.take(10)
+			.enumerate()
+			.map(|(i, t)| {
+				let m = t.metadata();
+				let t = m.title.as_deref().unwrap_or("Unknown");
+				match &m.source_url {
+					Some(u) => format!("{}: [{}]({})", i, t, u),
+					None => format!("{}: {}", i, t),
+				}
+			})
+			.join("\n");
+
+		if len <= 10 {
+			format!("Current queue:\n{}", queue).into()
+		} else {
+			format!("Current queue:\n{}\n... and {} more", queue, len - 10)
+		}
+	}
+	.into())
+}

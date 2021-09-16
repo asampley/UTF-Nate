@@ -18,7 +18,7 @@ mod generic;
 #[group("voice")]
 #[description("Commands to move the bot to voice channels and play clips.")]
 #[commands(
-	summon, banish, clip, play, playnext, playnow, volume, stop, skip, list, pause, unpause
+	summon, banish, clip, play, playnext, playnow, volume, stop, skip, list, pause, unpause, queue
 )]
 pub struct Voice;
 
@@ -603,4 +603,33 @@ pub fn unpause_interaction_create(
 	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
 	create_interaction(&UNPAUSE_COMMAND, cmd)
+}
+
+#[command]
+#[only_in(guilds)]
+#[help_available]
+#[description("Get or change the volume of the bot")]
+pub async fn queue(ctx: &Context, msg: &Message) -> CommandResult {
+	msg.respond(ctx, generic::queue(ctx, msg.guild_id).await.as_ref())
+		.await?;
+
+	Ok(())
+}
+
+pub async fn queue_interaction(
+	ctx: &Context,
+	interaction: &ApplicationCommandInteraction,
+) -> serenity::Result<()> {
+	interaction
+		.respond(
+			ctx,
+			generic::queue(ctx, interaction.guild_id).await.as_ref(),
+		)
+		.await
+}
+
+pub fn queue_interaction_create(
+	cmd: &mut CreateApplicationCommand,
+) -> &mut CreateApplicationCommand {
+	create_interaction(&QUEUE_COMMAND, cmd)
 }
