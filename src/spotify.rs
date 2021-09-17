@@ -94,6 +94,7 @@ impl From<&Track> for YtdlSearchLazy {
 			Metadata {
 				title: Some(track.name.clone()),
 				artist: artist,
+				source_url: Some(format!("https://open.spotify.com/track/{}", track.id)),
 
 				..Default::default()
 			},
