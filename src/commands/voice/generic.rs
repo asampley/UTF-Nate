@@ -2,6 +2,8 @@ use itertools::Itertools;
 
 use log::{debug, error};
 
+use rand::Rng;
+
 use serenity::client::Context;
 use serenity::model::prelude::{GuildId, UserId};
 use serenity::prelude::Mutex;
@@ -518,4 +520,39 @@ pub async fn queue(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response,
 		}
 	}
 	.into())
+}
+
+pub async fn shuffle(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
+	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
+
+	let call = ctx
+		.data
+		.read()
+		.await
+		.clone_expect::<SongbirdKey>()
+		.get_or_insert(guild_id.into())
+		.clone();
+
+	let call = call.lock().await;
+
+	let queue = call.queue();
+
+	queue
+		.pause()
+		.map(|_| {
+			queue.modify_queue(|deque| {
+				let mut rng = rand::thread_rng();
+
+				for j in (1..deque.len()).rev() {
+					let i = rng.gen_range(0..=j);
+					deque.swap(i, j);
+				}
+			})
+		})
+		.and_then(|_| queue.resume())
+		.map(|_| "Shuffled queue".into())
+		.map_err(|e| {
+			error!("{:?}", e);
+			"Error shuflling queue".into()
+		})
 }

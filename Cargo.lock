@@ -2044,6 +2044,7 @@ dependencies = [
  "itertools",
  "log",
  "once_cell",
+ "rand 0.8.4",
  "regex",
  "reqwest",
  "serde",

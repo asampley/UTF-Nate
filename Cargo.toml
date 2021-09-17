@@ -17,6 +17,7 @@ env_logger = "0.9"
 walkdir = "2.3"
 dashmap = "4.0"
 fxhash = "0.2"
+rand = "0.8"
 
 [dependencies.serde]
 version = "1.0"
