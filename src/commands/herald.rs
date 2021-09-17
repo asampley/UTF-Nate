@@ -7,7 +7,7 @@ use serenity::model::interactions::application_command::{
 	ApplicationCommandInteraction, ApplicationCommandOptionType,
 };
 
-use crate::util::interaction::create_interaction;
+use crate::commands::{create_interaction, run};
 use crate::util::*;
 
 mod generic;
@@ -35,22 +35,20 @@ pub struct Herald;
 
 pub async fn intro_outro_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 	mode: IntroOutroMode,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, interaction, &interaction.data.options, "clip").await {
+	let clip = match get_option_string(ctx, int, &int.data.options, "clip").await {
 		Ok(value) => value.map(|s| s.to_string()),
 		Err(result) => return result,
 	};
 
-	interaction
-		.respond(
-			&ctx,
-			generic::intro_outro(&ctx, mode, interaction.user.id, clip)
-				.await
-				.as_ref(),
-		)
-		.await
+	run(
+		ctx,
+		int,
+		generic::intro_outro(&ctx, mode, int.user.id, clip),
+	)
+	.await
 }
 
 pub fn intro_interaction_create(
@@ -86,34 +84,24 @@ pub fn outro_interaction_create(
 pub async fn intro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let clip = args.current().map(|s| s.to_string());
 
-	msg.respond(
+	run(
 		ctx,
-		generic::intro_outro(&ctx, Intro, msg.author.id, clip)
-			.await
-			.as_ref(),
+		msg,
+		generic::intro_outro(&ctx, Intro, msg.author.id, clip),
 	)
-	.await?;
-
-	Ok(())
+	.await
 }
 
 pub async fn introbot_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, interaction, &interaction.data.options, "clip").await {
+	let clip = match get_option_string(ctx, int, &int.data.options, "clip").await {
 		Ok(value) => value.map(|s| s.to_string()),
 		Err(result) => return result,
 	};
 
-	interaction
-		.respond(
-			&ctx,
-			generic::introbot(&ctx, interaction.guild_id, clip)
-				.await
-				.as_ref(),
-		)
-		.await
+	run(ctx, int, generic::introbot(&ctx, int.guild_id, clip)).await
 }
 
 pub fn introbot_interaction_create(
@@ -139,15 +127,7 @@ pub fn introbot_interaction_create(
 pub async fn introbot(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let clip_str = args.current().map(|s| s.to_string());
 
-	msg.respond(
-		ctx,
-		generic::introbot(&ctx, msg.guild_id, clip_str)
-			.await
-			.as_ref(),
-	)
-	.await?;
-
-	Ok(())
+	run(ctx, msg, generic::introbot(&ctx, msg.guild_id, clip_str)).await
 }
 
 #[command]
@@ -161,13 +141,10 @@ pub async fn introbot(ctx: &Context, msg: &Message, args: Args) -> CommandResult
 pub async fn outro(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let clip = args.current().map(|s| s.to_string());
 
-	msg.respond(
+	run(
 		ctx,
-		generic::intro_outro(&ctx, Outro, msg.author.id, clip)
-			.await
-			.as_ref(),
+		msg,
+		generic::intro_outro(&ctx, Outro, msg.author.id, clip),
 	)
-	.await?;
-
-	Ok(())
+	.await
 }

@@ -522,7 +522,11 @@ pub async fn queue(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response,
 	.into())
 }
 
-pub async fn shuffle(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
+pub async fn shuffle(
+	ctx: &Context,
+	guild_id: Option<GuildId>,
+	shuffle_from: usize,
+) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
 	let call = ctx
@@ -543,8 +547,8 @@ pub async fn shuffle(ctx: &Context, guild_id: Option<GuildId>) -> Result<Respons
 			queue.modify_queue(|deque| {
 				let mut rng = rand::thread_rng();
 
-				for j in (1..deque.len()).rev() {
-					let i = rng.gen_range(0..=j);
+				for j in ((shuffle_from + 1)..deque.len()).rev() {
+					let i = rng.gen_range(shuffle_from..=j);
 					deque.swap(i, j);
 				}
 			})

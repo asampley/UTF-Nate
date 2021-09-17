@@ -10,7 +10,7 @@ use serenity::model::interactions::application_command::{
 };
 
 use crate::audio::PlayStyle;
-use crate::util::interaction::create_interaction;
+use crate::commands::{create_interaction, run};
 use crate::util::*;
 
 mod generic;
@@ -19,7 +19,7 @@ mod generic;
 #[description("Commands to move the bot to voice channels and play clips.")]
 #[commands(
 	summon, banish, clip, play, playnext, playnow, volume, stop, skip, list, pause, unpause, queue,
-	shuffle
+	shuffle, shufflenow
 )]
 pub struct Voice;
 
@@ -28,37 +28,20 @@ pub struct Voice;
 #[help_available]
 #[description("Summon the bot to the voice channel the user is currently in")]
 pub async fn summon(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond(
-		ctx,
-		generic::summon(ctx, msg.guild_id, msg.author.id)
-			.await
-			.as_ref(),
-	)
-	.await?;
-
-	Ok(())
+	run(ctx, msg, generic::summon(ctx, msg.guild_id, msg.author.id)).await
 }
 
 pub async fn summon_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	interaction
-		.respond(
-			&ctx,
-			generic::summon(ctx, interaction.guild_id, interaction.user.id)
-				.await
-				.as_ref(),
-		)
-		.await
+	run(ctx, int, generic::summon(ctx, int.guild_id, int.user.id)).await
 }
 
 pub fn summon_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("summon")
-		.description("Summon the bot to your current voice channel")
+	create_interaction(&SUMMON_COMMAND, cmd)
 }
 
 #[command]
@@ -66,30 +49,20 @@ pub fn summon_interaction_create(
 #[help_available]
 #[description("Remove the bot from the voice channel it is in")]
 pub async fn banish(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond(ctx, generic::banish(ctx, msg.guild_id).await.as_ref())
-		.await?;
-
-	Ok(())
+	run(ctx, msg, generic::banish(ctx, msg.guild_id)).await
 }
 
 pub async fn banish_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	interaction
-		.respond(
-			&ctx,
-			generic::banish(ctx, interaction.guild_id).await.as_ref(),
-		)
-		.await
+	run(ctx, int, generic::banish(ctx, int.guild_id)).await
 }
 
 pub fn banish_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("banish")
-		.description("Banish the bot from its current voice channel")
+	create_interaction(&BANISH_COMMAND, cmd)
 }
 
 #[command]
@@ -103,49 +76,41 @@ pub fn banish_interaction_create(
 pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let path = args.current();
 
-	msg.respond(
+	run(
 		ctx,
-		generic::play(ctx, PlayStyle::Clip, path, msg.guild_id, None)
-			.await
-			.as_ref(),
+		msg,
+		generic::play(ctx, PlayStyle::Clip, path, msg.guild_id, None),
 	)
-	.await?;
-
-	Ok(())
+	.await
 }
 
 pub async fn clip_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, interaction, &interaction.data.options, "clip").await {
+	let clip = match get_option_string(ctx, int, &int.data.options, "clip").await {
 		Ok(value) => value,
 		Err(result) => return result,
 	};
 
-	interaction
-		.respond(
-			ctx,
-			generic::play(ctx, PlayStyle::Clip, clip, interaction.guild_id, None)
-				.await
-				.as_ref(),
-		)
-		.await
+	run(
+		ctx,
+		int,
+		generic::play(ctx, PlayStyle::Clip, clip, int.guild_id, None),
+	)
+	.await
 }
 
 pub fn clip_interaction_create(
-	command: &mut CreateApplicationCommand,
+	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
-	command
-		.name("clip")
-		.description("Play the specified clip immediately")
-		.create_option(|option| {
-			option
-				.name("clip")
-				.description("Clip to play")
-				.kind(ApplicationCommandOptionType::String)
-				.required(true)
-		})
+	create_interaction(&CLIP_COMMAND, cmd).create_option(|option| {
+		option
+			.name("clip")
+			.description("Clip to play")
+			.kind(ApplicationCommandOptionType::String)
+			.required(true)
+	})
 }
 
 async fn play_type_command(
@@ -161,35 +126,30 @@ async fn play_type_command(
 		Some(query.as_str())
 	};
 
-	msg.respond(
+	run(
 		ctx,
-		generic::play(ctx, PlayStyle::Play, query, msg.guild_id, play_index)
-			.await
-			.as_ref(),
+		msg,
+		generic::play(ctx, PlayStyle::Play, query, msg.guild_id, play_index),
 	)
-	.await?;
-
-	Ok(())
+	.await
 }
 
 async fn play_type_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 	play_index: Option<usize>,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, interaction, &interaction.data.options, "input").await {
+	let clip = match get_option_string(ctx, int, &int.data.options, "input").await {
 		Ok(value) => value,
 		Err(result) => return result,
 	};
 
-	interaction
-		.respond(
-			ctx,
-			generic::play(ctx, PlayStyle::Play, clip, interaction.guild_id, play_index)
-				.await
-				.as_ref(),
-		)
-		.await
+	run(
+		ctx,
+		int,
+		generic::play(ctx, PlayStyle::Play, clip, int.guild_id, play_index),
+	)
+	.await
 }
 
 fn play_type_interaction_create<'a>(
@@ -225,9 +185,9 @@ pub async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
 pub async fn play_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	play_type_interaction(ctx, interaction, None).await
+	play_type_interaction(ctx, int, None).await
 }
 
 pub fn play_interaction_create(
@@ -251,9 +211,9 @@ pub async fn playnext(ctx: &Context, msg: &Message, args: Args) -> CommandResult
 
 pub async fn playnext_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	play_type_interaction(ctx, interaction, Some(1)).await
+	play_type_interaction(ctx, int, Some(1)).await
 }
 
 pub fn playnext_interaction_create(
@@ -277,9 +237,9 @@ pub async fn playnow(ctx: &Context, msg: &Message, args: Args) -> CommandResult 
 
 pub async fn playnow_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	play_type_interaction(ctx, interaction, Some(0)).await
+	play_type_interaction(ctx, int, Some(0)).await
 }
 
 pub fn playnow_interaction_create(
@@ -336,29 +296,21 @@ pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResu
 		},
 	};
 
-	msg.respond(
-		ctx,
-		generic::volume(ctx, style, msg.guild_id, volume)
-			.await
-			.as_ref(),
-	)
-	.await?;
-
-	Ok(())
+	run(ctx, msg, generic::volume(ctx, style, msg.guild_id, volume)).await
 }
 
 pub async fn volume_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let options = &interaction.data.options;
+	let options = &int.data.options;
 
 	let opt = get_option(options, "play")
 		.or_else(|| get_option(options, "clip"))
 		.map(|sub| {
 			(
 				sub.name.parse().ok(),
-				get_option_f32(ctx, interaction, &sub.options, "volume"),
+				get_option_f32(ctx, int, &sub.options, "volume"),
 			)
 		});
 
@@ -374,14 +326,7 @@ pub async fn volume_interaction(
 		(None, None)
 	};
 
-	interaction
-		.respond(
-			ctx,
-			generic::volume(ctx, style, interaction.guild_id, volume)
-				.await
-				.as_ref(),
-		)
-		.await
+	run(ctx, int, generic::volume(ctx, style, int.guild_id, volume)).await
 }
 
 pub fn volume_interaction_create(
@@ -425,19 +370,14 @@ pub fn volume_interaction_create(
 #[help_available]
 #[description("Stop all clips currently being played by the bot")]
 pub async fn stop(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond(ctx, generic::stop(ctx, msg.guild_id).await.as_ref())
-		.await?;
-
-	Ok(())
+	run(ctx, msg, generic::stop(ctx, msg.guild_id)).await
 }
 
 pub async fn stop_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	interaction
-		.respond(ctx, generic::stop(ctx, interaction.guild_id).await.as_ref())
-		.await
+	run(ctx, int, generic::stop(ctx, int.guild_id)).await
 }
 
 pub fn stop_interaction_create(
@@ -467,29 +407,20 @@ pub async fn skip(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 			}
 		},
 	};
-	msg.respond(ctx, generic::skip(ctx, msg.guild_id, skip).await.as_ref())
-		.await?;
 
-	Ok(())
+	run(ctx, msg, generic::skip(ctx, msg.guild_id, skip)).await
 }
 
 pub async fn skip_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let skip = match get_option_usize(ctx, interaction, &interaction.data.options, "count").await {
+	let skip = match get_option_usize(ctx, int, &int.data.options, "count").await {
 		Ok(value) => value,
 		Err(result) => return result,
 	};
 
-	interaction
-		.respond(
-			ctx,
-			generic::skip(ctx, interaction.guild_id, skip)
-				.await
-				.as_ref(),
-		)
-		.await
+	run(ctx, int, generic::skip(ctx, int.guild_id, skip)).await
 }
 
 pub fn skip_interaction_create(
@@ -518,23 +449,20 @@ pub async fn list(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	}
 
 	let path = args.current();
-	msg.respond(ctx, generic::list(path).await.as_ref()).await?;
 
-	return Ok(());
+	run(ctx, msg, generic::list(path)).await
 }
 
 pub async fn list_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let path = match get_option_string(ctx, interaction, &interaction.data.options, "path").await {
+	let path = match get_option_string(ctx, int, &int.data.options, "path").await {
 		Ok(value) => value,
 		Err(result) => return result,
 	};
 
-	interaction
-		.respond(ctx, generic::list(path).await.as_ref())
-		.await
+	run(ctx, int, generic::list(path)).await
 }
 
 pub fn list_interaction_create(
@@ -553,22 +481,14 @@ pub fn list_interaction_create(
 #[help_available]
 #[description("Pause the queue")]
 pub async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond(ctx, generic::pause(ctx, msg.guild_id).await.as_ref())
-		.await?;
-
-	Ok(())
+	run(ctx, msg, generic::pause(ctx, msg.guild_id)).await
 }
 
 pub async fn pause_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	interaction
-		.respond(
-			ctx,
-			generic::pause(ctx, interaction.guild_id).await.as_ref(),
-		)
-		.await
+	run(ctx, int, generic::pause(ctx, int.guild_id)).await
 }
 
 pub fn pause_interaction_create(
@@ -582,22 +502,14 @@ pub fn pause_interaction_create(
 #[help_available]
 #[description("Unpause the queue")]
 pub async fn unpause(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond(ctx, generic::unpause(ctx, msg.guild_id).await.as_ref())
-		.await?;
-
-	Ok(())
+	run(ctx, msg, generic::unpause(ctx, msg.guild_id)).await
 }
 
 pub async fn unpause_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	interaction
-		.respond(
-			ctx,
-			generic::unpause(ctx, interaction.guild_id).await.as_ref(),
-		)
-		.await
+	run(ctx, int, generic::unpause(ctx, int.guild_id)).await
 }
 
 pub fn unpause_interaction_create(
@@ -611,22 +523,14 @@ pub fn unpause_interaction_create(
 #[help_available]
 #[description("Show the current queue of songs")]
 pub async fn queue(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond(ctx, generic::queue(ctx, msg.guild_id).await.as_ref())
-		.await?;
-
-	Ok(())
+	run(ctx, msg, generic::queue(ctx, msg.guild_id)).await
 }
 
 pub async fn queue_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	interaction
-		.respond(
-			ctx,
-			generic::queue(ctx, interaction.guild_id).await.as_ref(),
-		)
-		.await
+	run(ctx, int, generic::queue(ctx, int.guild_id)).await
 }
 
 pub fn queue_interaction_create(
@@ -635,31 +539,56 @@ pub fn queue_interaction_create(
 	create_interaction(&QUEUE_COMMAND, cmd)
 }
 
+async fn shuffle_type_command(ctx: &Context, msg: &Message, starting_from: usize) -> CommandResult {
+	run(ctx, msg, generic::shuffle(ctx, msg.guild_id, starting_from)).await
+}
+
+async fn shuffle_type_interaction(
+	ctx: &Context,
+	int: &ApplicationCommandInteraction,
+	starting_from: usize,
+) -> serenity::Result<()> {
+	run(ctx, int, generic::shuffle(ctx, int.guild_id, starting_from)).await
+}
+
 #[command]
 #[only_in(guilds)]
 #[help_available]
-#[description("Shuffle the queue of songs, including the current song")]
+#[description("Shuffle the queue of songs, after the current song")]
 pub async fn shuffle(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.respond(ctx, generic::shuffle(ctx, msg.guild_id).await.as_ref())
-		.await?;
-
-	Ok(())
+	shuffle_type_command(ctx, msg, 1).await
 }
 
 pub async fn shuffle_interaction(
 	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
+	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	interaction
-		.respond(
-			ctx,
-			generic::shuffle(ctx, interaction.guild_id).await.as_ref(),
-		)
-		.await
+	shuffle_type_interaction(ctx, int, 1).await
 }
 
 pub fn shuffle_interaction_create(
 	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
 	create_interaction(&SHUFFLE_COMMAND, cmd)
+}
+
+#[command]
+#[only_in(guilds)]
+#[help_available]
+#[description("Shuffle the queue of songs, including the current song")]
+pub async fn shufflenow(ctx: &Context, msg: &Message) -> CommandResult {
+	shuffle_type_command(ctx, msg, 0).await
+}
+
+pub async fn shufflenow_interaction(
+	ctx: &Context,
+	int: &ApplicationCommandInteraction,
+) -> serenity::Result<()> {
+	shuffle_type_interaction(ctx, int, 0).await
+}
+
+pub fn shufflenow_interaction_create(
+	cmd: &mut CreateApplicationCommand,
+) -> &mut CreateApplicationCommand {
+	create_interaction(&SHUFFLENOW_COMMAND, cmd)
 }
