@@ -27,7 +27,7 @@ use crate::youtube::{self, YtdlLazy, YtdlSearchLazy};
 static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
 
 static YOUTUBE_HOST: Lazy<Regex> =
-	Lazy::new(|| Regex::new("^((www|m)\\.youtube\\.com|youtu.be)").unwrap());
+	Lazy::new(|| Regex::new("^([^.]*\\.)?(youtube\\.com|youtu.be)").unwrap());
 
 static SPOTIFY_HOST: Lazy<Regex> = Lazy::new(|| Regex::new("^open\\.spotify\\.com").unwrap());
 

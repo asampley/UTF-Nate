@@ -19,15 +19,22 @@ use crate::commands::herald::{
 	intro_interaction_create, intro_outro_interaction, introbot_interaction,
 	introbot_interaction_create, outro_interaction_create, IntroOutroMode,
 };
-use crate::commands::voice::{
-	banish_interaction, banish_interaction_create, clip_interaction, clip_interaction_create,
-	list_interaction, list_interaction_create, pause_interaction, pause_interaction_create,
-	play_interaction, play_interaction_create, playnext_interaction, playnext_interaction_create,
-	playnow_interaction, playnow_interaction_create, queue_interaction, queue_interaction_create,
+use crate::commands::join::{
+	banish_interaction, banish_interaction_create, summon_interaction, summon_interaction_create,
+};
+use crate::commands::play::{
+	clip_interaction, clip_interaction_create, play_interaction, play_interaction_create,
+	playnext_interaction, playnext_interaction_create, playnow_interaction,
+	playnow_interaction_create,
+};
+use crate::commands::queue::{
+	pause_interaction, pause_interaction_create, queue_interaction, queue_interaction_create,
 	shuffle_interaction, shuffle_interaction_create, shufflenow_interaction,
 	shufflenow_interaction_create, skip_interaction, skip_interaction_create, stop_interaction,
-	stop_interaction_create, summon_interaction, summon_interaction_create, unpause_interaction,
-	unpause_interaction_create, volume_interaction, volume_interaction_create,
+	stop_interaction_create, unpause_interaction, unpause_interaction_create,
+};
+use crate::commands::voice::{
+	list_interaction, list_interaction_create, volume_interaction, volume_interaction_create,
 };
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};

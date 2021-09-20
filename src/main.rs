@@ -27,6 +27,9 @@ use structopt::StructOpt;
 
 use commands::cmd::EXTERNAL_GROUP;
 use commands::herald::HERALD_GROUP;
+use commands::join::JOIN_GROUP;
+use commands::play::PLAY_GROUP;
+use commands::queue::QUEUE_GROUP;
 use commands::unicode::UNICODE_GROUP;
 use commands::voice::VOICE_GROUP;
 use configuration::{read_config, Config};
@@ -101,10 +104,13 @@ async fn main() {
 				.before(before_hook)
 				.after(after_hook)
 				.help(&HELP)
+				.group(&EXTERNAL_GROUP)
+				.group(&HERALD_GROUP)
+				.group(&JOIN_GROUP)
+				.group(&PLAY_GROUP)
+				.group(&QUEUE_GROUP)
 				.group(&UNICODE_GROUP)
 				.group(&VOICE_GROUP)
-				.group(&HERALD_GROUP)
-				.group(&EXTERNAL_GROUP)
 				.unrecognised_command(unrecognised_command)
 				.on_dispatch_error(on_dispatch_error),
 		)

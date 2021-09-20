@@ -1,5 +1,8 @@
 pub mod cmd;
 pub mod herald;
+pub mod join;
+pub mod play;
+pub mod queue;
 pub mod unicode;
 pub mod voice;
 
