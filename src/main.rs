@@ -13,31 +13,22 @@ use once_cell::sync::Lazy;
 
 use serenity::client::bridge::gateway::GatewayIntents;
 use serenity::client::Client;
-use serenity::framework::standard::macros::{help, hook};
+use serenity::framework::standard::macros::hook;
 use serenity::framework::standard::{
-	help_commands, Args, CommandGroup, CommandResult, DispatchError, HelpOptions, StandardFramework,
+	CommandGroup, CommandResult, DispatchError, StandardFramework,
 };
 use serenity::model::channel::Message;
-use serenity::model::id::UserId;
 use serenity::prelude::{Context, RwLock};
 
 use songbird::serenity::SerenityInit;
 
 use structopt::StructOpt;
 
-use commands::cmd::EXTERNAL_GROUP;
-use commands::herald::HERALD_GROUP;
-use commands::join::JOIN_GROUP;
-use commands::play::PLAY_GROUP;
-use commands::queue::QUEUE_GROUP;
-use commands::unicode::UNICODE_GROUP;
-use commands::voice::VOICE_GROUP;
 use configuration::{read_config, Config};
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use util::{check_msg, Respond};
 
-use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -48,6 +39,17 @@ static OPT: Lazy<Opt> = Lazy::new(|| {
 	println!("Options: {:#?}", opt);
 	opt
 });
+
+static GROUPS: &[&'static CommandGroup] = &[
+	&commands::help::HELP_GROUP,
+	&commands::herald::HERALD_GROUP,
+	&commands::join::JOIN_GROUP,
+	&commands::play::PLAY_GROUP,
+	&commands::queue::QUEUE_GROUP,
+	&commands::unicode::UNICODE_GROUP,
+	&commands::voice::VOICE_GROUP,
+	&commands::cmd::EXTERNAL_GROUP,
+];
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -87,6 +89,16 @@ async fn main() {
 	)
 	.expect("Unable to parse keys file");
 
+	// create a framework to process message commands
+	let framework = StandardFramework::new()
+		.configure(|c| c.prefixes(PREFIXES))
+		.before(before_hook)
+		.after(after_hook)
+		.unrecognised_command(unrecognised_command)
+		.on_dispatch_error(on_dispatch_error);
+
+	let framework = GROUPS.iter().fold(framework, |f, group| f.group(group));
+
 	// login with a bot token from file
 	let mut client = Client::builder(&keys.token)
 		.application_id(keys.application_id)
@@ -97,23 +109,7 @@ async fn main() {
 				| GatewayIntents::GUILDS,
 		)
 		.event_handler(Handler)
-		.framework(
-			// create a framework to process message commands
-			StandardFramework::new()
-				.configure(|c| c.prefixes(PREFIXES))
-				.before(before_hook)
-				.after(after_hook)
-				.help(&HELP)
-				.group(&EXTERNAL_GROUP)
-				.group(&HERALD_GROUP)
-				.group(&JOIN_GROUP)
-				.group(&PLAY_GROUP)
-				.group(&QUEUE_GROUP)
-				.group(&UNICODE_GROUP)
-				.group(&VOICE_GROUP)
-				.unrecognised_command(unrecognised_command)
-				.on_dispatch_error(on_dispatch_error),
-		)
+		.framework(framework)
 		.type_map_insert::<VoiceUserCache>(Default::default())
 		.type_map_insert::<VoiceGuilds>(Default::default())
 		.type_map_insert::<Config>(Arc::new(RwLock::new(load_config())))
@@ -152,19 +148,6 @@ fn load_config() -> Config {
 			}
 		},
 	}
-}
-
-#[help]
-async fn help(
-	ctx: &Context,
-	msg: &Message,
-	args: Args,
-	help_options: &'static HelpOptions,
-	groups: &[&'static CommandGroup],
-	owners: HashSet<UserId>,
-) -> CommandResult {
-	help_commands::plain(ctx, msg, args, help_options, groups, owners).await;
-	Ok(())
 }
 
 #[hook]

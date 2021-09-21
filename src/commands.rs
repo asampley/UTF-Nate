@@ -1,4 +1,5 @@
 pub mod cmd;
+pub mod help;
 pub mod herald;
 pub mod join;
 pub mod play;

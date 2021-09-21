@@ -1,12 +1,9 @@
 use log::{debug, error, info};
 
 use serenity::async_trait;
-use serenity::builder::CreateApplicationCommand;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
-use serenity::model::interactions::application_command::{
-	ApplicationCommand, ApplicationCommandInteraction,
-};
+use serenity::model::interactions::application_command::ApplicationCommand;
 use serenity::model::prelude::Interaction;
 use serenity::model::voice::VoiceState;
 use serenity::prelude::Context;
@@ -15,6 +12,7 @@ use serenity::prelude::EventHandler as SerenityEventHandler;
 use songbird::SongbirdKey;
 
 use crate::audio::clip_source;
+use crate::commands::help::{help_interaction, help_interaction_create};
 use crate::commands::herald::{
 	intro_interaction_create, intro_outro_interaction, introbot_interaction,
 	introbot_interaction_create, outro_interaction_create, IntroOutroMode,
@@ -279,24 +277,4 @@ impl SerenityEventHandler for Handler {
 			}
 		}
 	}
-}
-
-fn help_interaction_create(
-	command: &mut CreateApplicationCommand,
-) -> &mut CreateApplicationCommand {
-	command
-		.name("help")
-		.description("Get help on the commands the bot supports")
-}
-
-async fn help_interaction(
-	ctx: &Context,
-	interaction: &ApplicationCommandInteraction,
-) -> serenity::Result<()> {
-	interaction
-		.respond_ok(
-			&ctx,
-			&"Please use !help for now, instead of the slash command".into(),
-		)
-		.await
 }
