@@ -45,11 +45,11 @@ pub fn write_command(text: &mut String, command: &Command) {
 	}
 
 	if let Some(usage) = command.options.usage {
-		writeln!(text, "**Usage:** {} {}", name, usage).unwrap();
+		writeln!(text, "**Usage:** `{} {}`", name, usage).unwrap();
 	}
 
 	for example in command.options.examples.iter() {
-		writeln!(text, "**Example:** {} {}", name, example).unwrap();
+		writeln!(text, "**Example:** `{} {}`", name, example).unwrap();
 	}
 }
 

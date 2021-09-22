@@ -4,7 +4,7 @@ use serenity::async_trait;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
 use serenity::model::interactions::application_command::ApplicationCommand;
-use serenity::model::prelude::Interaction;
+use serenity::model::prelude::{Activity, Interaction};
 use serenity::model::voice::VoiceState;
 use serenity::prelude::Context;
 use serenity::prelude::EventHandler as SerenityEventHandler;
@@ -52,6 +52,8 @@ impl SerenityEventHandler for Handler {
 		info!("Bot started!");
 
 		info!("Bot info {:?}", ctx.cache.current_user_id().await);
+
+		ctx.set_activity(Activity::watching("you. /help")).await;
 
 		if OPT.reregister {
 			info!("Reregistering slash commands...");
