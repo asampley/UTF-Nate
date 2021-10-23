@@ -182,7 +182,7 @@ where
 							AudioError::UnsupportedUrl
 						})?
 				} else {
-					Cow::Borrowed(path)
+					Cow::Borrowed(&path[1..])
 				};
 
 				let video = youtube::video(&youtube_api, &id)
@@ -192,7 +192,7 @@ where
 						AudioError::YoutubePlaylist
 					})?
 					.ok_or_else(|| {
-						error!("No video found");
+						error!("No video found with id {:?}", id);
 						AudioError::NotFound
 					})?;
 
