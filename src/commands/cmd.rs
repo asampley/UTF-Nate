@@ -40,7 +40,7 @@ pub async fn cmd(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 		return Ok(());
 	}
 
-	let message = process::Command::new(command)
+	let message = process::Command::new(&command)
 		.args(args.iter::<String>().map(|s| s.unwrap()))
 		.stdin(Stdio::null())
 		.output()
@@ -54,7 +54,7 @@ pub async fn cmd(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 		Err(reason) => {
 			msg.respond_err(ctx, &"Error executing command".into())
 				.await?;
-			error!("Error executing command: {:?}", reason);
+			error!("Error executing command {:?}: {:?}", command, reason);
 			return Ok(());
 		}
 	}
