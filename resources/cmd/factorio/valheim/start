@@ -1,0 +1,11 @@
+#!/bin/sh
+set -euf
+
+if systemctl is-active valheim | grep "^active$" > /dev/null 2>&1; then
+	echo "Valheim server already running"
+	exit
+fi
+
+sudo systemctl start valheim
+
+echo "Started valheim server"
