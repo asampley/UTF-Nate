@@ -105,6 +105,8 @@ async fn main() {
 			.expect("Error creating tables");
 		trans.commit().await
 			.expect("Error committing table creating");
+
+		info!("Data tables created");
 	}
 
 	// create a framework to process message commands
