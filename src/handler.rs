@@ -11,6 +11,8 @@ use serenity::prelude::EventHandler as SerenityEventHandler;
 
 use songbird::SongbirdKey;
 
+use crate::Pool;
+
 use crate::audio::clip_source;
 use crate::commands::help::{help_interaction, help_interaction_create};
 use crate::commands::herald::{
@@ -193,6 +195,8 @@ impl SerenityEventHandler for Handler {
 				let clip = {
 					let config_arc = ctx.data.read().await.clone_expect::<Config>();
 
+					let pool = ctx.data.read().await.clone_expect::<Pool>();
+
 					let config = config_arc.read().await;
 
 					if new_state.user_id == ctx.cache.current_user_id().await {
@@ -208,18 +212,20 @@ impl SerenityEventHandler for Handler {
 						}
 					} else {
 						match io {
-							IOClip::Intro => config
-								.intros
-								.get(&new_state.user_id)
-								.map(|s| s.as_str())
-								.unwrap_or("bnw/cowhappy")
-								.to_owned(),
-							IOClip::Outro => config
-								.outros
-								.get(&new_state.user_id)
-								.map(|s| s.as_str())
-								.unwrap_or("bnw/death")
-								.to_owned(),
+							IOClip::Intro =>
+								Config::get_intro(&pool, &new_state.user_id)
+									.await
+									.map_err(|e| error!("Error fetching intro: {:?}", e))
+									.ok()
+									.flatten()
+									.unwrap_or("bnw/cowhappy".to_owned()),
+							IOClip::Outro =>
+								Config::get_outro(&pool, &new_state.user_id)
+									.await
+									.map_err(|e| error!("Error fetching outro: {:?}", e))
+									.ok()
+									.flatten()
+									.unwrap_or("bnw/death".to_owned()),
 						}
 					}
 				};

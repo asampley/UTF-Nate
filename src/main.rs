@@ -53,6 +53,12 @@ static GROUPS: &[&'static CommandGroup] = &[
 	&commands::cmd::EXTERNAL_GROUP,
 ];
 
+struct Pool;
+
+impl serenity::prelude::TypeMapKey for Pool {
+	type Value = PgPool;
+}
+
 #[derive(Debug, StructOpt)]
 struct Opt {
 	#[structopt(long, help = "Run intializing scripts for database")]
@@ -134,6 +140,7 @@ async fn main() {
 		.type_map_insert::<VoiceGuilds>(Default::default())
 		.type_map_insert::<Config>(Arc::new(RwLock::new(load_config())))
 		.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
+		.type_map_insert::<Pool>(db_pool)
 		.register_songbird_from_config(
 			songbird::Config::default()
 				.decode_mode(songbird::driver::DecodeMode::Pass)
