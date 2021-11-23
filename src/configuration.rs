@@ -36,8 +36,6 @@ impl From<std::io::Error> for ConfigError {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Config {
-	pub intros: HashMap<UserId, String, BuildHasher>,
-	pub outros: HashMap<UserId, String, BuildHasher>,
 	pub guilds: HashMap<GuildId, GuildConfig, BuildHasher>,
 }
 
