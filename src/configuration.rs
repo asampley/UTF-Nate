@@ -81,7 +81,7 @@ impl Config {
 	}
 
 	pub async fn get_outro<'e, E: Executor<'e>>(executor: E, user_id: &UserId) -> Result<Option<String>, ConfigError> {
-		Ok(sqlx::query_scalar("select outro from user_config where user_id = $1")
+		Ok(sqlx::query_scalar(&read_to_string("database/get-outro.sql")?)
 			.bind(user_id.0 as i64)
 			.fetch_optional(executor).await?)
 	}
