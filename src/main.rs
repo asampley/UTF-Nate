@@ -34,8 +34,6 @@ use util::{check_msg, Respond};
 use std::path::Path;
 use std::sync::Arc;
 
-static PREFIXES: &[&'static str] = &["!"];
-
 static OPT: Lazy<Opt> = Lazy::new(|| {
 	let opt = Opt::from_args();
 	println!("Options: {:#?}", opt);
@@ -115,9 +113,11 @@ async fn main() {
 		info!("Data tables created");
 	}
 
+	let config = load_config();
+
 	// create a framework to process message commands
 	let framework = StandardFramework::new()
-		.configure(|c| c.prefixes(PREFIXES))
+		.configure(|c| c.prefixes(config.prefixes))
 		.before(before_hook)
 		.after(after_hook)
 		.unrecognised_command(unrecognised_command)
@@ -138,7 +138,6 @@ async fn main() {
 		.framework(framework)
 		.type_map_insert::<VoiceUserCache>(Default::default())
 		.type_map_insert::<VoiceGuilds>(Default::default())
-		.type_map_insert::<Config>(Arc::new(RwLock::new(load_config())))
 		.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
 		.type_map_insert::<Pool>(db_pool)
 		.register_songbird_from_config(

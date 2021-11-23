@@ -1,17 +1,12 @@
-use fxhash::FxBuildHasher as BuildHasher;
-
 use serde::{Deserialize, Serialize};
 use serenity::model::id::{GuildId, UserId};
-use serenity::prelude::TypeMapKey;
 
 use sqlx::PgExecutor as Executor;
 use sqlx::{Encode, Decode, Type};
 
-use std::collections::HashMap;
 use std::fs::{File, read_to_string};
 use std::path::Path;
 
-use crate::data::ArcRw;
 use crate::util::JsonFileError;
 
 #[derive(Debug)]
@@ -35,7 +30,7 @@ impl From<std::io::Error> for ConfigError {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Config {
-	pub guilds: HashMap<GuildId, GuildConfig, BuildHasher>,
+	pub prefixes: Vec<String>
 }
 
 impl Config {
@@ -112,7 +107,10 @@ impl Config {
 		Config::set_by_id(executor, "database/set-bot-intro.sql", guild_id.0 as i64, intro).await
 	}
 
-	pub async fn get_bot_intro<'e, E: Executor<'e>>(executor: E, guild_id: &GuildId) -> Result<Option<String>, ConfigError> {
+	pub async fn get_bot_intro<'e, E: Executor<'e>>(
+		executor: E,
+		guild_id: &GuildId,
+	) -> Result<Option<String>, ConfigError> {
 		Config::get_by_id(executor, "database/get-bot-intro.sql", guild_id.0 as i64).await
 	}
 
@@ -145,15 +143,6 @@ impl Config {
 	) -> Result<Option<f32>, ConfigError> {
 		Config::get_by_id(executor, "database/get-volume-clip.sql", guild_id.0 as i64).await
 	}
-}
-
-
-#[derive(Default, Serialize, Deserialize)]
-pub struct GuildConfig {
-}
-
-impl TypeMapKey for Config {
-	type Value = ArcRw<Config>;
 }
 
 pub fn read_config(path: &Path) -> Result<Config, JsonFileError> {
