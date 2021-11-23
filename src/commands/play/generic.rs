@@ -11,6 +11,7 @@ use songbird::SongbirdKey;
 
 use std::sync::Arc;
 
+use crate::Pool;
 use crate::audio::{clip_source, play_sources};
 use crate::audio::{AudioError, PlayStyle};
 use crate::configuration::Config;
@@ -42,17 +43,14 @@ pub async fn play(
 			.or_default()
 			.clone();
 
-		let volume = data_lock
-			.clone_expect::<Config>()
-			.read()
-			.await
-			.guilds
-			.get(&guild_id)
-			.and_then(|c| match play_style {
-				PlayStyle::Clip => c.volume_clip,
-				PlayStyle::Play => c.volume_play,
-			})
-			.unwrap_or(0.5);
+		let pool = data_lock.clone_expect::<Pool>();
+		let volume = match play_style {
+			PlayStyle::Clip => Config::get_volume_clip(&pool, &guild_id).await,
+			PlayStyle::Play => Config::get_volume_play(&pool, &guild_id).await,
+		}.map_err(|e| error!("Unable to get volume: {:?}", e))
+		.ok()
+		.flatten()
+		.unwrap_or(0.5);
 
 		let keys = data_lock.clone_expect::<Keys>();
 

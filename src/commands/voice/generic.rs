@@ -11,9 +11,10 @@ use songbird::SongbirdKey;
 use std::fs::read_dir;
 use std::path::Path;
 
+use crate::Pool;
 use crate::audio::clip_path;
 use crate::audio::PlayStyle;
-use crate::configuration::{write_config_eprintln, Config};
+use crate::configuration::Config;
 use crate::data::VoiceGuilds;
 use crate::util::*;
 
@@ -74,24 +75,33 @@ pub async fn volume(
 
 	match (style, volume) {
 		(None, None) | (Some(_), None) => {
-			let config_arc = data_lock.clone_expect::<Config>();
-			let config = config_arc.read().await;
-
-			let guild_config = config.guilds.get(&guild_id);
+			let pool = data_lock.clone_expect::<Pool>();
 
 			Ok(match style {
 				None => format!(
 					"Play volume: {}\nClip volume: {}",
-					guild_config.and_then(|c| c.volume_play).unwrap_or(0.5),
-					guild_config.and_then(|c| c.volume_clip).unwrap_or(0.5),
+					Config::get_volume_play(&pool, &guild_id).await.map_err(|e| {
+						error!("Unable to retrieve volume: {:?}", e);
+						"Unable to retrieve volume"
+					})?.unwrap_or(0.5),
+					Config::get_volume_clip(&pool, &guild_id).await.map_err(|e| {
+						error!("Unable to retrieve volume: {:?}", e);
+						"Unable to retrieve volume"
+					})?.unwrap_or(0.5),
 				),
 				Some(PlayStyle::Clip) => format!(
 					"Clip volume: {}",
-					guild_config.and_then(|c| c.volume_clip).unwrap_or(0.5)
+					Config::get_volume_clip(&pool, &guild_id).await.map_err(|e| {
+						error!("Unable to retrieve volume: {:?}", e);
+						"Unable to retrieve volume"
+					})?.unwrap_or(0.5),
 				),
 				Some(PlayStyle::Play) => format!(
 					"Play volume: {}",
-					guild_config.and_then(|c| c.volume_play).unwrap_or(0.5)
+					Config::get_volume_play(&pool, &guild_id).await.map_err(|e| {
+						error!("Unable to retrieve volume: {:?}", e);
+						"Unable to retrieve volume"
+					})?.unwrap_or(0.5),
 				),
 			}
 			.into())
@@ -138,16 +148,15 @@ pub async fn volume(
 						.map_err(|_| "Error setting volume".into()),
 				};
 
-				let config_arc = data_lock.clone_expect::<Config>();
-				let mut config = config_arc.write().await;
+				let pool = data_lock.clone_expect::<Pool>();
 
-				let entry = config.guilds.entry(guild_id).or_default();
 				match style {
-					PlayStyle::Clip => entry.volume_clip = Some(volume),
-					PlayStyle::Play => entry.volume_play = Some(volume),
-				}
-
-				write_config_eprintln(Path::new("config.json"), &*config);
+					PlayStyle::Clip => Config::set_volume_clip(&pool, &guild_id, volume).await,
+					PlayStyle::Play => Config::set_volume_play(&pool, &guild_id, volume).await,
+				}.map_err(|e| {
+					error!("Error setting volume: {:?}", e);
+					"Error setting volume"
+				})?;
 
 				return ret;
 			}

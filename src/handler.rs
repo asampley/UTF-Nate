@@ -228,6 +228,7 @@ impl SerenityEventHandler for Handler {
 					let lock = ctx.data.read().await;
 
 					let songbird = lock.clone_expect::<SongbirdKey>();
+					let pool = lock.clone_expect::<Pool>();
 
 					let voice_guild_arc = lock
 						.clone_expect::<VoiceGuilds>()
@@ -235,13 +236,10 @@ impl SerenityEventHandler for Handler {
 						.or_default()
 						.clone();
 
-					let volume = lock
-						.clone_expect::<Config>()
-						.read()
-						.await
-						.guilds
-						.get(&guild_id)
-						.and_then(|c| c.volume_clip)
+					let volume = Config::get_volume_clip(&pool, &guild_id).await
+						.map_err(|e| error!("Unable to get clip volume: {:?}", e))
+						.ok()
+						.flatten()
 						.unwrap_or(0.5);
 
 					(songbird, voice_guild_arc, volume)
