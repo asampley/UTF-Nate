@@ -22,6 +22,7 @@ use crate::spotify::SpotifyApi;
 
 #[derive(Deserialize)]
 pub struct Keys {
+	pub database_connect_string: String,
 	pub application_id: u64,
 	pub token: String,
 	pub youtube_api: Option<String>,

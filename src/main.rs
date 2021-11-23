@@ -22,6 +22,8 @@ use serenity::prelude::{Context, RwLock};
 
 use songbird::serenity::SerenityInit;
 
+use sqlx::{Executor, PgPool};
+
 use structopt::StructOpt;
 
 use configuration::{read_config, Config};
@@ -51,8 +53,17 @@ static GROUPS: &[&'static CommandGroup] = &[
 	&commands::cmd::EXTERNAL_GROUP,
 ];
 
+struct Pool;
+
+impl serenity::prelude::TypeMapKey for Pool {
+	type Value = PgPool;
+}
+
 #[derive(Debug, StructOpt)]
 struct Opt {
+	#[structopt(long, help = "Run intializing scripts for database")]
+	init_database: bool,
+
 	#[structopt(long, help = "Reregister slash commands with discord")]
 	reregister: bool,
 
@@ -84,10 +95,25 @@ async fn main() {
 	// warn if there are duplicate clip names
 	audio::warn_duplicate_clip_names();
 
+	// read keys file
 	let keys = serde_json::from_str::<Keys>(
 		&std::fs::read_to_string("keys.json").expect("Unable to read keys file"),
 	)
 	.expect("Unable to parse keys file");
+
+	// initialize database connection
+	let db_pool = PgPool::connect(&keys.database_connect_string).await
+		.expect("Failed to connect to database");
+	if OPT.init_database {
+		let create_tables = std::fs::read_to_string("database/create-tables.sql").expect("Failed to read create tables file");
+		let mut trans = db_pool.begin().await.expect("Failed to intialize database transaction");
+		trans.execute(create_tables.as_str()).await
+			.expect("Error creating tables");
+		trans.commit().await
+			.expect("Error committing table creating");
+
+		info!("Data tables created");
+	}
 
 	// create a framework to process message commands
 	let framework = StandardFramework::new()
@@ -114,6 +140,7 @@ async fn main() {
 		.type_map_insert::<VoiceGuilds>(Default::default())
 		.type_map_insert::<Config>(Arc::new(RwLock::new(load_config())))
 		.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
+		.type_map_insert::<Pool>(db_pool)
 		.register_songbird_from_config(
 			songbird::Config::default()
 				.decode_mode(songbird::driver::DecodeMode::Pass)
