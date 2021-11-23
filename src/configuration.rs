@@ -85,12 +85,34 @@ impl Config {
 			.bind(user_id.0 as i64)
 			.fetch_optional(executor).await?)
 	}
+
+	pub async fn set_bot_intro<'e, E: Executor<'e>>(
+		executor: E,
+		guild_id: &GuildId,
+		intro: &str,
+	) -> Result<(), ConfigError> {
+		let res = sqlx::query(&read_to_string("database/set-bot-intro.sql")?)
+			.bind(guild_id.0 as i64)
+			.bind(intro)
+			.execute(executor).await?;
+
+		if res.rows_affected() != 1 {
+			Err(ConfigError::NoRowsChanged)
+		} else {
+			Ok(())
+		}
+	}
+
+	pub async fn get_bot_intro<'e, E: Executor<'e>>(executor: E, guild_id: &GuildId) -> Result<Option<String>, ConfigError> {
+		Ok(sqlx::query_scalar(&read_to_string("database/get-bot-intro.sql")?)
+			.bind(guild_id.0 as i64)
+			.fetch_optional(executor).await?)
+	}
 }
 
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct GuildConfig {
-	pub bot_intro: Option<String>,
 	pub volume_clip: Option<f32>,
 	pub volume_play: Option<f32>,
 }

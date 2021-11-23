@@ -193,21 +193,15 @@ impl SerenityEventHandler for Handler {
 				};
 
 				let clip = {
-					let config_arc = ctx.data.read().await.clone_expect::<Config>();
-
 					let pool = ctx.data.read().await.clone_expect::<Pool>();
-
-					let config = config_arc.read().await;
 
 					if new_state.user_id == ctx.cache.current_user_id().await {
 						match io {
-							IOClip::Intro => config
-								.guilds
-								.get(&guild_id)
-								.and_then(|gc| gc.bot_intro.as_ref())
-								.map(|s| s.as_str())
-								.unwrap_or("dota/bothello")
-								.to_owned(),
+							IOClip::Intro => Config::get_bot_intro(&pool, &guild_id).await
+								.map_err(|e| error!("Error fetching intro: {:?}", e))
+								.ok()
+								.flatten()
+								.unwrap_or("dota/bothello".to_owned()),
 							IOClip::Outro => return,
 						}
 					} else {
