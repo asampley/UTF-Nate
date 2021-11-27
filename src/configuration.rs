@@ -74,7 +74,7 @@ impl Config {
 		user_id: &UserId,
 		intro: &str,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(executor, "database-set-intro.sql", user_id.0 as i64, intro).await
+		Config::set_by_id(executor, "database/set-intro.sql", user_id.0 as i64, intro).await
 	}
 
 	pub async fn get_intro<'e, E: Executor<'e>>(
