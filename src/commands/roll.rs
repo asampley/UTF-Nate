@@ -43,7 +43,6 @@ pub fn roll_interaction_create(
 }
 
 #[command]
-#[only_in(guilds)]
 #[help_available]
 #[description("
 	Roll a die or dice
