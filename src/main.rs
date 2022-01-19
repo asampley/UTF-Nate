@@ -46,8 +46,9 @@ static GROUPS: &[&'static CommandGroup] = &[
 	&commands::join::JOIN_GROUP,
 	&commands::play::PLAY_GROUP,
 	&commands::queue::QUEUE_GROUP,
-	&commands::unicode::UNICODE_GROUP,
 	&commands::voice::VOICE_GROUP,
+	&commands::unicode::UNICODE_GROUP,
+	&commands::roll::ROLL_GROUP,
 	&commands::cmd::EXTERNAL_GROUP,
 ];
 
