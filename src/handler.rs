@@ -11,6 +11,8 @@ use serenity::prelude::EventHandler as SerenityEventHandler;
 
 use songbird::SongbirdKey;
 
+use crate::Pool;
+
 use crate::audio::clip_source;
 use crate::commands::help::{help_interaction, help_interaction_create};
 use crate::commands::herald::{
@@ -34,6 +36,7 @@ use crate::commands::queue::{
 use crate::commands::voice::{
 	list_interaction, list_interaction_create, volume_interaction, volume_interaction_create,
 };
+use crate::commands::roll::{roll_interaction, roll_interaction_create};
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
 use crate::util::*;
@@ -89,6 +92,7 @@ impl SerenityEventHandler for Handler {
 					.create_application_command(shuffle_interaction_create)
 					.create_application_command(shufflenow_interaction_create)
 					.create_application_command(help_interaction_create)
+					.create_application_command(roll_interaction_create)
 			})
 			.await
 			.unwrap();
@@ -127,6 +131,7 @@ impl SerenityEventHandler for Handler {
 				"queue" => queue_interaction(&ctx, &command).await,
 				"shuffle" => shuffle_interaction(&ctx, &command).await,
 				"shufflenow" => shufflenow_interaction(&ctx, &command).await,
+				"roll" => roll_interaction(&ctx, &command).await,
 				"help" => help_interaction(&ctx, &command).await,
 				_ => command.respond_err(&ctx, &"Unknown command".into()).await,
 			} {
@@ -191,35 +196,33 @@ impl SerenityEventHandler for Handler {
 				};
 
 				let clip = {
-					let config_arc = ctx.data.read().await.clone_expect::<Config>();
-
-					let config = config_arc.read().await;
+					let pool = ctx.data.read().await.clone_expect::<Pool>();
 
 					if new_state.user_id == ctx.cache.current_user_id().await {
 						match io {
-							IOClip::Intro => config
-								.guilds
-								.get(&guild_id)
-								.and_then(|gc| gc.bot_intro.as_ref())
-								.map(|s| s.as_str())
-								.unwrap_or("dota/bothello")
-								.to_owned(),
+							IOClip::Intro => Config::get_bot_intro(&pool, &guild_id).await
+								.map_err(|e| error!("Error fetching intro: {:?}", e))
+								.ok()
+								.flatten()
+								.unwrap_or("dota/bothello".to_owned()),
 							IOClip::Outro => return,
 						}
 					} else {
 						match io {
-							IOClip::Intro => config
-								.intros
-								.get(&new_state.user_id)
-								.map(|s| s.as_str())
-								.unwrap_or("bnw/cowhappy")
-								.to_owned(),
-							IOClip::Outro => config
-								.outros
-								.get(&new_state.user_id)
-								.map(|s| s.as_str())
-								.unwrap_or("bnw/death")
-								.to_owned(),
+							IOClip::Intro =>
+								Config::get_intro(&pool, &new_state.user_id)
+									.await
+									.map_err(|e| error!("Error fetching intro: {:?}", e))
+									.ok()
+									.flatten()
+									.unwrap_or("bnw/cowhappy".to_owned()),
+							IOClip::Outro =>
+								Config::get_outro(&pool, &new_state.user_id)
+									.await
+									.map_err(|e| error!("Error fetching outro: {:?}", e))
+									.ok()
+									.flatten()
+									.unwrap_or("bnw/death".to_owned()),
 						}
 					}
 				};
@@ -228,6 +231,7 @@ impl SerenityEventHandler for Handler {
 					let lock = ctx.data.read().await;
 
 					let songbird = lock.clone_expect::<SongbirdKey>();
+					let pool = lock.clone_expect::<Pool>();
 
 					let voice_guild_arc = lock
 						.clone_expect::<VoiceGuilds>()
@@ -235,13 +239,10 @@ impl SerenityEventHandler for Handler {
 						.or_default()
 						.clone();
 
-					let volume = lock
-						.clone_expect::<Config>()
-						.read()
-						.await
-						.guilds
-						.get(&guild_id)
-						.and_then(|c| c.volume_clip)
+					let volume = Config::get_volume_clip(&pool, &guild_id).await
+						.map_err(|e| error!("Unable to get clip volume: {:?}", e))
+						.ok()
+						.flatten()
 						.unwrap_or(0.5);
 
 					(songbird, voice_guild_arc, volume)

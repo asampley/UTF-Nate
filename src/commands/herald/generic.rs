@@ -1,10 +1,10 @@
+use log::error;
+
 use serenity::client::Context;
 use serenity::model::prelude::{GuildId, UserId};
 
-use std::path::Path;
-
+use crate::Pool;
 use crate::audio::{find_clip, FindClip};
-use crate::configuration::write_config_eprintln;
 use crate::configuration::Config;
 use crate::util::{GetExpect, Response};
 
@@ -32,16 +32,17 @@ pub async fn intro_outro(
 	};
 
 	let data_lock = ctx.data.read().await;
-	let config_arc = data_lock.clone_expect::<Config>();
+	let pool = data_lock.clone_expect::<Pool>();
 
 	match clip {
 		None => {
-			let config = config_arc.read().await;
-
 			let clip = match mode {
-				Intro => config.intros.get(&user_id),
-				Outro => config.outros.get(&user_id),
-			};
+				Intro => Config::get_intro(&pool, &user_id).await,
+				Outro => Config::get_outro(&pool, &user_id).await,
+			}.map_err(|e| {
+				error!("Unable to fetch user data: {:?}", e);
+				"Unable to retrieve intro/outro"
+			})?;
 
 			Ok(format!(
 				"User {} is {}",
@@ -54,14 +55,13 @@ pub async fn intro_outro(
 			.into())
 		}
 		Some(clip) => {
-			let mut config = config_arc.write().await;
-
 			match mode {
-				Intro => config.intros.insert(user_id, clip.clone()),
-				Outro => config.outros.insert(user_id, clip.clone()),
-			};
-
-			write_config_eprintln(Path::new("config.json"), &*config);
+				Intro => Config::set_intro(&pool, &user_id, &clip).await,
+				Outro => Config::set_outro(&pool, &user_id, &clip).await,
+			}.map_err(|e| {
+				error!("Unable to write user data: {:?}", e);
+				"Unable to set intro/outro"
+			})?;
 
 			Ok(format!("Set new {} to {}", mode.lowercase(), clip).into())
 		}
@@ -91,25 +91,24 @@ pub async fn introbot(
 	};
 
 	let data_lock = ctx.data.read().await;
-	let config_arc = data_lock.clone_expect::<Config>();
+	let pool = data_lock.clone_expect::<Pool>();
 
 	match clip {
 		Some(clip) => {
-			let mut config = config_arc.write().await;
-
-			config.guilds.entry(guild_id).or_default().bot_intro = Some(clip.clone());
-
-			write_config_eprintln(Path::new("config.json"), &*config);
+			Config::set_bot_intro(&pool, &guild_id, &clip).await
+				.map_err(|e| {
+					error!("Unable to set bot intro: {:?}", e);
+					"Unable to set bot intro"
+				})?;
 
 			Ok(format!("Set bot intro to {}", clip).into())
 		}
 		None => {
-			let config = config_arc.read().await;
-
-			let intro = config
-				.guilds
-				.get(&guild_id)
-				.and_then(|c| c.bot_intro.as_ref());
+			let intro = Config::get_bot_intro(&pool, &guild_id).await
+				.map_err(|e| {
+					error!("Unable to retrieve bot intro: {:?}", e);
+					"Unable to retrieve bot intro"
+				})?;
 
 			Ok(format!(
 				"Bot intro is {}",

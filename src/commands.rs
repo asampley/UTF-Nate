@@ -6,6 +6,7 @@ pub mod play;
 pub mod queue;
 pub mod unicode;
 pub mod voice;
+pub mod roll;
 
 use futures::Future;
 
@@ -34,6 +35,19 @@ pub fn create_interaction<'a>(
 
 	create.name(opt.names[0]);
 	opt.desc.map(|d| create.description(d));
+
+	create
+}
+
+pub fn create_interaction_set_description<'a>(
+	cmd: &Command,
+	create: &'a mut CreateApplicationCommand,
+	desc: &str,
+) -> &'a mut CreateApplicationCommand {
+	let opt = cmd.options;
+
+	create.name(opt.names[0]);
+	create.description(desc);
 
 	create
 }
