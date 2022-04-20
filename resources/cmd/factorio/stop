@@ -1,11 +1,2 @@
 #!/bin/sh
-set -euf
-
-if systemctl is-active factorio | grep "^inactive$" > /dev/null 2>&1; then
-	echo "Factorio server is not running"
-	exit
-fi
-
-sudo systemctl stop factorio
-
-echo "Stopped factorio server"
+resources/cmd-template/systemctl.sh stop factorio

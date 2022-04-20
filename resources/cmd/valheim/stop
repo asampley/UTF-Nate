@@ -1,11 +1,2 @@
 #!/bin/sh
-set -euf
-
-if systemctl is-active valheim | grep "^inactive$" > /dev/null 2>&1; then
-	echo "Valheim server is not running"
-	exit
-fi
-
-sudo systemctl stop valheim
-
-echo "Stopped valheim server"
+resources/cmd-template/systemctl.sh stop valheim
