@@ -40,16 +40,24 @@ pub async fn cmd(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 		return Ok(());
 	}
 
-	let message = process::Command::new(&command)
+	let output = process::Command::new(&command)
 		.args(args.iter::<String>().map(|s| s.unwrap()))
 		.stdin(Stdio::null())
-		.output()
-		.map(|o| o.stdout.into_iter().map(|a| a as char).collect::<String>());
+		.output();
 
-	match message {
-		Ok(message) => {
-			info!("Output of command: {}", message);
-			msg.respond_ok(ctx, &message.into()).await?;
+	match output {
+		Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+
+			info!("Stdout of command: {}", stdout);
+            info!("Stderr of command: {}", stderr);
+
+            if output.status.success() {
+                msg.respond_ok(ctx, &stdout.as_ref().into()).await?;
+            } else {
+                msg.respond_err(ctx, &"Error executing command. Please check logs".into()).await?;
+            }
 		}
 		Err(reason) => {
 			msg.respond_err(ctx, &"Error executing command".into())
