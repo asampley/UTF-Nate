@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 use serenity::model::id::{GuildId, UserId};
 
 use sqlx::PgExecutor as Executor;
-use sqlx::{Encode, Decode, Type};
+use sqlx::{Decode, Encode, Type};
 
-use std::fs::{File, read_to_string};
+use std::fs::{read_to_string, File};
 use std::path::Path;
 
 use crate::util::JsonFileError;
@@ -30,7 +30,7 @@ impl From<std::io::Error> for ConfigError {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Config {
-	pub prefixes: Vec<String>
+	pub prefixes: Vec<String>,
 }
 
 impl Config {
@@ -38,14 +38,16 @@ impl Config {
 		executor: E,
 		file_name: &str,
 		id: I,
-	) -> Result<Option<T>, ConfigError> where
+	) -> Result<Option<T>, ConfigError>
+	where
 		E: Executor<'e>,
 		for<'a> I: Encode<'a, E::Database> + Type<E::Database> + Send,
 		for<'a> T: Decode<'a, E::Database> + Type<E::Database> + Send + Unpin,
 	{
 		Ok(sqlx::query_scalar(&read_to_string(file_name)?)
 			.bind(id)
-			.fetch_optional(executor).await?)
+			.fetch_optional(executor)
+			.await?)
 	}
 
 	async fn set_by_id<'e, E, I, T>(
@@ -53,7 +55,8 @@ impl Config {
 		file_name: &str,
 		id: I,
 		value: T,
-	) -> Result<(), ConfigError> where
+	) -> Result<(), ConfigError>
+	where
 		E: Executor<'e>,
 		for<'a> I: Encode<'a, E::Database> + Type<E::Database> + Send,
 		for<'a> T: Encode<'a, E::Database> + Type<E::Database> + Send,
@@ -61,11 +64,12 @@ impl Config {
 		let res = sqlx::query(&read_to_string(file_name)?)
 			.bind(id)
 			.bind(value)
-			.execute(executor).await?;
+			.execute(executor)
+			.await?;
 
 		match res.rows_affected() {
 			1 => Ok(()),
-			_ => Err(ConfigError::NoRowsChanged)
+			_ => Err(ConfigError::NoRowsChanged),
 		}
 	}
 
@@ -104,7 +108,13 @@ impl Config {
 		guild_id: &GuildId,
 		intro: &str,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(executor, "database/set-bot-intro.sql", guild_id.0 as i64, intro).await
+		Config::set_by_id(
+			executor,
+			"database/set-bot-intro.sql",
+			guild_id.0 as i64,
+			intro,
+		)
+		.await
 	}
 
 	pub async fn get_bot_intro<'e, E: Executor<'e>>(
@@ -119,7 +129,13 @@ impl Config {
 		guild_id: &GuildId,
 		volume: f32,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(executor, "database/set-volume-play.sql", guild_id.0 as i64, volume).await
+		Config::set_by_id(
+			executor,
+			"database/set-volume-play.sql",
+			guild_id.0 as i64,
+			volume,
+		)
+		.await
 	}
 
 	pub async fn get_volume_play<'e, E: Executor<'e>>(
@@ -134,7 +150,13 @@ impl Config {
 		guild_id: &GuildId,
 		volume: f32,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(executor, "database/set-volume-clip.sql", guild_id.0 as i64, volume).await
+		Config::set_by_id(
+			executor,
+			"database/set-volume-clip.sql",
+			guild_id.0 as i64,
+			volume,
+		)
+		.await
 	}
 
 	pub async fn get_volume_clip<'e, E: Executor<'e>>(

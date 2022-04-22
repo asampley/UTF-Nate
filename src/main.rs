@@ -49,7 +49,7 @@ static GROUPS: &[&'static CommandGroup] = &[
 	&commands::voice::VOICE_GROUP,
 	&commands::unicode::UNICODE_GROUP,
 	&commands::roll::ROLL_GROUP,
-	&commands::cmd::EXTERNAL_GROUP,
+	&commands::external::EXTERNAL_GROUP,
 ];
 
 struct Pool;
@@ -101,14 +101,23 @@ async fn main() {
 	.expect("Unable to parse keys file");
 
 	// initialize database connection
-	let db_pool = PgPool::connect(&keys.database_connect_string).await
+	let db_pool = PgPool::connect(&keys.database_connect_string)
+		.await
 		.expect("Failed to connect to database");
 	if OPT.init_database {
-		let create_tables = std::fs::read_to_string("database/create-tables.sql").expect("Failed to read create tables file");
-		let mut trans = db_pool.begin().await.expect("Failed to intialize database transaction");
-		trans.execute(create_tables.as_str()).await
+		let create_tables = std::fs::read_to_string("database/create-tables.sql")
+			.expect("Failed to read create tables file");
+		let mut trans = db_pool
+			.begin()
+			.await
+			.expect("Failed to intialize database transaction");
+		trans
+			.execute(create_tables.as_str())
+			.await
 			.expect("Error creating tables");
-		trans.commit().await
+		trans
+			.commit()
+			.await
 			.expect("Error committing table creating");
 
 		info!("Data tables created");

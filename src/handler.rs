@@ -14,6 +14,9 @@ use songbird::SongbirdKey;
 use crate::Pool;
 
 use crate::audio::clip_source;
+use crate::commands::external::{
+	cmd_interaction, cmd_interaction_create, cmdlist_interaction, cmdlist_interaction_create,
+};
 use crate::commands::help::{help_interaction, help_interaction_create};
 use crate::commands::herald::{
 	intro_interaction_create, intro_outro_interaction, introbot_interaction,
@@ -33,10 +36,10 @@ use crate::commands::queue::{
 	shufflenow_interaction_create, skip_interaction, skip_interaction_create, stop_interaction,
 	stop_interaction_create, unpause_interaction, unpause_interaction_create,
 };
+use crate::commands::roll::{roll_interaction, roll_interaction_create};
 use crate::commands::voice::{
 	list_interaction, list_interaction_create, volume_interaction, volume_interaction_create,
 };
-use crate::commands::roll::{roll_interaction, roll_interaction_create};
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
 use crate::util::*;
@@ -93,6 +96,8 @@ impl SerenityEventHandler for Handler {
 					.create_application_command(shufflenow_interaction_create)
 					.create_application_command(help_interaction_create)
 					.create_application_command(roll_interaction_create)
+					.create_application_command(cmd_interaction_create)
+					.create_application_command(cmdlist_interaction_create)
 			})
 			.await
 			.unwrap();
@@ -133,6 +138,8 @@ impl SerenityEventHandler for Handler {
 				"shufflenow" => shufflenow_interaction(&ctx, &command).await,
 				"roll" => roll_interaction(&ctx, &command).await,
 				"help" => help_interaction(&ctx, &command).await,
+				"cmd" => cmd_interaction(&ctx, &command).await,
+				"cmdlist" => cmdlist_interaction(&ctx, &command).await,
 				_ => command.respond_err(&ctx, &"Unknown command".into()).await,
 			} {
 				Ok(_) => (),
@@ -200,7 +207,8 @@ impl SerenityEventHandler for Handler {
 
 					if new_state.user_id == ctx.cache.current_user_id().await {
 						match io {
-							IOClip::Intro => Config::get_bot_intro(&pool, &guild_id).await
+							IOClip::Intro => Config::get_bot_intro(&pool, &guild_id)
+								.await
 								.map_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
@@ -209,20 +217,18 @@ impl SerenityEventHandler for Handler {
 						}
 					} else {
 						match io {
-							IOClip::Intro =>
-								Config::get_intro(&pool, &new_state.user_id)
-									.await
-									.map_err(|e| error!("Error fetching intro: {:?}", e))
-									.ok()
-									.flatten()
-									.unwrap_or("bnw/cowhappy".to_owned()),
-							IOClip::Outro =>
-								Config::get_outro(&pool, &new_state.user_id)
-									.await
-									.map_err(|e| error!("Error fetching outro: {:?}", e))
-									.ok()
-									.flatten()
-									.unwrap_or("bnw/death".to_owned()),
+							IOClip::Intro => Config::get_intro(&pool, &new_state.user_id)
+								.await
+								.map_err(|e| error!("Error fetching intro: {:?}", e))
+								.ok()
+								.flatten()
+								.unwrap_or("bnw/cowhappy".to_owned()),
+							IOClip::Outro => Config::get_outro(&pool, &new_state.user_id)
+								.await
+								.map_err(|e| error!("Error fetching outro: {:?}", e))
+								.ok()
+								.flatten()
+								.unwrap_or("bnw/death".to_owned()),
 						}
 					}
 				};
@@ -239,7 +245,8 @@ impl SerenityEventHandler for Handler {
 						.or_default()
 						.clone();
 
-					let volume = Config::get_volume_clip(&pool, &guild_id).await
+					let volume = Config::get_volume_clip(&pool, &guild_id)
+						.await
 						.map_err(|e| error!("Unable to get clip volume: {:?}", e))
 						.ok()
 						.flatten()

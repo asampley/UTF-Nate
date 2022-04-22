@@ -1,12 +1,12 @@
-pub mod cmd;
+pub mod external;
 pub mod help;
 pub mod herald;
 pub mod join;
 pub mod play;
 pub mod queue;
+pub mod roll;
 pub mod unicode;
 pub mod voice;
-pub mod roll;
 
 use futures::Future;
 

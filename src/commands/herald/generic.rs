@@ -3,10 +3,10 @@ use log::error;
 use serenity::client::Context;
 use serenity::model::prelude::{GuildId, UserId};
 
-use crate::Pool;
 use crate::audio::{find_clip, FindClip};
 use crate::configuration::Config;
 use crate::util::{GetExpect, Response};
+use crate::Pool;
 
 use super::IntroOutroMode::{self, *};
 
@@ -39,7 +39,8 @@ pub async fn intro_outro(
 			let clip = match mode {
 				Intro => Config::get_intro(&pool, &user_id).await,
 				Outro => Config::get_outro(&pool, &user_id).await,
-			}.map_err(|e| {
+			}
+			.map_err(|e| {
 				error!("Unable to fetch user data: {:?}", e);
 				"Unable to retrieve intro/outro"
 			})?;
@@ -58,7 +59,8 @@ pub async fn intro_outro(
 			match mode {
 				Intro => Config::set_intro(&pool, &user_id, &clip).await,
 				Outro => Config::set_outro(&pool, &user_id, &clip).await,
-			}.map_err(|e| {
+			}
+			.map_err(|e| {
 				error!("Unable to write user data: {:?}", e);
 				"Unable to set intro/outro"
 			})?;
@@ -95,7 +97,8 @@ pub async fn introbot(
 
 	match clip {
 		Some(clip) => {
-			Config::set_bot_intro(&pool, &guild_id, &clip).await
+			Config::set_bot_intro(&pool, &guild_id, &clip)
+				.await
 				.map_err(|e| {
 					error!("Unable to set bot intro: {:?}", e);
 					"Unable to set bot intro"
@@ -104,11 +107,10 @@ pub async fn introbot(
 			Ok(format!("Set bot intro to {}", clip).into())
 		}
 		None => {
-			let intro = Config::get_bot_intro(&pool, &guild_id).await
-				.map_err(|e| {
-					error!("Unable to retrieve bot intro: {:?}", e);
-					"Unable to retrieve bot intro"
-				})?;
+			let intro = Config::get_bot_intro(&pool, &guild_id).await.map_err(|e| {
+				error!("Unable to retrieve bot intro: {:?}", e);
+				"Unable to retrieve bot intro"
+			})?;
 
 			Ok(format!(
 				"Bot intro is {}",

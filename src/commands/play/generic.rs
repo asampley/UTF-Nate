@@ -11,12 +11,12 @@ use songbird::SongbirdKey;
 
 use std::sync::Arc;
 
-use crate::Pool;
 use crate::audio::{clip_source, play_sources};
 use crate::audio::{AudioError, PlayStyle};
 use crate::configuration::Config;
 use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
 use crate::util::*;
+use crate::Pool;
 
 pub async fn play(
 	ctx: &Context,
@@ -47,7 +47,8 @@ pub async fn play(
 		let volume = match play_style {
 			PlayStyle::Clip => Config::get_volume_clip(&pool, &guild_id).await,
 			PlayStyle::Play => Config::get_volume_play(&pool, &guild_id).await,
-		}.map_err(|e| error!("Unable to get volume: {:?}", e))
+		}
+		.map_err(|e| error!("Unable to get volume: {:?}", e))
 		.ok()
 		.flatten()
 		.unwrap_or(0.5);

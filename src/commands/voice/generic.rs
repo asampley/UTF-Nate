@@ -11,12 +11,12 @@ use songbird::SongbirdKey;
 use std::fs::read_dir;
 use std::path::Path;
 
-use crate::Pool;
 use crate::audio::clip_path;
 use crate::audio::PlayStyle;
 use crate::configuration::Config;
 use crate::data::VoiceGuilds;
 use crate::util::*;
+use crate::Pool;
 
 pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 	let dir = clip_path().join(Path::new(match path {
@@ -80,28 +80,40 @@ pub async fn volume(
 			Ok(match style {
 				None => format!(
 					"Play volume: {}\nClip volume: {}",
-					Config::get_volume_play(&pool, &guild_id).await.map_err(|e| {
-						error!("Unable to retrieve volume: {:?}", e);
-						"Unable to retrieve volume"
-					})?.unwrap_or(0.5),
-					Config::get_volume_clip(&pool, &guild_id).await.map_err(|e| {
-						error!("Unable to retrieve volume: {:?}", e);
-						"Unable to retrieve volume"
-					})?.unwrap_or(0.5),
+					Config::get_volume_play(&pool, &guild_id)
+						.await
+						.map_err(|e| {
+							error!("Unable to retrieve volume: {:?}", e);
+							"Unable to retrieve volume"
+						})?
+						.unwrap_or(0.5),
+					Config::get_volume_clip(&pool, &guild_id)
+						.await
+						.map_err(|e| {
+							error!("Unable to retrieve volume: {:?}", e);
+							"Unable to retrieve volume"
+						})?
+						.unwrap_or(0.5),
 				),
 				Some(PlayStyle::Clip) => format!(
 					"Clip volume: {}",
-					Config::get_volume_clip(&pool, &guild_id).await.map_err(|e| {
-						error!("Unable to retrieve volume: {:?}", e);
-						"Unable to retrieve volume"
-					})?.unwrap_or(0.5),
+					Config::get_volume_clip(&pool, &guild_id)
+						.await
+						.map_err(|e| {
+							error!("Unable to retrieve volume: {:?}", e);
+							"Unable to retrieve volume"
+						})?
+						.unwrap_or(0.5),
 				),
 				Some(PlayStyle::Play) => format!(
 					"Play volume: {}",
-					Config::get_volume_play(&pool, &guild_id).await.map_err(|e| {
-						error!("Unable to retrieve volume: {:?}", e);
-						"Unable to retrieve volume"
-					})?.unwrap_or(0.5),
+					Config::get_volume_play(&pool, &guild_id)
+						.await
+						.map_err(|e| {
+							error!("Unable to retrieve volume: {:?}", e);
+							"Unable to retrieve volume"
+						})?
+						.unwrap_or(0.5),
 				),
 			}
 			.into())
@@ -153,7 +165,8 @@ pub async fn volume(
 				match style {
 					PlayStyle::Clip => Config::set_volume_clip(&pool, &guild_id, volume).await,
 					PlayStyle::Play => Config::set_volume_play(&pool, &guild_id, volume).await,
-				}.map_err(|e| {
+				}
+				.map_err(|e| {
 					error!("Error setting volume: {:?}", e);
 					"Error setting volume"
 				})?;
