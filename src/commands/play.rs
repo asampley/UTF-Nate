@@ -43,10 +43,7 @@ pub async fn clip_interaction(
 	ctx: &Context,
 	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, int, &int.data.options, "clip").await {
-		Ok(value) => value,
-		Err(result) => return result,
-	};
+	let clip = get_option_string(ctx, int, &int.data.options, "clip").await?;
 
 	run(
 		ctx,
@@ -94,10 +91,7 @@ async fn play_type_interaction(
 	int: &ApplicationCommandInteraction,
 	play_index: Option<usize>,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, int, &int.data.options, "input").await {
-		Ok(value) => value,
-		Err(result) => return result,
-	};
+	let clip = get_option_string(ctx, int, &int.data.options, "input").await?;
 
 	run(
 		ctx,

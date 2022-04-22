@@ -38,10 +38,9 @@ pub async fn intro_outro_interaction(
 	int: &ApplicationCommandInteraction,
 	mode: IntroOutroMode,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, int, &int.data.options, "clip").await {
-		Ok(value) => value.map(|s| s.to_string()),
-		Err(result) => return result,
-	};
+	let clip = get_option_string(ctx, int, &int.data.options, "clip")
+		.await?
+		.map(|s| s.to_string());
 
 	run(
 		ctx,
@@ -96,10 +95,9 @@ pub async fn introbot_interaction(
 	ctx: &Context,
 	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let clip = match get_option_string(ctx, int, &int.data.options, "clip").await {
-		Ok(value) => value.map(|s| s.to_string()),
-		Err(result) => return result,
-	};
+	let clip = get_option_string(ctx, int, &int.data.options, "clip")
+		.await?
+		.map(|s| s.to_string());
 
 	run(ctx, int, generic::introbot(&ctx, int.guild_id, clip)).await
 }

@@ -2,7 +2,7 @@ mod ord_key;
 mod respond;
 
 pub use ord_key::OrdKey;
-pub use respond::{Respond, Response};
+pub use respond::{Log, Respond, Response};
 
 use log::error;
 
@@ -14,7 +14,7 @@ use serenity::model::channel::Message;
 use serenity::model::interactions::application_command::{
 	ApplicationCommandInteraction, ApplicationCommandInteractionDataOption,
 };
-use serenity::prelude::{TypeMap, TypeMapKey};
+use serenity::prelude::{SerenityError, TypeMap, TypeMapKey};
 
 use std::fmt;
 use std::path::Path;
@@ -44,15 +44,18 @@ pub async fn get_option_string<'a>(
 	interaction: &'a ApplicationCommandInteraction,
 	options: &'a Vec<ApplicationCommandInteractionDataOption>,
 	name: &str,
-) -> Result<Option<&'a str>, serenity::Result<()>> {
+) -> Result<Option<&'a str>, SerenityError> {
 	match get_option_value(options, name) {
 		Some(Value::String(s)) => Ok(Some(s.as_str())),
 		None => Ok(None),
-		_ => {
+		Some(v) => {
 			error!("Error in interaction expecting string argument");
-			Err(interaction
+			interaction
 				.respond_err(&ctx, &"Internal bot error".into())
-				.await)
+				.await
+				.or_log();
+
+			Err(SerenityError::Decode("Expected a string", v.clone()))
 		}
 	}
 }
@@ -62,15 +65,18 @@ pub async fn get_option_f32<'a>(
 	interaction: &'a ApplicationCommandInteraction,
 	options: &'a Vec<ApplicationCommandInteractionDataOption>,
 	name: &str,
-) -> Result<Option<f32>, serenity::Result<()>> {
+) -> Result<Option<f32>, SerenityError> {
 	match get_option_value(options, name) {
 		Some(Value::Number(n)) => Ok(n.as_f64().map(|v| v as f32)),
 		None => Ok(None),
-		_ => {
+		Some(v) => {
 			error!("Error in interaction expecting float argument");
-			Err(interaction
+			interaction
 				.respond_err(&ctx, &"Internal bot error".into())
-				.await)
+				.await
+				.or_log();
+
+			Err(SerenityError::Decode("Expected a number", v.clone()))
 		}
 	}
 }
@@ -80,15 +86,18 @@ pub async fn get_option_usize<'a>(
 	interaction: &'a ApplicationCommandInteraction,
 	options: &'a Vec<ApplicationCommandInteractionDataOption>,
 	name: &str,
-) -> Result<Option<usize>, serenity::Result<()>> {
+) -> Result<Option<usize>, SerenityError> {
 	match get_option_value(options, name) {
 		Some(Value::Number(n)) => Ok(n.as_u64().map(|v| v as usize)),
 		None => Ok(None),
-		_ => {
+		Some(v) => {
 			error!("Error in interaction expecting float argument");
-			Err(interaction
+			interaction
 				.respond_err(&ctx, &"Internal bot error".into())
-				.await)
+				.await
+				.or_log();
+
+			Err(SerenityError::Decode("Expected a number", v.clone()))
 		}
 	}
 }

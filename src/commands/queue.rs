@@ -67,10 +67,7 @@ pub async fn skip_interaction(
 	ctx: &Context,
 	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let skip = match get_option_usize(ctx, int, &int.data.options, "count").await {
-		Ok(value) => value,
-		Err(result) => return result,
-	};
+	let skip = get_option_usize(ctx, int, &int.data.options, "count").await?;
 
 	run(ctx, int, generic::skip(ctx, int.guild_id, skip)).await
 }

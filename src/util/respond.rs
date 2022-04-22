@@ -1,9 +1,13 @@
+use log::{error, info};
+
 use serenity::async_trait;
 use serenity::builder::CreateEmbed;
 use serenity::client::Context;
 use serenity::model::channel::Message;
 use serenity::model::interactions::application_command::ApplicationCommandInteraction;
 use serenity::utils::Color;
+
+use std::fmt::Debug;
 
 const OK_COLOR: Color = Color::from_rgb(127, 255, 127);
 const ERR_COLOR: Color = Color::from_rgb(255, 127, 127);
@@ -110,5 +114,28 @@ impl Respond for ApplicationCommandInteraction {
 			})
 		})
 		.await
+	}
+}
+
+pub trait Log: Debug {
+	fn and_log(&self);
+	fn or_log(&self);
+}
+
+impl<T, E> Log for Result<T, E>
+where
+	T: Debug,
+	E: Debug,
+{
+	fn and_log(&self) {
+		if self.is_ok() {
+			info!("{:?}", self);
+		}
+	}
+
+	fn or_log(&self) {
+		if self.is_err() {
+			error!("{:?}", self);
+		}
 	}
 }

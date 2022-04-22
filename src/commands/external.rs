@@ -39,16 +39,11 @@ pub async fn cmd_interaction(
 	ctx: &Context,
 	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let command = match get_option_string(ctx, int, &int.data.options, "command").await {
-		Ok(value) => value,
-		Err(result) => return result,
-	};
+	let command = get_option_string(ctx, int, &int.data.options, "command").await?;
 
-	let args = match get_option_string(ctx, int, &int.data.options, "command").await {
-		Ok(value) => value,
-		Err(result) => return result,
-	}
-	.unwrap_or("");
+	let args = get_option_string(ctx, int, &int.data.options, "command")
+		.await?
+		.unwrap_or("");
 
 	let args = Args::new(args, &[Delimiter::Single(' ')]);
 	let args = args.raw_quoted();
@@ -97,10 +92,7 @@ pub async fn cmdlist_interaction(
 	ctx: &Context,
 	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let path = match get_option_string(ctx, int, &int.data.options, "path").await {
-		Ok(value) => value,
-		Err(result) => return result,
-	};
+	let path = get_option_string(ctx, int, &int.data.options, "path").await?;
 
 	run(ctx, int, generic::cmdlist(path)).await
 }

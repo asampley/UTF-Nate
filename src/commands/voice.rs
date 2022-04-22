@@ -85,13 +85,7 @@ pub async fn volume_interaction(
 		});
 
 	let (style, volume) = if let Some((style, volume_fut_res)) = opt {
-		(
-			style,
-			match volume_fut_res.await {
-				Ok(value) => value,
-				Err(result) => return result,
-			},
-		)
+		(style, volume_fut_res.await?)
 	} else {
 		(None, None)
 	};
@@ -158,10 +152,7 @@ pub async fn list_interaction(
 	ctx: &Context,
 	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let path = match get_option_string(ctx, int, &int.data.options, "path").await {
-		Ok(value) => value,
-		Err(result) => return result,
-	};
+	let path = get_option_string(ctx, int, &int.data.options, "path").await?;
 
 	run(ctx, int, generic::list(path)).await
 }

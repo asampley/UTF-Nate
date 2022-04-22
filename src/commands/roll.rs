@@ -21,10 +21,9 @@ pub async fn roll_interaction(
 	ctx: &Context,
 	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let expression = match get_option_string(ctx, int, &int.data.options, "expression").await {
-		Ok(value) => value.map(|s| s.to_string()),
-		Err(result) => return result,
-	};
+	let expression = get_option_string(ctx, int, &int.data.options, "expression")
+		.await?
+		.map(|s| s.to_string());
 
 	run(ctx, int, generic::roll(expression.unwrap_or_default())).await
 }

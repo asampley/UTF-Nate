@@ -42,10 +42,7 @@ pub async fn help_interaction(
 	ctx: &Context,
 	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let name = match get_option_string(ctx, int, &int.data.options, "name").await {
-		Ok(value) => value,
-		Err(result) => return result,
-	};
+	let name = get_option_string(ctx, int, &int.data.options, "name").await?;
 
 	run(ctx, int, generic::help(name)).await
 }
