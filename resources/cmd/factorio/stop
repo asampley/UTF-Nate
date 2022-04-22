@@ -1,2 +1,2 @@
 #!/bin/sh
-resources/cmd-template/systemctl.sh stop factorio
+resources/cmd-template/service.sh factorio stop

@@ -1,2 +1,2 @@
 #!/bin/sh
-resources/cmd-template/systemctl.sh start valheim
+resources/cmd-template/service.sh valheim start

@@ -1,2 +1,2 @@
 #!/bin/sh
-resources/cmd-template/systemctl.sh stop valheim
+resources/cmd-template/service.sh valheim stop

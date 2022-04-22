@@ -1,14 +1,14 @@
 #!/bin/sh
 set -euf
 
-mode=$1
-service=$2
+service=$1
+mode=$2
 
 case "${mode}" in
 	start)
 		success="Started ${service}"
 
-		if systemctl is-active "${service}" > /dev/null 2>&1; then
+		if service "${service}" status > /dev/null 2>&1; then
 			echo "${service} already running"
 			exit
 		fi
@@ -16,7 +16,7 @@ case "${mode}" in
 	stop)
 		success="Stopped ${service}"
 
-		if ! systemctl is-active "${service}" > /dev/null 2>&1; then
+		if ! service "${service}" status > /dev/null 2>&1; then
 			echo "${service} is not running"
 			exit
 		fi
@@ -27,7 +27,7 @@ case "${mode}" in
 		;;
 esac
 
-if sudo systemctl "${mode}" "${service}"; then
+if sudo service "${service}" "${mode}"; then
 	echo "${success}"
 else
 	echo "Error occurred when ${mode}ing ${service}"
