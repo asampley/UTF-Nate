@@ -16,7 +16,7 @@ case "${mode}" in
 	stop)
 		success="Stopped ${service}"
 
-		if systemctl is-active valheim | grep "^inactive$" > /dev/null 2>&1; then
+		if systemctl is-active "${service}" | grep "^inactive$" > /dev/null 2>&1; then
 			echo "${service} is not running"
 			exit
 		fi
