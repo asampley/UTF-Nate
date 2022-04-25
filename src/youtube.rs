@@ -1,5 +1,7 @@
 pub mod api;
 
+use log::{error, info};
+
 use reqwest::Client;
 
 use serde::{Deserialize, Serialize};
@@ -106,7 +108,14 @@ impl Restart for YtdlSearchLazy {
 		&mut self,
 		_time: Option<Duration>,
 	) -> songbird::input::error::Result<Input> {
-		ytdl_search(&self.search).await
+		let input = ytdl_search(&self.search).await?;
+
+		match input.metadata.source_url {
+			Some(ref url) => info!("Youtube lazy search \"{}\" found {}", self.search, url),
+			None => error!("Youtube lazy search \"{}\" URL not set", self.search),
+		}
+
+		Ok(input)
 	}
 
 	async fn lazy_init(
