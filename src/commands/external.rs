@@ -56,7 +56,7 @@ pub fn cmd_interaction_create(cmd: &mut CreateApplicationCommand) -> &mut Create
 		.create_option(|option| {
 			option
 				.name("command")
-				.description("Path to list commands underneath")
+				.description("Command to run")
 				.kind(ApplicationCommandOptionType::String)
 				.required(true)
 		})
