@@ -59,7 +59,7 @@ impl SerenityEventHandler for Handler {
 
 		info!("Bot info {:?}", ctx.cache.current_user_id().await);
 
-		ctx.set_activity(Activity::watching("you. /help")).await;
+		ctx.set_activity(Activity::watching("you.")).await;
 
 		if OPT.reregister {
 			info!("Reregistering slash commands...");

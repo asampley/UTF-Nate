@@ -41,7 +41,7 @@ pub async fn cmd_interaction(
 ) -> serenity::Result<()> {
 	let command = get_option_string(ctx, int, &int.data.options, "command").await?;
 
-	let args = get_option_string(ctx, int, &int.data.options, "command")
+	let args = get_option_string(ctx, int, &int.data.options, "args")
 		.await?
 		.unwrap_or("");
 
