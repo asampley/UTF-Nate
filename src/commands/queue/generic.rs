@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use itertools::Itertools;
 
-use log::error;
+use log::{error, info};
 
 use rand::Rng;
 
@@ -74,16 +74,16 @@ pub async fn skip(
 
 					match s {
 						NumOrRange::Num(n) => {
-							if !removed.contains(&n) {
-								deque.remove(dbg!(n)).map(|q| q.stop());
+							if !removed.contains(&n) && n < deque.len() {
+								deque.remove(n).map(|q| q.stop());
 								removed.insert(n);
 							}
 						}
 						NumOrRange::Range(r) => {
 							// remove in reverse order to prevent indices from shifting
 							for i in r.into_iter().rev() {
-								if !removed.contains(&i) {
-									deque.remove(dbg!(i)).map(|q| q.stop());
+								if !removed.contains(&i) && i < deque.len() {
+									deque.remove(i).map(|q| q.stop());
 									removed.insert(i);
 								}
 							}
@@ -92,11 +92,17 @@ pub async fn skip(
 				}
 			});
 
-		dbg!(&removed);
+		info!("Skipped tracks {:?}", &removed);
 
 		queue.resume().map(|_| removed.len())
 	} else {
-		queue.skip().map(|_| 1)
+		if queue.is_empty() {
+			info!("No tracks to skip");
+			Ok(0)
+		} else {
+			info!("Skipped first track");
+			queue.skip().map(|_| 1)
+		}
 	};
 
 	result
