@@ -3,6 +3,7 @@ mod commands;
 mod configuration;
 mod data;
 mod handler;
+mod parser;
 mod spotify;
 mod util;
 mod youtube;

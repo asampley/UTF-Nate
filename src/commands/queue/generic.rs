@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use itertools::Itertools;
 
 use log::error;
@@ -10,6 +12,7 @@ use serenity::model::prelude::GuildId;
 use songbird::SongbirdKey;
 
 use crate::data::VoiceGuilds;
+use crate::parser::NumOrRange;
 use crate::util::*;
 
 pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
@@ -37,7 +40,7 @@ pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, 
 pub async fn skip(
 	ctx: &Context,
 	guild_id: Option<GuildId>,
-	skip_count: Option<usize>,
+	mut skip_set: Vec<NumOrRange>,
 ) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
@@ -53,24 +56,54 @@ pub async fn skip(
 
 	let queue = call.queue();
 
-	let result = if let Some(count) = skip_count {
+	let result = if !skip_set.is_empty() {
+		let mut removed = HashSet::new();
+
 		queue
 			.modify_queue(|deque| {
-				(0..count)
-					.filter_map(|_| deque.pop_front())
-					.fuse()
-					.map(|queued| queued.stop())
-					.fold_ok(0, |acc, _| acc + 1)
-			})
-			.and_then(|count| queue.resume().map(|_| count))
+				skip_set.sort_unstable_by_key(|s| match s {
+					NumOrRange::Num(n) => *n,
+					NumOrRange::Range(r) => *r.end(),
+				});
+
+				// remove in reverse order to prevent indices from shifting
+				for s in skip_set.into_iter().rev() {
+					if deque.is_empty() {
+						continue;
+					}
+
+					match s {
+						NumOrRange::Num(n) => {
+							if !removed.contains(&n) {
+								deque.remove(dbg!(n)).map(|q| q.stop());
+								removed.insert(n);
+							}
+						}
+						NumOrRange::Range(r) => {
+							// remove in reverse order to prevent indices from shifting
+							for i in r.into_iter().rev() {
+								if !removed.contains(&i) {
+									deque.remove(dbg!(i)).map(|q| q.stop());
+									removed.insert(i);
+								}
+							}
+						}
+					}
+				}
+			});
+
+		dbg!(&removed);
+
+		queue.resume().map(|_| removed.len())
 	} else {
 		queue.skip().map(|_| 1)
 	};
 
 	result
 		.map(|count| match count {
-			1 => "Skipped current clip".into(),
-			_ => format!("Skipped {} clips", count).into(),
+			0 => "No clips skipped".into(),
+			1 => "Skipped 1 clip".into(),
+			c => format!("Skipped {} clips", c).into()
 		})
 		.map_err(|e| {
 			error!("{:?}", e);

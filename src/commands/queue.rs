@@ -8,6 +8,7 @@ use serenity::model::interactions::application_command::{
 };
 
 use crate::commands::{create_interaction, run};
+use crate::parser::set;
 use crate::util::*;
 
 mod generic;
@@ -43,16 +44,17 @@ pub fn stop_interaction_create(
 #[help_available]
 #[description("Skip the current song in the queue")]
 #[max_args(1)]
-#[usage("<number?>")]
+#[usage("<selection?>")]
 #[example("")]
-#[example("3")]
-pub async fn skip(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+#[example("2,3,4")]
+#[example("2-4,5")]
+pub async fn skip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let skip = match args.remaining() {
-		0 => None,
-		_ => match args.single::<usize>() {
-			Ok(skip) => Some(skip),
+		0 => Vec::new(),
+		_ => match set(args.current().unwrap()) {
+			Ok(skip) => skip.1,
 			Err(_) => {
-				msg.respond_err(ctx, &"Skip count must be a positive integer".into())
+				msg.respond_err(ctx, &"Skip selection did not parse".into())
 					.await?;
 
 				return Ok(());
@@ -67,7 +69,18 @@ pub async fn skip_interaction(
 	ctx: &Context,
 	int: &ApplicationCommandInteraction,
 ) -> serenity::Result<()> {
-	let skip = get_option_usize(ctx, int, &int.data.options, "count").await?;
+	let skip = get_option_string(ctx, int, &int.data.options, "selection").await?;
+
+	let skip = match skip.map(|s| set(s)) {
+		None => Vec::new(),
+		Some(Ok(skip)) => skip.1,
+		Some(Err(_)) => {
+			int.respond_err(ctx, &"Skip selection did not parse".into())
+				.await?;
+
+			return Ok(());
+		}
+	};
 
 	run(ctx, int, generic::skip(ctx, int.guild_id, skip)).await
 }
@@ -77,8 +90,8 @@ pub fn skip_interaction_create(
 ) -> &mut CreateApplicationCommand {
 	create_interaction(&SKIP_COMMAND, cmd).create_option(|option| {
 		option
-			.name("count")
-			.description("Number of clips to skip")
+			.name("selection")
+			.description("Range or index of songs to skip, separated by commas")
 			.kind(ApplicationCommandOptionType::Integer)
 	})
 }
