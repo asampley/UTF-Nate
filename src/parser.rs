@@ -1,28 +1,27 @@
 use std::ops::RangeInclusive;
 
 use nom::{
-	IResult,
-	ToUsize,
 	branch::alt,
-	character::complete::{u32 as cu32, char as cchar},
+	character::complete::{char as cchar, u32 as cu32},
 	combinator::{all_consuming, map},
 	multi::separated_list0,
 	sequence::separated_pair,
+	IResult, ToUsize,
 };
 
-pub enum NumOrRange {
-	Num(usize),
-	Range(RangeInclusive<usize>)
+pub enum NumOrRange<T> {
+	Num(T),
+	Range(RangeInclusive<T>),
 }
 
-impl From<usize> for NumOrRange {
-	fn from(f: usize) -> Self {
+impl<T> From<T> for NumOrRange<T> {
+	fn from(f: T) -> Self {
 		Self::Num(f)
 	}
 }
 
-impl From<RangeInclusive<usize>> for NumOrRange {
-	fn from(f: RangeInclusive<usize>) -> Self {
+impl<T> From<RangeInclusive<T>> for NumOrRange<T> {
+	fn from(f: RangeInclusive<T>) -> Self {
 		Self::Range(f)
 	}
 }
@@ -35,14 +34,9 @@ pub fn range_usize(input: &str) -> IResult<&str, RangeInclusive<usize>> {
 	map(separated_pair(cusize, cchar('-'), cusize), |(a, b)| a..=b)(input)
 }
 
-pub fn set(input: &str) -> IResult<&str, Vec<NumOrRange>> {
-	all_consuming(
-		separated_list0(
-			cchar(','),
-			alt((
-				map(range_usize, |v| v.into()),
-				map(cusize, |v| v.into()),
-			))
-		)
-	)(input)
+pub fn set(input: &str) -> IResult<&str, Vec<NumOrRange<usize>>> {
+	all_consuming(separated_list0(
+		cchar(','),
+		alt((map(range_usize, |v| v.into()), map(cusize, |v| v.into()))),
+	))(input)
 }

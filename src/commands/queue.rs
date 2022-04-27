@@ -1,3 +1,5 @@
+use log::info;
+
 use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
@@ -42,20 +44,28 @@ pub fn stop_interaction_create(
 #[command]
 #[only_in(guilds)]
 #[help_available]
-#[description("Skip the current song in the queue")]
+#[description("Skip the current song in the queue, or select a list and/or range of songs to skip")]
 #[max_args(1)]
 #[usage("<selection?>")]
 #[example("")]
 #[example("2,3,4")]
-#[example("2-4,5")]
+#[example("4-7,9,0-2")]
 pub async fn skip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let skip = match args.remaining() {
 		0 => Vec::new(),
 		_ => match set(args.current().unwrap()) {
 			Ok(skip) => skip.1,
-			Err(_) => {
-				msg.respond_err(ctx, &"Skip selection did not parse".into())
-					.await?;
+			Err(e) => {
+				info!("Unable to parse skip selection: {:?}", e);
+
+				msg.respond_err(
+					ctx,
+					&"Skip selection did not parse.
+						Please enter a comma separated list of numbers and ranges without spaces.
+						e.g. 4-7,9,0-2"
+						.into(),
+				)
+				.await?;
 
 				return Ok(());
 			}
@@ -74,9 +84,17 @@ pub async fn skip_interaction(
 	let skip = match skip.map(|s| set(s)) {
 		None => Vec::new(),
 		Some(Ok(skip)) => skip.1,
-		Some(Err(_)) => {
-			int.respond_err(ctx, &"Skip selection did not parse".into())
-				.await?;
+		Some(Err(e)) => {
+			info!("Unable to parse skip selection: {:?}", e);
+
+			int.respond_err(
+				ctx,
+				&"Skip selection did not parse.
+					Please enter a comma separated list of numbers and ranges without spaces.
+					e.g. 4-7,9,0-2"
+					.into(),
+			)
+			.await?;
 
 			return Ok(());
 		}
