@@ -74,7 +74,7 @@ struct Opt {
 		long,
 		help = "Do not run the bot; useful when registering slash commands or initializing the database"
 	)]
-	no_run: bool,
+	no_bot: bool,
 
 	#[structopt(long, short, help = "Run command with additional logging")]
 	verbose: bool,
@@ -143,7 +143,7 @@ async fn main() {
 		info!("Data tables created");
 	}
 
-	if !OPT.no_run {
+	if !OPT.no_bot {
 		let config = load_config();
 
 		// create a framework to process message commands
