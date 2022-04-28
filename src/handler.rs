@@ -1,9 +1,8 @@
-use log::{debug, error, info};
+use log::{error, info};
 
 use serenity::async_trait;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
-use serenity::model::interactions::application_command::ApplicationCommand;
 use serenity::model::prelude::{Activity, Interaction};
 use serenity::model::voice::VoiceState;
 use serenity::prelude::Context;
@@ -14,36 +13,22 @@ use songbird::SongbirdKey;
 use crate::Pool;
 
 use crate::audio::clip_source;
-use crate::commands::external::{
-	cmd_interaction, cmd_interaction_create, cmdlist_interaction, cmdlist_interaction_create,
-};
-use crate::commands::help::{help_interaction, help_interaction_create};
-use crate::commands::herald::{
-	intro_interaction_create, intro_outro_interaction, introbot_interaction,
-	introbot_interaction_create, outro_interaction_create, IntroOutroMode,
-};
-use crate::commands::join::{
-	banish_interaction, banish_interaction_create, summon_interaction, summon_interaction_create,
-};
+use crate::commands::external::{cmd_interaction, cmdlist_interaction};
+use crate::commands::help::help_interaction;
+use crate::commands::herald::{intro_outro_interaction, introbot_interaction, IntroOutroMode};
+use crate::commands::join::{banish_interaction, summon_interaction};
 use crate::commands::play::{
-	clip_interaction, clip_interaction_create, play_interaction, play_interaction_create,
-	playnext_interaction, playnext_interaction_create, playnow_interaction,
-	playnow_interaction_create,
+	clip_interaction, play_interaction, playnext_interaction, playnow_interaction,
 };
 use crate::commands::queue::{
-	pause_interaction, pause_interaction_create, queue_interaction, queue_interaction_create,
-	shuffle_interaction, shuffle_interaction_create, shufflenow_interaction,
-	shufflenow_interaction_create, skip_interaction, skip_interaction_create, stop_interaction,
-	stop_interaction_create, unpause_interaction, unpause_interaction_create,
+	pause_interaction, queue_interaction, shuffle_interaction, shufflenow_interaction,
+	skip_interaction, stop_interaction, unpause_interaction,
 };
-use crate::commands::roll::{roll_interaction, roll_interaction_create};
-use crate::commands::voice::{
-	list_interaction, list_interaction_create, volume_interaction, volume_interaction_create,
-};
+use crate::commands::roll::roll_interaction;
+use crate::commands::voice::{list_interaction, volume_interaction};
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
 use crate::util::*;
-use crate::OPT;
 
 pub struct Handler;
 
@@ -60,54 +45,6 @@ impl SerenityEventHandler for Handler {
 		info!("Bot info {:?}", ctx.cache.current_user_id().await);
 
 		ctx.set_activity(Activity::watching("you.")).await;
-
-		if OPT.reregister {
-			info!("Reregistering slash commands...");
-
-			let commands = ctx.http.get_global_application_commands().await.unwrap();
-
-			for command in commands {
-				ctx.http
-					.delete_global_application_command(command.id.into())
-					.await
-					.unwrap();
-			}
-			info!("Deleted old slash commands");
-
-			ApplicationCommand::set_global_application_commands(&ctx.http, |commands| {
-				commands
-					.create_application_command(intro_interaction_create)
-					.create_application_command(outro_interaction_create)
-					.create_application_command(introbot_interaction_create)
-					.create_application_command(summon_interaction_create)
-					.create_application_command(banish_interaction_create)
-					.create_application_command(list_interaction_create)
-					.create_application_command(clip_interaction_create)
-					.create_application_command(play_interaction_create)
-					.create_application_command(playnext_interaction_create)
-					.create_application_command(playnow_interaction_create)
-					.create_application_command(volume_interaction_create)
-					.create_application_command(stop_interaction_create)
-					.create_application_command(skip_interaction_create)
-					.create_application_command(pause_interaction_create)
-					.create_application_command(unpause_interaction_create)
-					.create_application_command(queue_interaction_create)
-					.create_application_command(shuffle_interaction_create)
-					.create_application_command(shufflenow_interaction_create)
-					.create_application_command(help_interaction_create)
-					.create_application_command(roll_interaction_create)
-					.create_application_command(cmd_interaction_create)
-					.create_application_command(cmdlist_interaction_create)
-			})
-			.await
-			.unwrap();
-
-			debug!(
-				"Registered slash commands: {:#?}",
-				ApplicationCommand::get_global_application_commands(&ctx.http).await,
-			);
-			info!("Reregistered slash commands");
-		}
 	}
 
 	async fn interaction_create(&self, ctx: Context, interaction: Interaction) {

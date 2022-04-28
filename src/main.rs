@@ -3,6 +3,7 @@ mod commands;
 mod configuration;
 mod data;
 mod handler;
+mod interaction;
 mod parser;
 mod spotify;
 mod util;
@@ -13,11 +14,12 @@ use log::{error, info, LevelFilter};
 use once_cell::sync::Lazy;
 
 use serenity::client::bridge::gateway::GatewayIntents;
-use serenity::client::Client;
+use serenity::client::ClientBuilder;
 use serenity::framework::standard::macros::hook;
 use serenity::framework::standard::{
 	CommandGroup, CommandResult, DispatchError, StandardFramework,
 };
+use serenity::http::client::Http;
 use serenity::model::channel::Message;
 use serenity::prelude::{Context, RwLock};
 
@@ -30,6 +32,7 @@ use structopt::StructOpt;
 use configuration::{read_config, Config};
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
+use interaction::reregister;
 use util::{check_msg, Respond};
 
 use std::path::Path;
@@ -67,6 +70,12 @@ struct Opt {
 	#[structopt(long, help = "Reregister slash commands with discord")]
 	reregister: bool,
 
+	#[structopt(
+		long,
+		help = "Do not run the bot; useful when registering slash commands or initializing the database"
+	)]
+	no_run: bool,
+
 	#[structopt(long, short, help = "Run command with additional logging")]
 	verbose: bool,
 }
@@ -101,10 +110,20 @@ async fn main() {
 	)
 	.expect("Unable to parse keys file");
 
+	let http = Http::new_with_token_application_id(&keys.token, keys.application_id);
+
+	if OPT.reregister {
+		reregister(&http)
+			.await
+			.expect("Unable to reregister slash commands");
+		return;
+	}
+
 	// initialize database connection
 	let db_pool = PgPool::connect(&keys.database_connect_string)
 		.await
 		.expect("Failed to connect to database");
+
 	if OPT.init_database {
 		let create_tables = std::fs::read_to_string("database/create-tables.sql")
 			.expect("Failed to read create tables file");
@@ -124,43 +143,44 @@ async fn main() {
 		info!("Data tables created");
 	}
 
-	let config = load_config();
+	if !OPT.no_run {
+		let config = load_config();
 
-	// create a framework to process message commands
-	let framework = StandardFramework::new()
-		.configure(|c| c.prefixes(config.prefixes))
-		.before(before_hook)
-		.after(after_hook)
-		.unrecognised_command(unrecognised_command)
-		.on_dispatch_error(on_dispatch_error);
+		// create a framework to process message commands
+		let framework = StandardFramework::new()
+			.configure(|c| c.prefixes(config.prefixes))
+			.before(before_hook)
+			.after(after_hook)
+			.unrecognised_command(unrecognised_command)
+			.on_dispatch_error(on_dispatch_error);
 
-	let framework = GROUPS.iter().fold(framework, |f, group| f.group(group));
+		let framework = GROUPS.iter().fold(framework, |f, group| f.group(group));
 
-	// login with a bot token from file
-	let mut client = Client::builder(&keys.token)
-		.application_id(keys.application_id)
-		.intents(
-			GatewayIntents::GUILD_MESSAGES
-				| GatewayIntents::DIRECT_MESSAGES
-				| GatewayIntents::GUILD_VOICE_STATES
-				| GatewayIntents::GUILDS,
-		)
-		.event_handler(Handler)
-		.framework(framework)
-		.type_map_insert::<VoiceUserCache>(Default::default())
-		.type_map_insert::<VoiceGuilds>(Default::default())
-		.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
-		.type_map_insert::<Pool>(db_pool)
-		.register_songbird_from_config(
-			songbird::Config::default()
-				.decode_mode(songbird::driver::DecodeMode::Pass)
-				.preallocated_tracks(5),
-		)
-		.await
-		.expect("Error creating client");
+		// login with a bot token from file
+		let mut client = ClientBuilder::new_with_http(http)
+			.intents(
+				GatewayIntents::GUILD_MESSAGES
+					| GatewayIntents::DIRECT_MESSAGES
+					| GatewayIntents::GUILD_VOICE_STATES
+					| GatewayIntents::GUILDS,
+			)
+			.event_handler(Handler)
+			.framework(framework)
+			.type_map_insert::<VoiceUserCache>(Default::default())
+			.type_map_insert::<VoiceGuilds>(Default::default())
+			.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
+			.type_map_insert::<Pool>(db_pool)
+			.register_songbird_from_config(
+				songbird::Config::default()
+					.decode_mode(songbird::driver::DecodeMode::Pass)
+					.preallocated_tracks(5),
+			)
+			.await
+			.expect("Error creating client");
 
-	if let Err(reason) = client.start().await {
-		error!("An error occurred while running the client: {:?}", reason)
+		if let Err(reason) = client.start().await {
+			error!("An error occurred while running the client: {:?}", reason)
+		}
 	}
 }
 
