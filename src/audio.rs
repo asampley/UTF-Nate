@@ -353,11 +353,11 @@ pub fn find_clip(loc: &str) -> FindClip {
 		.into_iter()
 		.filter_map(|f| f.ok())
 		.filter(|f| f.file_type().is_file())
-		// The name of the clip must match exactly in the path
+		// The last element of the components must match the file name
 		.filter(|f| {
-			components
-				.iter()
-				.contains(&&*f.path().file_stem().unwrap().to_string_lossy())
+			components.last().map_or(false, |last| {
+				last == &f.path().file_stem().unwrap().to_string_lossy().as_ref()
+			})
 		})
 		// count the number of components in a path which match the supplied components
 		// the highest score becomes the clip
