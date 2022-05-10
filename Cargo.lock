@@ -2574,7 +2574,7 @@ checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
 
 [[package]]
 name = "utf_nate"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "caith",
  "dashmap 5.2.0",

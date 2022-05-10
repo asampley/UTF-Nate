@@ -1,6 +1,6 @@
 [package]
 name = "utf_nate"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["sampley <sampley@ualberta.ca>"]
 edition = "2021"
 
@@ -20,6 +20,11 @@ fxhash = "0.2"
 rand = "0.8"
 caith = "4.2"
 nom = "7.1"
+
+[features]
+default = ["yt-dlp"]
+yt-dlp = ["songbird/yt-dlp"]
+youtube-dlc = ["songbird/youtube-dlc"]
 
 [dependencies.serde]
 version = "1.0"
