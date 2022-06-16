@@ -129,30 +129,30 @@ impl fmt::Display for UtilError {
 impl std::error::Error for UtilError {}
 
 #[derive(Debug)]
-pub enum JsonFileError {
-	JsonError(serde_json::Error),
+pub enum TomlFileError {
+	TomlError(toml::de::Error),
 	IoError(std::io::Error),
 }
 
-impl From<serde_json::Error> for JsonFileError {
-	fn from(e: serde_json::Error) -> Self {
-		Self::JsonError(e)
+impl From<toml::de::Error> for TomlFileError {
+	fn from(e: toml::de::Error) -> Self {
+		Self::TomlError(e)
 	}
 }
 
-impl From<std::io::Error> for JsonFileError {
+impl From<std::io::Error> for TomlFileError {
 	fn from(e: std::io::Error) -> Self {
 		Self::IoError(e)
 	}
 }
 
-impl fmt::Display for JsonFileError {
+impl fmt::Display for TomlFileError {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		fmt::Debug::fmt(self, f)
 	}
 }
 
-impl std::error::Error for JsonFileError {}
+impl std::error::Error for TomlFileError {}
 
 pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
 	match sandbox.canonicalize() {

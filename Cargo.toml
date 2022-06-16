@@ -20,6 +20,7 @@ fxhash = "0.2"
 rand = "0.8"
 caith = "4.2"
 nom = "7.1"
+toml = "0.5"
 
 [features]
 default = ["yt-dlp"]

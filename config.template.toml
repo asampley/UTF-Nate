@@ -1,0 +1,2 @@
+# List of prefixes recognized by the bot
+prefixes = ["!", "?", "‽"]

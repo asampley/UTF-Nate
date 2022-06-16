@@ -1,0 +1,17 @@
+# Discord application ID
+application_id = 999999999999999999
+# Discord bot token
+token = "xxxxxxxxxxxxxxxxxxxxxxxx.xxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Database connection string
+database_connect_string = "postgresql://utf_nate:password@localhost/utf_nate"
+
+# Optional youtube API key, required for play commands
+# youtube_api = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Optional spotify API information, required to support spotify links
+# [spotify_api]
+# # Spotify client ID
+# client_id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# # Spotify client secret
+# client_secret = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"

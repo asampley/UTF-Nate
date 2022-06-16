@@ -105,8 +105,8 @@ async fn main() {
 	audio::warn_duplicate_clip_names();
 
 	// read keys file
-	let keys = serde_json::from_str::<Keys>(
-		&std::fs::read_to_string("keys.json").expect("Unable to read keys file"),
+	let keys = toml::from_str::<Keys>(
+		&std::fs::read_to_string("keys.toml").expect("Unable to read keys file"),
 	)
 	.expect("Unable to parse keys file");
 
@@ -145,6 +145,8 @@ async fn main() {
 
 	if !OPT.no_bot {
 		let config = load_config();
+
+        info!("Config: {config:#?}");
 
 		// create a framework to process message commands
 		let framework = StandardFramework::new()
@@ -185,21 +187,21 @@ async fn main() {
 }
 
 fn load_config() -> Config {
-	use crate::util::JsonFileError::*;
+	use crate::util::TomlFileError::*;
 
-	match read_config(Path::new("config.json")) {
+	match read_config(Path::new("config.toml")) {
 		Ok(config) => {
-			info!("Read config file from config.json");
+			info!("Read config file from config.toml");
 			config
 		}
 		Err(e) => match e {
-			JsonError(reason) => {
-				error!("Error parsing config.json: {:?}", reason);
+			TomlError(reason) => {
+				error!("Error parsing config.toml: {:?}", reason);
 				info!("Creating default config");
 				Config::default()
 			}
 			IoError(reason) => {
-				error!("Unable to access config.json: {:?}", reason);
+				error!("Unable to access config.toml: {:?}", reason);
 				info!("Creating default config");
 				Config::default()
 			}

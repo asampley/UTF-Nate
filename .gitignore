@@ -2,7 +2,7 @@
 **/*.rs.bk
 
 # store api keys and such in this file
-/keys.json
+/keys.toml
 
 # persistent configuration stored here
-config.json
+/config.toml

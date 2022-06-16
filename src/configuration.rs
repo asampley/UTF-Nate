@@ -4,10 +4,10 @@ use serenity::model::id::{GuildId, UserId};
 use sqlx::PgExecutor as Executor;
 use sqlx::{Decode, Encode, Type};
 
-use std::fs::{read_to_string, File};
+use std::fs::read_to_string;
 use std::path::Path;
 
-use crate::util::JsonFileError;
+use crate::util::TomlFileError;
 
 #[derive(Debug)]
 pub enum ConfigError {
@@ -28,7 +28,7 @@ impl From<std::io::Error> for ConfigError {
 	}
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
 	pub prefixes: Vec<String>,
 }
@@ -167,8 +167,6 @@ impl Config {
 	}
 }
 
-pub fn read_config(path: &Path) -> Result<Config, JsonFileError> {
-	let file = File::open(path)?;
-
-	Ok(serde_json::from_reader(file)?)
+pub fn read_config(path: &Path) -> Result<Config, TomlFileError> {
+    Ok(toml::from_str(&read_to_string(path)?)?)
 }
