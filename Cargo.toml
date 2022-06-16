@@ -23,7 +23,7 @@ nom = "7.1"
 toml = "0.5"
 
 [features]
-default = ["yt-dlp"]
+default = ["youtube-dlc"]
 yt-dlp = ["songbird/yt-dlp"]
 youtube-dlc = ["songbird/youtube-dlc"]
 
