@@ -120,9 +120,9 @@ impl fmt::Display for UtilError {
 
 #[derive(Debug, Error)]
 pub enum TomlFileError {
-	#[error("Unable to parse toml: {0}")]
+	#[error("unable to parse toml: {0}")]
 	TomlError(#[from] toml::de::Error),
-	#[error("Unable to read file: {0}")]
+	#[error("unable to read file: {0}")]
 	IoError(#[from] std::io::Error),
 }
 
