@@ -1,0 +1,3 @@
+create user utf_nate;
+\password utf_nate;
+create database utf_nate with owner utf_nate;
