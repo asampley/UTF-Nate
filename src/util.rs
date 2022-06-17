@@ -120,14 +120,10 @@ impl fmt::Display for UtilError {
 
 #[derive(Debug, Error)]
 pub enum TomlFileError {
+    #[error("Unable to parse toml: {0}")]
 	TomlError(#[from] toml::de::Error),
+    #[error("Unable to read file: {0}")]
 	IoError(#[from] std::io::Error),
-}
-
-impl fmt::Display for TomlFileError {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		fmt::Debug::fmt(self, f)
-	}
 }
 
 pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
@@ -177,8 +173,9 @@ impl GetExpect for TypeMap {
 	}
 }
 
-pub fn read_toml<T>(path: &Path) -> Result<T, TomlFileError> where
+pub fn read_toml<T, P>(path: P) -> Result<T, TomlFileError> where
     T: for<'de> Deserialize<'de>,
+    P: AsRef<Path>,
 {
-    Ok(toml::from_str(&std::fs::read_to_string(path)?)?)
+    Ok(toml::from_str(&std::fs::read_to_string(path.as_ref())?)?)
 }
