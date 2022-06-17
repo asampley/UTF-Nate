@@ -17,6 +17,11 @@ use std::time::Duration;
 
 use api::{ListResponse, Playlist, PlaylistItem, Video};
 
+#[derive(Clone, Deserialize)]
+pub struct YoutubeApi {
+	pub key: String,
+}
+
 pub struct YtdlLazy {
 	uri: String,
 	metadata: Metadata,
@@ -157,10 +162,14 @@ where
 	Ok(collect)
 }
 
-pub async fn playlist(api_key: &str, playlist_id: &str) -> reqwest::Result<Option<Playlist>> {
+pub async fn playlist(api: &YoutubeApi, playlist_id: &str) -> reqwest::Result<Option<Playlist>> {
 	Ok(Client::new()
 		.get("https://www.googleapis.com/youtube/v3/playlists")
-		.query(&[("key", api_key), ("part", "snippet"), ("id", playlist_id)])
+		.query(&[
+			("key", api.key.as_ref()),
+			("part", "snippet"),
+			("id", playlist_id),
+		])
 		.send()
 		.await?
 		.json::<ListResponse<Playlist>>()
@@ -171,12 +180,12 @@ pub async fn playlist(api_key: &str, playlist_id: &str) -> reqwest::Result<Optio
 }
 
 pub async fn playlist_items(
-	api_key: &str,
+	api: &YoutubeApi,
 	playlist_id: &str,
 ) -> reqwest::Result<Vec<PlaylistItem>> {
 	let url = "https://youtube.googleapis.com/youtube/v3/playlistItems";
 	let query = &[
-		("key", api_key),
+		("key", api.key.as_ref()),
 		("part", "contentDetails,snippet"),
 		("playlistId", playlist_id),
 		("maxResults", "50"),
@@ -185,11 +194,11 @@ pub async fn playlist_items(
 	collect_all(url, query).await
 }
 
-pub async fn video(api_key: &str, video_id: &str) -> reqwest::Result<Option<Video>> {
+pub async fn video(api: &YoutubeApi, video_id: &str) -> reqwest::Result<Option<Video>> {
 	Ok(Client::new()
 		.get("https://www.googleapis.com/youtube/v3/videos")
 		.query(&[
-			("key", api_key),
+			("key", api.key.as_ref()),
 			("part", "contentDetails,snippet"),
 			("id", video_id),
 		])

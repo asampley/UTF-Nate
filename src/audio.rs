@@ -110,7 +110,7 @@ where
 			let youtube_api = keys
 				.read()
 				.await
-				.youtube_api
+				.youtube
 				.clone()
 				.ok_or(AudioError::YoutubePlaylist)?;
 
@@ -211,7 +211,7 @@ where
 			let token = keys
 				.write()
 				.await
-				.spotify_api
+				.spotify
 				.as_mut()
 				.ok_or(AudioError::Spotify)?
 				.get_token()

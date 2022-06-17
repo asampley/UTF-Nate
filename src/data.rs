@@ -19,14 +19,25 @@ use uuid::Uuid;
 use std::sync::Arc;
 
 use crate::spotify::SpotifyApi;
+use crate::youtube::YoutubeApi;
 
 #[derive(Deserialize)]
 pub struct Keys {
-	pub database_connect_string: String,
+	pub database: DatabaseKeys,
+	pub discord: DiscordApi,
+	pub youtube: Option<YoutubeApi>,
+	pub spotify: Option<SpotifyApi>,
+}
+
+#[derive(Deserialize)]
+pub struct DiscordApi {
 	pub application_id: u64,
 	pub token: String,
-	pub youtube_api: Option<String>,
-	pub spotify_api: Option<SpotifyApi>,
+}
+
+#[derive(Deserialize)]
+pub struct DatabaseKeys {
+	pub connect_string: String,
 }
 
 impl TypeMapKey for Keys {

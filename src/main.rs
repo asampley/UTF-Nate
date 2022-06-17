@@ -113,7 +113,8 @@ async fn main() {
 		}
 	};
 
-	let http = Http::new_with_token_application_id(&keys.token, keys.application_id);
+	let http =
+		Http::new_with_token_application_id(&keys.discord.token, keys.discord.application_id);
 
 	if OPT.reregister {
 		match reregister(&http).await {
@@ -124,7 +125,7 @@ async fn main() {
 	}
 
 	// initialize database connection
-	let db_pool = match PgPool::connect(&keys.database_connect_string).await {
+	let db_pool = match PgPool::connect(&keys.database.connect_string).await {
 		Ok(p) => p,
 		Err(e) => {
 			error!("Failed to connect to database: {e}");
