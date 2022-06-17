@@ -211,8 +211,8 @@ async fn main() {
 			}
 		};
 
-		if let Err(reason) = client.start().await {
-			error!("An error occurred while running the client: {:?}", reason)
+		if let Err(e) = client.start().await {
+			error!("An error occurred while running the client: {e}")
 		}
 	}
 }
