@@ -110,7 +110,7 @@ pub fn skip_interaction_create(
 		option
 			.name("selection")
 			.description("Range or index of songs to skip, separated by commas")
-			.kind(ApplicationCommandOptionType::Integer)
+			.kind(ApplicationCommandOptionType::String)
 	})
 }
 
