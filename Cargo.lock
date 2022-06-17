@@ -2603,6 +2603,7 @@ dependencies = [
  "songbird",
  "sqlx",
  "structopt",
+ "thiserror",
  "tokio",
  "toml",
  "uuid",

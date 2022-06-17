@@ -4,28 +4,25 @@ use serenity::model::id::{GuildId, UserId};
 use sqlx::PgExecutor as Executor;
 use sqlx::{Decode, Encode, Type};
 
+use thiserror::Error;
+
+use std::fmt;
 use std::fs::read_to_string;
 use std::path::Path;
 
 use crate::util::TomlFileError;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ConfigError {
-	IoError(std::io::Error),
-	DbError(sqlx::Error),
+	IoError(#[from] std::io::Error),
+	DbError(#[from] sqlx::Error),
 	NoRowsChanged,
 }
 
-impl From<sqlx::Error> for ConfigError {
-	fn from(e: sqlx::Error) -> Self {
-		Self::DbError(e)
-	}
-}
-
-impl From<std::io::Error> for ConfigError {
-	fn from(e: std::io::Error) -> Self {
-		Self::IoError(e)
-	}
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

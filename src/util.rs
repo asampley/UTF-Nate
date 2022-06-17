@@ -16,6 +16,8 @@ use serenity::model::interactions::application_command::{
 };
 use serenity::prelude::{SerenityError, TypeMap, TypeMapKey};
 
+use thiserror::Error;
+
 use std::fmt;
 use std::path::Path;
 
@@ -102,22 +104,10 @@ pub async fn get_option_usize<'a>(
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum UtilError {
-	Serenity(serenity::Error),
-	Songbird(songbird::input::error::Error),
-}
-
-impl From<songbird::input::error::Error> for UtilError {
-	fn from(e: songbird::input::error::Error) -> Self {
-		Self::Songbird(e)
-	}
-}
-
-impl From<serenity::Error> for UtilError {
-	fn from(e: serenity::Error) -> Self {
-		Self::Serenity(e)
-	}
+	Serenity(#[from] serenity::Error),
+	Songbird(#[from] songbird::input::error::Error),
 }
 
 impl fmt::Display for UtilError {
@@ -126,24 +116,10 @@ impl fmt::Display for UtilError {
 	}
 }
 
-impl std::error::Error for UtilError {}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum TomlFileError {
-	TomlError(toml::de::Error),
-	IoError(std::io::Error),
-}
-
-impl From<toml::de::Error> for TomlFileError {
-	fn from(e: toml::de::Error) -> Self {
-		Self::TomlError(e)
-	}
-}
-
-impl From<std::io::Error> for TomlFileError {
-	fn from(e: std::io::Error) -> Self {
-		Self::IoError(e)
-	}
+	TomlError(#[from] toml::de::Error),
+	IoError(#[from] std::io::Error),
 }
 
 impl fmt::Display for TomlFileError {
@@ -151,8 +127,6 @@ impl fmt::Display for TomlFileError {
 		fmt::Debug::fmt(self, f)
 	}
 }
-
-impl std::error::Error for TomlFileError {}
 
 pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
 	match sandbox.canonicalize() {

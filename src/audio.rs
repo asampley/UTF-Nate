@@ -13,6 +13,8 @@ use reqwest::Url;
 use songbird::input::restartable::Restartable;
 use songbird::input::Input;
 
+use thiserror::Error;
+
 use walkdir::WalkDir;
 
 use std::borrow::Cow;
@@ -53,9 +55,9 @@ pub fn clip_path() -> PathBuf {
 	return Path::new("./resources/clips").canonicalize().unwrap();
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum AudioError {
-	Songbird(songbird::input::error::Error),
+	Songbird(#[from] songbird::input::error::Error),
 	PlaylistNotAllowed,
 	Spotify,
 	YoutubePlaylist,
@@ -64,19 +66,11 @@ pub enum AudioError {
 	NotFound,
 }
 
-impl From<songbird::input::error::Error> for AudioError {
-	fn from(e: songbird::input::error::Error) -> Self {
-		AudioError::Songbird(e)
-	}
-}
-
 impl fmt::Display for AudioError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		fmt::Debug::fmt(self, f)
 	}
 }
-
-impl std::error::Error for AudioError {}
 
 pub async fn clip_source(loc: &str) -> Result<Input, AudioError> {
 	match find_clip(&loc) {
