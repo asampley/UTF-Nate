@@ -120,9 +120,9 @@ impl fmt::Display for UtilError {
 
 #[derive(Debug, Error)]
 pub enum TomlFileError {
-    #[error("Unable to parse toml: {0}")]
+	#[error("Unable to parse toml: {0}")]
 	TomlError(#[from] toml::de::Error),
-    #[error("Unable to read file: {0}")]
+	#[error("Unable to read file: {0}")]
 	IoError(#[from] std::io::Error),
 }
 
@@ -173,9 +173,10 @@ impl GetExpect for TypeMap {
 	}
 }
 
-pub fn read_toml<T, P>(path: P) -> Result<T, TomlFileError> where
-    T: for<'de> Deserialize<'de>,
-    P: AsRef<Path>,
+pub fn read_toml<T, P>(path: P) -> Result<T, TomlFileError>
+where
+	T: for<'de> Deserialize<'de>,
+	P: AsRef<Path>,
 {
-    Ok(toml::from_str(&std::fs::read_to_string(path.as_ref())?)?)
+	Ok(toml::from_str(&std::fs::read_to_string(path.as_ref())?)?)
 }

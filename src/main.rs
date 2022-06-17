@@ -104,66 +104,66 @@ async fn main() {
 	audio::warn_duplicate_clip_names();
 
 	// read keys file
-    let keys_path = "keys.toml";
+	let keys_path = "keys.toml";
 	let keys: Keys = match read_toml(keys_path) {
-        Ok(k) => k,
-        Err(e) => {
-            error!("Error reading keys file {keys_path:?}: {e}");
-            return;
-        }
-    };
+		Ok(k) => k,
+		Err(e) => {
+			error!("Error reading keys file {keys_path:?}: {e}");
+			return;
+		}
+	};
 
 	let http = Http::new_with_token_application_id(&keys.token, keys.application_id);
 
 	if OPT.reregister {
 		match reregister(&http).await {
-            Ok(()) => (),
-            Err(e) => error!("Unable to reregister slash commands: {e}"),
-        }
+			Ok(()) => (),
+			Err(e) => error!("Unable to reregister slash commands: {e}"),
+		}
 		return;
 	}
 
 	// initialize database connection
 	let db_pool = match PgPool::connect(&keys.database_connect_string).await {
-        Ok(p) => p,
-        Err(e) => {
-            error!("Failed to connect to database: {e}");
-            return;
-        }
-    };
+		Ok(p) => p,
+		Err(e) => {
+			error!("Failed to connect to database: {e}");
+			return;
+		}
+	};
 
 	if OPT.init_database {
 		let create_tables = match std::fs::read_to_string("database/create-tables.sql") {
-            Ok(t) => t,
-            Err(e) => {
-                error!("Failed to read create tables file: {e}");
-                return;
-            }
-        };
+			Ok(t) => t,
+			Err(e) => {
+				error!("Failed to read create tables file: {e}");
+				return;
+			}
+		};
 
 		let mut trans = match db_pool.begin().await {
-            Ok(t) => t,
-            Err(e) => {
-                error!("Failed to intialize database transaction: {e}");
-                return;
-            }
-        };
+			Ok(t) => t,
+			Err(e) => {
+				error!("Failed to intialize database transaction: {e}");
+				return;
+			}
+		};
 
 		match trans.execute(create_tables.as_str()).await {
-            Ok(_) => (),
-            Err(e) => {
-                error!("Error creating tables: {e}");
-                return;
-            }
-        }
+			Ok(_) => (),
+			Err(e) => {
+				error!("Error creating tables: {e}");
+				return;
+			}
+		}
 
 		match trans.commit().await {
-            Ok(_) => (),
-            Err(e) => {
-                error!("Error committing table creation: {e}");
-                return;
-            }
-        }
+			Ok(_) => (),
+			Err(e) => {
+				error!("Error committing table creation: {e}");
+				return;
+			}
+		}
 
 		info!("Data tables created");
 	}
@@ -171,7 +171,7 @@ async fn main() {
 	if !OPT.no_bot {
 		let config = load_config();
 
-        info!("Config: {config:#?}");
+		info!("Config: {config:#?}");
 
 		// create a framework to process message commands
 		let framework = StandardFramework::new()
@@ -184,33 +184,32 @@ async fn main() {
 		let framework = GROUPS.iter().fold(framework, |f, group| f.group(group));
 
 		// login with a bot token from file
-		let mut client =
-            match ClientBuilder::new_with_http(http)
-                .intents(
-                    GatewayIntents::GUILD_MESSAGES
-                        | GatewayIntents::DIRECT_MESSAGES
-                        | GatewayIntents::GUILD_VOICE_STATES
-                        | GatewayIntents::GUILDS,
-                )
-                .event_handler(Handler)
-                .framework(framework)
-                .type_map_insert::<VoiceUserCache>(Default::default())
-                .type_map_insert::<VoiceGuilds>(Default::default())
-                .type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
-                .type_map_insert::<Pool>(db_pool)
-                .register_songbird_from_config(
-                    songbird::Config::default()
-                        .decode_mode(songbird::driver::DecodeMode::Pass)
-                        .preallocated_tracks(5),
-                )
-                .await
-            {
-                Ok(c) => c,
-                Err(e) => {
-                    error!("Error creating client: {e}");
-                    return;
-                }
-            };
+		let mut client = match ClientBuilder::new_with_http(http)
+			.intents(
+				GatewayIntents::GUILD_MESSAGES
+					| GatewayIntents::DIRECT_MESSAGES
+					| GatewayIntents::GUILD_VOICE_STATES
+					| GatewayIntents::GUILDS,
+			)
+			.event_handler(Handler)
+			.framework(framework)
+			.type_map_insert::<VoiceUserCache>(Default::default())
+			.type_map_insert::<VoiceGuilds>(Default::default())
+			.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
+			.type_map_insert::<Pool>(db_pool)
+			.register_songbird_from_config(
+				songbird::Config::default()
+					.decode_mode(songbird::driver::DecodeMode::Pass)
+					.preallocated_tracks(5),
+			)
+			.await
+		{
+			Ok(c) => c,
+			Err(e) => {
+				error!("Error creating client: {e}");
+				return;
+			}
+		};
 
 		if let Err(reason) = client.start().await {
 			error!("An error occurred while running the client: {:?}", reason)
@@ -219,7 +218,7 @@ async fn main() {
 }
 
 fn load_config() -> Config {
-    let path = "config.toml";
+	let path = "config.toml";
 
 	match read_toml(path) {
 		Ok(config) => {
@@ -227,10 +226,10 @@ fn load_config() -> Config {
 			config
 		}
 		Err(e) => {
-            error!("{e}");
-            info!("Creating default config");
-            Config::default()
-		},
+			error!("{e}");
+			info!("Creating default config");
+			Config::default()
+		}
 	}
 }
 
