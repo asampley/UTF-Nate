@@ -29,11 +29,11 @@ use sqlx::{Executor, PgPool};
 
 use structopt::StructOpt;
 
-use configuration::{read_config, Config};
+use configuration::Config;
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use interaction::reregister;
-use util::{check_msg, Respond};
+use util::{check_msg, read_toml, Respond};
 
 use std::path::Path;
 use std::sync::Arc;
@@ -189,22 +189,25 @@ async fn main() {
 fn load_config() -> Config {
 	use crate::util::TomlFileError::*;
 
-	match read_config(Path::new("config.toml")) {
+    let path = "config.toml";
+
+	match read_toml(Path::new(path)) {
 		Ok(config) => {
-			info!("Read config file from config.toml");
+			info!("Read config file from {path}");
 			config
 		}
-		Err(e) => match e {
-			TomlError(reason) => {
-				error!("Error parsing config.toml: {:?}", reason);
-				info!("Creating default config");
-				Config::default()
-			}
-			IoError(reason) => {
-				error!("Unable to access config.toml: {:?}", reason);
-				info!("Creating default config");
-				Config::default()
-			}
+		Err(e) => {
+            match e {
+                TomlError(reason) => {
+                    error!("Error parsing {path}: {:?}", reason);
+                }
+                IoError(reason) => {
+                    error!("Unable to access {path}: {:?}", reason);
+                }
+            }
+
+            info!("Creating default config");
+            Config::default()
 		},
 	}
 }

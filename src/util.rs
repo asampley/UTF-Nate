@@ -6,6 +6,8 @@ pub use respond::{Log, Respond, Response};
 
 use log::error;
 
+use serde::Deserialize;
+
 use serde_json::Value;
 
 use serenity::async_trait;
@@ -173,4 +175,10 @@ impl GetExpect for TypeMap {
 			std::any::type_name::<T>()
 		))
 	}
+}
+
+pub fn read_toml<T>(path: &Path) -> Result<T, TomlFileError> where
+    T: for<'de> Deserialize<'de>,
+{
+    Ok(toml::from_str(&std::fs::read_to_string(path)?)?)
 }

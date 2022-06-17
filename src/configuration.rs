@@ -8,9 +8,6 @@ use thiserror::Error;
 
 use std::fmt;
 use std::fs::read_to_string;
-use std::path::Path;
-
-use crate::util::TomlFileError;
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -162,8 +159,4 @@ impl Config {
 	) -> Result<Option<f32>, ConfigError> {
 		Config::get_by_id(executor, "database/get-volume-clip.sql", guild_id.0 as i64).await
 	}
-}
-
-pub fn read_config(path: &Path) -> Result<Config, TomlFileError> {
-    Ok(toml::from_str(&read_to_string(path)?)?)
 }
