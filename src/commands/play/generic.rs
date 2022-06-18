@@ -120,7 +120,7 @@ pub async fn play(
 		match result {
 			Ok(response) => Ok(response.into()),
 			Err(e) => {
-				error!("Error playing audio: {:?}", e);
+				error!("Error playing audio: {}", e);
 				Err(match e {
 					AudioError::Songbird(_) => "Playback error".into(),
 					AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path).into(),

@@ -18,7 +18,6 @@ use thiserror::Error;
 use walkdir::WalkDir;
 
 use std::borrow::Cow;
-use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::data::{ArcRw, Keys};
@@ -57,19 +56,20 @@ pub fn clip_path() -> PathBuf {
 
 #[derive(Debug, Error)]
 pub enum AudioError {
+	#[error("encountered songbird error: {0}")]
 	Songbird(#[from] songbird::input::error::Error),
+	#[error("playlists are not allowed in this context")]
 	PlaylistNotAllowed,
+	#[error("error using the spotify api")]
 	Spotify,
+	#[error("error reading youtube api for playlist")]
 	YoutubePlaylist,
+	#[error("unsupported url")]
 	UnsupportedUrl,
+	#[error("multiple clips matched")]
 	MultipleClip,
+	#[error("no clips matched")]
 	NotFound,
-}
-
-impl fmt::Display for AudioError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Debug::fmt(self, f)
-	}
 }
 
 pub async fn clip_source(loc: &str) -> Result<Input, AudioError> {

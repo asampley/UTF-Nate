@@ -211,7 +211,7 @@ impl SerenityEventHandler for Handler {
 						}
 						Err(reason) => {
 							error!(
-								"Error trying to play {} clip: {:?}",
+								"Error trying to play {} clip: {}",
 								match io {
 									IOClip::Intro => "intro",
 									IOClip::Outro => "outro",
