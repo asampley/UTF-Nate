@@ -21,6 +21,7 @@ use serenity::framework::standard::{
 };
 use serenity::http::client::Http;
 use serenity::model::channel::Message;
+use serenity::model::Permissions;
 use serenity::prelude::{Context, RwLock};
 
 use songbird::serenity::SerenityInit;
@@ -54,6 +55,16 @@ static GROUPS: &[&'static CommandGroup] = &[
 	&commands::roll::ROLL_GROUP,
 	&commands::external::EXTERNAL_GROUP,
 ];
+
+const RECOMMENDED_PERMISSIONS: Permissions = Permissions::SEND_MESSAGES
+	.union(Permissions::EMBED_LINKS)
+	.union(Permissions::CONNECT)
+	.union(Permissions::SPEAK);
+
+const GATEWAY_INTENTS: GatewayIntents = GatewayIntents::GUILD_MESSAGES
+	.union(GatewayIntents::DIRECT_MESSAGES)
+	.union(GatewayIntents::GUILD_VOICE_STATES)
+	.union(GatewayIntents::GUILDS);
 
 struct Pool;
 
@@ -112,6 +123,22 @@ async fn main() {
 			return;
 		}
 	};
+
+	// print recommended permissions invite URL
+	info!(
+		"Add the bot using the url:\n\
+		https://discord.com/api/oauth2/authorize?client_id={}&permissions={}&scope=bot%20applications.commands",
+		keys.discord.application_id,
+		RECOMMENDED_PERMISSIONS.bits(),
+	);
+
+	// print recommended permissions invite URL without slash commands
+	info!(
+		"To disallow slash commands, use this url instead:\n\
+		https://discord.com/api/oauth2/authorize?client_id={}&permissions={}&scope=bot",
+		keys.discord.application_id,
+		RECOMMENDED_PERMISSIONS.bits(),
+	);
 
 	let http =
 		Http::new_with_token_application_id(&keys.discord.token, keys.discord.application_id);
@@ -186,12 +213,7 @@ async fn main() {
 
 		// login with a bot token from file
 		let mut client = match ClientBuilder::new_with_http(http)
-			.intents(
-				GatewayIntents::GUILD_MESSAGES
-					| GatewayIntents::DIRECT_MESSAGES
-					| GatewayIntents::GUILD_VOICE_STATES
-					| GatewayIntents::GUILDS,
-			)
+			.intents(GATEWAY_INTENTS)
 			.event_handler(Handler)
 			.framework(framework)
 			.type_map_insert::<VoiceUserCache>(Default::default())
