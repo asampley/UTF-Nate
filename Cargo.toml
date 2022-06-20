@@ -1,5 +1,5 @@
 [package]
-name = "utf_nate"
+name = "utf-nate"
 version = "0.2.0"
 authors = ["sampley <sampley@ualberta.ca>"]
 edition = "2021"
