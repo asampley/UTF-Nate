@@ -10,7 +10,7 @@ use crate::Pool;
 
 use super::IntroOutroMode::{self, *};
 
-#[tracing::instrument(level = "info", skip(ctx))]
+#[tracing::instrument(level = "info", ret, skip(ctx))]
 pub async fn intro_outro(
 	ctx: &Context,
 	mode: IntroOutroMode,
@@ -71,7 +71,7 @@ pub async fn intro_outro(
 	}
 }
 
-#[tracing::instrument(level = "info", skip(ctx))]
+#[tracing::instrument(level = "info", ret, skip(ctx))]
 pub async fn introbot(
 	ctx: &Context,
 	guild_id: Option<GuildId>,

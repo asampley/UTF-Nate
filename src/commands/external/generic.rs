@@ -10,7 +10,7 @@ use std::process::Stdio;
 use crate::commands::external::cmd_path;
 use crate::util::*;
 
-#[tracing::instrument(level = "info")]
+#[tracing::instrument(level = "info", ret)]
 pub async fn cmd(
 	command: Option<&str>,
 	args: impl Iterator<Item = &str> + std::fmt::Debug,
@@ -51,7 +51,7 @@ pub async fn cmd(
 	}
 }
 
-#[tracing::instrument(level = "info")]
+#[tracing::instrument(level = "info", ret)]
 pub async fn cmdlist(path: Option<&str>) -> Result<Response, Response> {
 	let dir = cmd_path().join(Path::new(match path {
 		None => "",

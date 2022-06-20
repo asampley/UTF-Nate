@@ -18,7 +18,7 @@ use crate::data::VoiceGuilds;
 use crate::util::*;
 use crate::Pool;
 
-#[tracing::instrument(level = "info")]
+#[tracing::instrument(level = "info", ret)]
 pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 	let dir = clip_path().join(Path::new(match path {
 		None => "",
@@ -64,7 +64,7 @@ pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 	}
 }
 
-#[tracing::instrument(level = "info", skip(ctx))]
+#[tracing::instrument(level = "info", ret, skip(ctx))]
 pub async fn volume(
 	ctx: &Context,
 	style: Option<PlayStyle>,
