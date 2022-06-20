@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use log::{error, info};
+use tracing::{error, info};
 
 use std::fs::read_dir;
 use std::path::Path;
@@ -10,9 +10,10 @@ use std::process::Stdio;
 use crate::commands::external::cmd_path;
 use crate::util::*;
 
+#[tracing::instrument(level = "info")]
 pub async fn cmd(
 	command: Option<&str>,
-	args: impl Iterator<Item = &str>,
+	args: impl Iterator<Item = &str> + std::fmt::Debug,
 ) -> Result<Response, Response> {
 	let command = match command {
 		Some(command) => cmd_path().join(&command),
@@ -50,6 +51,7 @@ pub async fn cmd(
 	}
 }
 
+#[tracing::instrument(level = "info")]
 pub async fn cmdlist(path: Option<&str>) -> Result<Response, Response> {
 	let dir = cmd_path().join(Path::new(match path {
 		None => "",

@@ -12,6 +12,7 @@ use crate::util::*;
 
 mod generic;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum IntroOutroMode {
 	Intro,
 	Outro,

@@ -4,7 +4,7 @@ mod respond;
 pub use ord_key::OrdKey;
 pub use respond::{Log, Respond, Response};
 
-use log::error;
+use tracing::error;
 
 use serde::Deserialize;
 

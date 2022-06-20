@@ -9,6 +9,7 @@ use nom::{
 	IResult, ToUsize,
 };
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum NumOrRange<T> {
 	Num(T),
 	Range(RangeInclusive<T>),

@@ -1,4 +1,4 @@
-use log::{debug, error};
+use tracing::{debug, error};
 
 use serenity::client::Context;
 use serenity::model::prelude::GuildId;
@@ -18,6 +18,7 @@ use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
 use crate::util::*;
 use crate::Pool;
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn play(
 	ctx: &Context,
 	play_style: PlayStyle,

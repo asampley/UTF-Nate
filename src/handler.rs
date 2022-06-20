@@ -1,4 +1,4 @@
-use log::{error, info};
+use tracing::{error, info};
 
 use serenity::async_trait;
 use serenity::model::gateway::Ready;

@@ -1,4 +1,4 @@
-use log::{debug, info};
+use tracing::{debug, info};
 
 use serenity::http::client::Http;
 use serenity::model::interactions::application_command::ApplicationCommand;

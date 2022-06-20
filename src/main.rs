@@ -9,7 +9,8 @@ mod spotify;
 mod util;
 mod youtube;
 
-use log::{error, info, LevelFilter};
+use log::LevelFilter;
+use tracing::{error, info};
 
 use once_cell::sync::Lazy;
 

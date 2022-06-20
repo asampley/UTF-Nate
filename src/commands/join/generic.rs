@@ -5,6 +5,7 @@ use songbird::SongbirdKey;
 
 use crate::util::*;
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn summon(
 	ctx: &Context,
 	guild_id: Option<GuildId>,
@@ -32,6 +33,7 @@ pub async fn summon(
 	}
 }
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn banish(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 

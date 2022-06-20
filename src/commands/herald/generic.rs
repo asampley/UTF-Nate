@@ -1,4 +1,4 @@
-use log::error;
+use tracing::error;
 
 use serenity::client::Context;
 use serenity::model::prelude::{GuildId, UserId};
@@ -10,6 +10,7 @@ use crate::Pool;
 
 use super::IntroOutroMode::{self, *};
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn intro_outro(
 	ctx: &Context,
 	mode: IntroOutroMode,
@@ -70,6 +71,7 @@ pub async fn intro_outro(
 	}
 }
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn introbot(
 	ctx: &Context,
 	guild_id: Option<GuildId>,

@@ -28,6 +28,10 @@ default = ["youtube-dlc"]
 yt-dlp = ["songbird/yt-dlp"]
 youtube-dlc = ["songbird/youtube-dlc"]
 
+[dependencies.tracing]
+version = "0.1"
+features = ["log"]
+
 [dependencies.serde]
 version = "1.0"
 features = ["derive"]

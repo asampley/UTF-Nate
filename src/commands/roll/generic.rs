@@ -2,6 +2,7 @@ use caith::Roller;
 
 use crate::util::Response;
 
+#[tracing::instrument(level = "info")]
 pub async fn roll(expression: String) -> Result<Response, Response> {
 	Ok(Roller::new(&expression)
 		.and_then(|r| r.roll())

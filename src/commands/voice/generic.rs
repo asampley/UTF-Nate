@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use log::error;
+use tracing::error;
 
 use serenity::client::Context;
 use serenity::model::prelude::GuildId;
@@ -18,6 +18,7 @@ use crate::data::VoiceGuilds;
 use crate::util::*;
 use crate::Pool;
 
+#[tracing::instrument(level = "info")]
 pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 	let dir = clip_path().join(Path::new(match path {
 		None => "",
@@ -63,6 +64,7 @@ pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 	}
 }
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn volume(
 	ctx: &Context,
 	style: Option<PlayStyle>,

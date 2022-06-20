@@ -2,7 +2,7 @@ pub mod api;
 
 use itertools::Itertools;
 
-use log::debug;
+use tracing::debug;
 
 use reqwest::Client;
 

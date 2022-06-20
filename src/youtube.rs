@@ -1,6 +1,6 @@
 pub mod api;
 
-use log::{error, info};
+use tracing::{error, info};
 
 use reqwest::Client;
 

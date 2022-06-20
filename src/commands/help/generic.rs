@@ -7,6 +7,7 @@ use std::fmt::Write;
 use crate::util::Response;
 use crate::GROUPS;
 
+#[tracing::instrument(level = "info")]
 pub async fn help(name: Option<&str>) -> Result<Response, Response> {
 	match name {
 		Some(name) => {

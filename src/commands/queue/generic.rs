@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use itertools::Itertools;
 
-use log::{error, info};
+use tracing::{error, info};
 
 use rand::Rng;
 
@@ -15,6 +15,7 @@ use crate::data::VoiceGuilds;
 use crate::parser::NumOrRange;
 use crate::util::*;
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
@@ -37,6 +38,7 @@ pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, 
 	Ok("Cleared queue and stopped playing".into())
 }
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn skip(
 	ctx: &Context,
 	guild_id: Option<GuildId>,
@@ -116,6 +118,7 @@ pub async fn skip(
 		})
 }
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn pause(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
@@ -135,6 +138,7 @@ pub async fn pause(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response,
 		})
 }
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn unpause(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
@@ -154,6 +158,7 @@ pub async fn unpause(ctx: &Context, guild_id: Option<GuildId>) -> Result<Respons
 		})
 }
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn queue(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
@@ -195,6 +200,7 @@ pub async fn queue(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response,
 	.into())
 }
 
+#[tracing::instrument(level = "info", skip(ctx))]
 pub async fn shuffle(
 	ctx: &Context,
 	guild_id: Option<GuildId>,

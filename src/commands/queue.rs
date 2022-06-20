@@ -1,4 +1,4 @@
-use log::info;
+use tracing::info;
 
 use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;

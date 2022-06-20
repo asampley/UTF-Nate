@@ -2,7 +2,7 @@ use dashmap::DashMap;
 
 use fxhash::FxBuildHasher as BuildHasher;
 
-use log::debug;
+use tracing::debug;
 
 use serenity::async_trait;
 use serenity::futures::channel::mpsc;

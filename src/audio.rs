@@ -2,7 +2,7 @@ use futures::Future;
 
 use itertools::Itertools;
 
-use log::{debug, error, warn};
+use tracing::{debug, error, warn};
 
 use once_cell::sync::Lazy;
 
@@ -32,7 +32,7 @@ static YOUTUBE_HOST: Lazy<Regex> =
 
 static SPOTIFY_HOST: Lazy<Regex> = Lazy::new(|| Regex::new("^open\\.spotify\\.com").unwrap());
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PlayStyle {
 	Play,
 	Clip,
