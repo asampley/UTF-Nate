@@ -9,8 +9,8 @@ mod spotify;
 mod util;
 mod youtube;
 
-use log::LevelFilter;
 use tracing::{error, info};
+use tracing_subscriber::filter::LevelFilter;
 
 use once_cell::sync::Lazy;
 
@@ -94,23 +94,16 @@ struct Opt {
 #[tokio::main]
 async fn main() {
 	// initialize logging
-	env_logger::Builder::new()
-		.filter_module(
-			"utf_nate",
-			match OPT.verbose {
-				true => LevelFilter::Debug,
-				false => LevelFilter::Info,
-			},
-		)
-		.filter_module(
-			"songbird",
-			match OPT.verbose {
-				true => LevelFilter::Debug,
-				false => LevelFilter::Info,
-			},
-		)
-		.format_timestamp_micros()
-		.init();
+	let subscriber = tracing_subscriber::fmt()
+		.with_max_level(match OPT.verbose {
+			true => LevelFilter::DEBUG,
+			false => LevelFilter::INFO,
+		})
+		.compact()
+		.finish();
+	
+	tracing::subscriber::set_global_default(subscriber)
+		.expect("unable to set default tracing subscriber");
 
 	// warn if there are duplicate clip names
 	audio::warn_duplicate_clip_names();
