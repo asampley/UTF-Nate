@@ -1,4 +1,4 @@
-use tracing::info;
+use tracing::{error, info};
 
 use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
@@ -15,9 +15,11 @@ use crate::util::*;
 
 mod generic;
 
+use generic::LoopArg;
+
 #[group("queue")]
 #[description("Commands for viewing and controlling the queue")]
-#[commands(stop, skip, pause, unpause, queue, shuffle, shufflenow)]
+#[commands(stop, skip, loop, pause, unpause, queue, shuffle, shufflenow)]
 pub struct Queue;
 
 #[command]
@@ -229,4 +231,83 @@ pub fn shufflenow_interaction_create(
 	cmd: &mut CreateApplicationCommand,
 ) -> &mut CreateApplicationCommand {
 	create_interaction(&SHUFFLENOW_COMMAND, cmd)
+}
+
+#[command]
+#[only_in(guilds)]
+#[help_available]
+#[description("Set how many time the current song should loop")]
+#[min_args(1)]
+#[max_args(1)]
+#[usage("<loop times>")]
+#[example("on")]
+#[example("off")]
+#[example("3")]
+pub async fn r#loop(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+	let looop = match args.parse::<LoopArg>() {
+		Ok(looop) => looop,
+		Err(e) => {
+			info!("Unable to parse loop argument: {}", e);
+
+			msg.respond_err(
+				ctx,
+				&"Loop argument did not parse.
+					Please enter the word \"on\" or \"off\" or enter a non-negative integer"
+					.into(),
+			)
+			.await?;
+
+			return Ok(());
+		}
+	};
+
+	run(ctx, msg, generic::r#loop(ctx, msg.guild_id, looop)).await
+}
+
+pub async fn loop_interaction(
+	ctx: &Context,
+	int: &ApplicationCommandInteraction,
+) -> serenity::Result<()> {
+	let looop = match get_option_string(ctx, int, &int.data.options, "count").await? {
+		Some(looop) => match looop.parse() {
+			Ok(looop) => looop,
+			Err(e) => {
+				info!("Unable to parse loop argument: {}", e);
+
+				int.respond_err(
+					ctx,
+					&"Loop argument did not parse.
+						Please enter the word \"on\" or \"off\" or enter a non-negative integer"
+						.into(),
+				)
+				.await?;
+
+				return Ok(());
+			}
+		},
+		None => {
+			error!("No loop argument passed");
+			int.respond_err(
+				ctx,
+				&"Please enter the word \"on\" or \"off\" or enter a non-negative integer".into(),
+			)
+			.await?;
+
+			return Ok(());
+		}
+	};
+
+	run(ctx, int, generic::r#loop(ctx, int.guild_id, looop)).await
+}
+
+pub fn loop_interaction_create(
+	cmd: &mut CreateApplicationCommand,
+) -> &mut CreateApplicationCommand {
+	create_interaction(&LOOP_COMMAND, cmd).create_option(|option| {
+		option
+			.name("count")
+			.description("Number of loops, or \"on\" to loop forever, \"off\" to stop")
+			.kind(ApplicationCommandOptionType::String)
+			.required(true)
+	})
 }

@@ -14,9 +14,9 @@ use crate::commands::play::{
 	playnow_interaction_create,
 };
 use crate::commands::queue::{
-	pause_interaction_create, queue_interaction_create, shuffle_interaction_create,
-	shufflenow_interaction_create, skip_interaction_create, stop_interaction_create,
-	unpause_interaction_create,
+	loop_interaction_create, pause_interaction_create, queue_interaction_create,
+	shuffle_interaction_create, shufflenow_interaction_create, skip_interaction_create,
+	stop_interaction_create, unpause_interaction_create,
 };
 use crate::commands::roll::roll_interaction_create;
 use crate::commands::voice::{list_interaction_create, volume_interaction_create};
@@ -53,6 +53,7 @@ pub async fn reregister(http: &Http) -> serenity::Result<()> {
 			.create_application_command(queue_interaction_create)
 			.create_application_command(shuffle_interaction_create)
 			.create_application_command(shufflenow_interaction_create)
+			.create_application_command(loop_interaction_create)
 			.create_application_command(help_interaction_create)
 			.create_application_command(roll_interaction_create)
 			.create_application_command(cmd_interaction_create)

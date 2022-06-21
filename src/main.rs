@@ -101,7 +101,7 @@ async fn main() {
 		})
 		.compact()
 		.finish();
-	
+
 	tracing::subscriber::set_global_default(subscriber)
 		.expect("unable to set default tracing subscriber");
 
@@ -140,9 +140,11 @@ async fn main() {
 	if OPT.reregister {
 		match reregister(&http).await {
 			Ok(()) => (),
-			Err(e) => error!("Unable to reregister slash commands: {e}"),
+			Err(e) => {
+				error!("Unable to reregister slash commands: {e}");
+				return;
+			}
 		}
-		return;
 	}
 
 	// initialize database connection

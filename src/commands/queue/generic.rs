@@ -236,6 +236,64 @@ pub async fn shuffle(
 		.map(|_| "Shuffled queue".into())
 		.map_err(|e| {
 			error!("{:?}", e);
-			"Error shuflling queue".into()
+			"Error shuffling queue".into()
 		})
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LoopArg {
+	On,
+	Off,
+	Count(usize),
+}
+
+impl core::str::FromStr for LoopArg {
+	type Err = core::num::ParseIntError;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		Ok(if s.eq_ignore_ascii_case("on") {
+			LoopArg::On
+		} else if s.eq_ignore_ascii_case("off") {
+			LoopArg::Off
+		} else {
+			LoopArg::Count(s.parse()?)
+		})
+	}
+}
+
+#[tracing::instrument(level = "info", ret, skip(ctx))]
+pub async fn r#loop(
+	ctx: &Context,
+	guild_id: Option<GuildId>,
+	loop_arg: LoopArg,
+) -> Result<Response, Response> {
+	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
+
+	let call = ctx
+		.data
+		.read()
+		.await
+		.clone_expect::<SongbirdKey>()
+		.get_or_insert(guild_id.into())
+		.clone();
+
+	let call = call.lock().await;
+
+	let queue = call.queue();
+
+	let current = queue.current().ok_or("Nothing is currently playing")?;
+
+	match loop_arg {
+		LoopArg::On => current.enable_loop().map(|_| "Looping current song".into()),
+		LoopArg::Off => current
+			.disable_loop()
+			.map(|_| "No longer looping current song".into()),
+		LoopArg::Count(c) => current
+			.loop_for(c)
+			.map(|_| format!("Looping current song {c} more times").into()),
+	}
+	.map_err(|e| {
+		error!("{:?}", e);
+		"Error changing looping settings".into()
+	})
 }

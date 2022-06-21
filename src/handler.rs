@@ -21,8 +21,8 @@ use crate::commands::play::{
 	clip_interaction, play_interaction, playnext_interaction, playnow_interaction,
 };
 use crate::commands::queue::{
-	pause_interaction, queue_interaction, shuffle_interaction, shufflenow_interaction,
-	skip_interaction, stop_interaction, unpause_interaction,
+	loop_interaction, pause_interaction, queue_interaction, shuffle_interaction,
+	shufflenow_interaction, skip_interaction, stop_interaction, unpause_interaction,
 };
 use crate::commands::roll::roll_interaction;
 use crate::commands::voice::{list_interaction, volume_interaction};
@@ -73,6 +73,7 @@ impl SerenityEventHandler for Handler {
 				"queue" => queue_interaction(&ctx, &command).await,
 				"shuffle" => shuffle_interaction(&ctx, &command).await,
 				"shufflenow" => shufflenow_interaction(&ctx, &command).await,
+				"loop" => loop_interaction(&ctx, &command).await,
 				"roll" => roll_interaction(&ctx, &command).await,
 				"help" => help_interaction(&ctx, &command).await,
 				"cmd" => cmd_interaction(&ctx, &command).await,
