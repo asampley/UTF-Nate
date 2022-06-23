@@ -9,6 +9,8 @@ mod spotify;
 mod util;
 mod youtube;
 
+use clap::Parser;
+
 use tracing::{error, info};
 use tracing_subscriber::filter::LevelFilter;
 
@@ -28,8 +30,6 @@ use serenity::prelude::{Context, RwLock};
 use songbird::serenity::SerenityInit;
 
 use sqlx::{Executor, PgPool};
-
-use structopt::StructOpt;
 
 use configuration::Config;
 use data::{Keys, VoiceGuilds, VoiceUserCache};
@@ -73,15 +73,15 @@ impl serenity::prelude::TypeMapKey for Pool {
 	type Value = PgPool;
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 struct Opt {
-	#[structopt(long, help = "Run intializing scripts for database")]
+	#[clap(long, help = "Run intializing scripts for database")]
 	init_database: bool,
 
-	#[structopt(long, help = "Reregister slash commands with discord")]
+	#[clap(long, help = "Reregister slash commands with discord")]
 	reregister: bool,
 
-	#[structopt(
+	#[clap(
 		long,
 		help = "Do not run the bot; useful when registering slash commands or initializing the database"
 	)]
