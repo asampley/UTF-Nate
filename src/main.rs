@@ -87,7 +87,7 @@ struct Opt {
 	)]
 	no_bot: bool,
 
-	#[structopt(long, short, help = "Run command with additional logging")]
+	#[clap(long, short, help = "Run command with additional logging")]
 	verbose: bool,
 }
 
