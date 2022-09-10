@@ -4,10 +4,9 @@ use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{Args, Command, CommandResult};
+use serenity::model::application::command::CommandOptionType;
+use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
 use serenity::model::channel::Message;
-use serenity::model::interactions::application_command::{
-	ApplicationCommandInteraction, ApplicationCommandOptionType,
-};
 
 use crate::audio::PlayStyle;
 use crate::commands::{create_interaction, run};
@@ -60,7 +59,7 @@ pub fn clip_interaction_create(
 		option
 			.name("clip")
 			.description("Clip to play")
-			.kind(ApplicationCommandOptionType::String)
+			.kind(CommandOptionType::String)
 			.required(true)
 	})
 }
@@ -109,7 +108,7 @@ fn play_type_interaction_create<'a>(
 		option
 			.name("input")
 			.description("Youtube or Spotify URL, or youtube search")
-			.kind(ApplicationCommandOptionType::String)
+			.kind(CommandOptionType::String)
 			.required(true)
 	})
 }

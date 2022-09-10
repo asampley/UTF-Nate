@@ -16,7 +16,6 @@ use tracing_subscriber::filter::LevelFilter;
 
 use once_cell::sync::Lazy;
 
-use serenity::client::bridge::gateway::GatewayIntents;
 use serenity::client::ClientBuilder;
 use serenity::framework::standard::macros::hook;
 use serenity::framework::standard::{
@@ -24,6 +23,7 @@ use serenity::framework::standard::{
 };
 use serenity::http::client::Http;
 use serenity::model::channel::Message;
+use serenity::model::gateway::GatewayIntents;
 use serenity::model::Permissions;
 use serenity::prelude::{Context, RwLock};
 
@@ -75,19 +75,20 @@ impl serenity::prelude::TypeMapKey for Pool {
 
 #[derive(Debug, Parser)]
 struct Opt {
-	#[clap(long, help = "Run intializing scripts for database")]
+	/// Run initializing scripts for database
+	#[clap(long)]
 	init_database: bool,
 
-	#[clap(long, help = "Reregister slash commands with discord")]
+	/// Reregister slash commands with discord
+	#[clap(long)]
 	reregister: bool,
 
-	#[clap(
-		long,
-		help = "Do not run the bot; useful when registering slash commands or initializing the database"
-	)]
+	/// Do not run the bot. Useful when registering slash commands or initializing the database
+	#[clap(long)]
 	no_bot: bool,
 
-	#[clap(long, short, help = "Run command with additional logging")]
+	/// Run command with additional logging
+	#[clap(long, short)]
 	verbose: bool,
 }
 
@@ -135,7 +136,7 @@ async fn main() {
 	);
 
 	let http =
-		Http::new_with_token_application_id(&keys.discord.token, keys.discord.application_id);
+		Http::new_with_application_id(&keys.discord.token, keys.discord.application_id);
 
 	if OPT.reregister {
 		match reregister(&http).await {
@@ -208,8 +209,7 @@ async fn main() {
 		let framework = GROUPS.iter().fold(framework, |f, group| f.group(group));
 
 		// login with a bot token from file
-		let mut client = match ClientBuilder::new_with_http(http)
-			.intents(GATEWAY_INTENTS)
+		let mut client = match ClientBuilder::new_with_http(http, GATEWAY_INTENTS)
 			.event_handler(Handler)
 			.framework(framework)
 			.type_map_insert::<VoiceUserCache>(Default::default())
@@ -254,7 +254,7 @@ fn load_config() -> Config {
 
 #[hook]
 async fn unrecognised_command(ctx: &Context, msg: &Message, cmd: &str) {
-	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone()).await;
+	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone());
 	check_msg(
 		msg.reply(&ctx, format!("Unrecognised command: {}", cmd))
 			.await,
@@ -268,7 +268,7 @@ async fn unrecognised_command(ctx: &Context, msg: &Message, cmd: &str) {
 
 #[hook]
 async fn before_hook(ctx: &Context, msg: &Message, cmd: &str) -> bool {
-	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone()).await;
+	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone());
 	info!(
 		"User {} ({}) in guild {:?} ({:?}) running {} with message: {}",
 		msg.author.name, msg.author.id, guild_name, msg.guild_id, cmd, msg.content
@@ -279,7 +279,7 @@ async fn before_hook(ctx: &Context, msg: &Message, cmd: &str) -> bool {
 
 #[hook]
 async fn after_hook(ctx: &Context, msg: &Message, cmd: &str, res: CommandResult) {
-	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone()).await;
+	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone());
 
 	info!(
 		"User {} ({}) in guild {:?} ({:?}) completed {} with result {:?} with message: {}",
@@ -288,28 +288,28 @@ async fn after_hook(ctx: &Context, msg: &Message, cmd: &str, res: CommandResult)
 }
 
 #[hook]
-async fn on_dispatch_error(ctx: &Context, msg: &Message, err: DispatchError) {
+async fn on_dispatch_error(ctx: &Context, msg: &Message, err: DispatchError, cmd: &str) {
 	use DispatchError::*;
 	match err {
 		NotEnoughArguments { min, given } => {
 			let s = format!(
-				"Too few arguments. Expected at least {}, but got {}.",
-				min, given
+				"Too few arguments for the {} command. Expected at least {}, but got {}.",
+				cmd, min, given
 			);
 
 			check_msg(msg.respond_err(ctx, &s.into()).await);
 		}
 		TooManyArguments { max, given } => {
 			let s = format!(
-				"Too many arguments. Expected at most {}, but got {}.",
-				max, given
+				"Too many arguments for the {} command. Expected at most {}, but got {}.",
+				cmd, max, given
 			);
 
 			check_msg(msg.respond_err(ctx, &s.into()).await);
 		}
 		OnlyForGuilds => {
 			check_msg(
-				msg.respond_err(ctx, &"This command is only available in guilds".into())
+				msg.respond_err(ctx, &format!("The {} command is only available in guilds", cmd).into())
 					.await,
 			);
 		}

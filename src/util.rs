@@ -12,10 +12,9 @@ use serde_json::Value;
 
 use serenity::async_trait;
 use serenity::client::Context;
+use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
 use serenity::model::channel::Message;
-use serenity::model::interactions::application_command::{
-	ApplicationCommandInteraction, ApplicationCommandInteractionDataOption,
-};
+use serenity::model::application::interaction::application_command::CommandDataOption;
 use serenity::prelude::{SerenityError, TypeMap, TypeMapKey};
 
 use thiserror::Error;
@@ -24,9 +23,9 @@ use std::fmt;
 use std::path::Path;
 
 pub fn get_option<'a>(
-	options: &'a Vec<ApplicationCommandInteractionDataOption>,
+	options: &'a Vec<CommandDataOption>,
 	name: &str,
-) -> Option<&'a ApplicationCommandInteractionDataOption> {
+) -> Option<&'a CommandDataOption> {
 	options.iter().find_map(|option| {
 		if option.name == name {
 			Some(option)
@@ -37,7 +36,7 @@ pub fn get_option<'a>(
 }
 
 pub fn get_option_value<'a>(
-	options: &'a Vec<ApplicationCommandInteractionDataOption>,
+	options: &'a Vec<CommandDataOption>,
 	name: &str,
 ) -> Option<&'a Value> {
 	get_option(options, name).and_then(|o| o.value.as_ref())
@@ -46,7 +45,7 @@ pub fn get_option_value<'a>(
 pub async fn get_option_string<'a>(
 	ctx: &Context,
 	interaction: &'a ApplicationCommandInteraction,
-	options: &'a Vec<ApplicationCommandInteractionDataOption>,
+	options: &'a Vec<CommandDataOption>,
 	name: &str,
 ) -> Result<Option<&'a str>, SerenityError> {
 	match get_option_value(options, name) {
@@ -67,7 +66,7 @@ pub async fn get_option_string<'a>(
 pub async fn get_option_f32<'a>(
 	ctx: &Context,
 	interaction: &'a ApplicationCommandInteraction,
-	options: &'a Vec<ApplicationCommandInteractionDataOption>,
+	options: &'a Vec<CommandDataOption>,
 	name: &str,
 ) -> Result<Option<f32>, SerenityError> {
 	match get_option_value(options, name) {
@@ -88,7 +87,7 @@ pub async fn get_option_f32<'a>(
 pub async fn get_option_usize<'a>(
 	ctx: &Context,
 	interaction: &'a ApplicationCommandInteraction,
-	options: &'a Vec<ApplicationCommandInteractionDataOption>,
+	options: &'a Vec<CommandDataOption>,
 	name: &str,
 ) -> Result<Option<usize>, SerenityError> {
 	match get_option_value(options, name) {

@@ -132,7 +132,7 @@ pub async fn volume(
 						let songbird = data_lock.clone_expect::<SongbirdKey>();
 
 						for handle in songbird
-							.get_or_insert(guild_id.into())
+							.get_or_insert(guild_id)
 							.lock()
 							.await
 							.queue()

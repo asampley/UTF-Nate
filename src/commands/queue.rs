@@ -4,10 +4,9 @@ use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{Args, CommandResult};
+use serenity::model::application::command::CommandOptionType;
+use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
 use serenity::model::channel::Message;
-use serenity::model::interactions::application_command::{
-	ApplicationCommandInteraction, ApplicationCommandOptionType,
-};
 
 use crate::commands::{create_interaction, run};
 use crate::parser::set;
@@ -112,7 +111,7 @@ pub fn skip_interaction_create(
 		option
 			.name("selection")
 			.description("Range or index of songs to skip, separated by commas")
-			.kind(ApplicationCommandOptionType::String)
+			.kind(CommandOptionType::String)
 	})
 }
 
@@ -307,7 +306,7 @@ pub fn loop_interaction_create(
 		option
 			.name("count")
 			.description("Number of loops, or \"on\" to loop forever, \"off\" to stop")
-			.kind(ApplicationCommandOptionType::String)
+			.kind(CommandOptionType::String)
 			.required(true)
 	})
 }

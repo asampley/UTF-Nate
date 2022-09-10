@@ -27,7 +27,7 @@ yt-dlp = ["songbird/yt-dlp"]
 youtube-dlc = ["songbird/youtube-dlc"]
 
 [dependencies.clap]
-clap = "3.2"
+version = "3.2"
 features = ["derive"]
 
 [dependencies.tracing]
@@ -38,7 +38,7 @@ version = "1.0"
 features = ["derive"]
 
 [dependencies.serenity]
-version = "0.10"
+version = "0.11"
 features = ["builder", "cache", "client", "framework", "gateway", "http", "model", "standard_framework", "utils", "rustls_backend", "unstable_discord_api", "voice"]
 
 [dependencies.tokio]
@@ -46,7 +46,7 @@ version = "1.0"
 features = ["macros", "rt-multi-thread"]
 
 [dependencies.songbird]
-version = "0.2"
+version = "0.3"
 features = ["driver", "builtin-queue"]
 
 [dependencies.reqwest]

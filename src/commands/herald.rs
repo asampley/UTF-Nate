@@ -2,10 +2,9 @@ use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{Args, CommandResult};
+use serenity::model::application::command::CommandOptionType;
+use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
 use serenity::model::channel::Message;
-use serenity::model::interactions::application_command::{
-	ApplicationCommandInteraction, ApplicationCommandOptionType,
-};
 
 use crate::commands::{create_interaction, run};
 use crate::util::*;
@@ -58,7 +57,7 @@ pub fn intro_interaction_create(
 		option
 			.name("clip")
 			.description("Clip path to play when you enter a channel")
-			.kind(ApplicationCommandOptionType::String)
+			.kind(CommandOptionType::String)
 	})
 }
 
@@ -69,7 +68,7 @@ pub fn outro_interaction_create(
 		option
 			.name("clip")
 			.description("Clip path to play when you exit a channel")
-			.kind(ApplicationCommandOptionType::String)
+			.kind(CommandOptionType::String)
 	})
 }
 
@@ -110,7 +109,7 @@ pub fn introbot_interaction_create(
 		option
 			.name("clip")
 			.description("Clip path to play when the bot enters a channel in this guild")
-			.kind(ApplicationCommandOptionType::String)
+			.kind(CommandOptionType::String)
 	})
 }
 

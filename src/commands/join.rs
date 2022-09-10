@@ -2,8 +2,8 @@ use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::CommandResult;
+use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
 use serenity::model::channel::Message;
-use serenity::model::interactions::application_command::ApplicationCommandInteraction;
 
 use crate::commands::{create_interaction, run};
 

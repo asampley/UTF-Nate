@@ -1,9 +1,9 @@
 use tracing::{error, info};
 
 use serenity::async_trait;
+use serenity::model::application::interaction::Interaction;
 use serenity::model::gateway::Ready;
-use serenity::model::id::GuildId;
-use serenity::model::prelude::{Activity, Interaction};
+use serenity::model::prelude::Activity;
 use serenity::model::voice::VoiceState;
 use serenity::prelude::Context;
 use serenity::prelude::EventHandler as SerenityEventHandler;
@@ -42,7 +42,7 @@ impl SerenityEventHandler for Handler {
 	async fn ready(&self, ctx: Context, _: Ready) {
 		info!("Bot started!");
 
-		info!("Bot info {:?}", ctx.cache.current_user_id().await);
+		info!("Bot info {:?}", ctx.cache.current_user_id());
 
 		ctx.set_activity(Activity::watching("you.")).await;
 	}
@@ -94,11 +94,10 @@ impl SerenityEventHandler for Handler {
 	async fn voice_state_update(
 		&self,
 		ctx: Context,
-		guild_id: Option<GuildId>,
 		old_state: Option<VoiceState>,
 		new_state: VoiceState,
 	) {
-		if let Some(guild_id) = guild_id {
+		if let Some(guild_id) = new_state.guild_id {
 			let (bot_channel, previous_channel, user_channel) = {
 				let cache_guild = ctx
 					.data
@@ -109,7 +108,7 @@ impl SerenityEventHandler for Handler {
 					.or_default()
 					.clone();
 
-				let bot_id = ctx.cache.current_user_id().await;
+				let bot_id = ctx.cache.current_user_id();
 
 				// update cache if the user is the bot
 				if new_state.user_id == bot_id {
@@ -143,7 +142,7 @@ impl SerenityEventHandler for Handler {
 				let clip = {
 					let pool = ctx.data.read().await.clone_expect::<Pool>();
 
-					if new_state.user_id == ctx.cache.current_user_id().await {
+					if new_state.user_id == ctx.cache.current_user_id() {
 						match io {
 							IOClip::Intro => Config::get_bot_intro(&pool, &guild_id)
 								.await

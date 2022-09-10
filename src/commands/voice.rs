@@ -2,10 +2,9 @@ use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{Args, CommandResult};
+use serenity::model::application::command::CommandOptionType;
+use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
 use serenity::model::channel::Message;
-use serenity::model::interactions::application_command::{
-	ApplicationCommandInteraction, ApplicationCommandOptionType,
-};
 
 use crate::audio::PlayStyle;
 use crate::commands::{create_interaction, run};
@@ -101,30 +100,30 @@ pub fn volume_interaction_create(
 			option
 				.name("get")
 				.description("Get the volume for both play and clip commands")
-				.kind(ApplicationCommandOptionType::SubCommand)
+				.kind(CommandOptionType::SubCommand)
 		})
 		.create_option(|option| {
 			option
 				.name("play")
 				.description("Get or set the volume for play commands")
-				.kind(ApplicationCommandOptionType::SubCommand)
+				.kind(CommandOptionType::SubCommand)
 				.create_sub_option(|option| {
 					option
 						.name("volume")
 						.description("Volume between 0.0 and 1.0")
-						.kind(ApplicationCommandOptionType::Number)
+						.kind(CommandOptionType::Number)
 				})
 		})
 		.create_option(|option| {
 			option
 				.name("clip")
 				.description("Get or set the volume for play commands")
-				.kind(ApplicationCommandOptionType::SubCommand)
+				.kind(CommandOptionType::SubCommand)
 				.create_sub_option(|option| {
 					option
 						.name("volume")
 						.description("Volume between 0.0 and 1.0")
-						.kind(ApplicationCommandOptionType::Number)
+						.kind(CommandOptionType::Number)
 				})
 		})
 }
@@ -164,6 +163,6 @@ pub fn list_interaction_create(
 		option
 			.name("path")
 			.description("Path to list clips underneath")
-			.kind(ApplicationCommandOptionType::String)
+			.kind(CommandOptionType::String)
 	})
 }

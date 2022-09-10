@@ -29,7 +29,7 @@ pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, 
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
-		.get_or_insert(guild_id.into())
+		.get_or_insert(guild_id)
 		.lock()
 		.await
 		.queue()
@@ -51,7 +51,7 @@ pub async fn skip(
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
-		.get_or_insert(guild_id.into())
+		.get_or_insert(guild_id)
 		.clone();
 
 	let call = call.lock().await;
@@ -126,7 +126,7 @@ pub async fn pause(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response,
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
-		.get_or_insert(guild_id.into())
+		.get_or_insert(guild_id)
 		.lock()
 		.await
 		.queue()
@@ -146,7 +146,7 @@ pub async fn unpause(ctx: &Context, guild_id: Option<GuildId>) -> Result<Respons
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
-		.get_or_insert(guild_id.into())
+		.get_or_insert(guild_id)
 		.lock()
 		.await
 		.queue()
@@ -167,7 +167,7 @@ pub async fn queue(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response,
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
-		.get_or_insert(guild_id.into());
+		.get_or_insert(guild_id);
 
 	let lock = call.lock().await;
 
@@ -213,7 +213,7 @@ pub async fn shuffle(
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
-		.get_or_insert(guild_id.into())
+		.get_or_insert(guild_id)
 		.clone();
 
 	let call = call.lock().await;
@@ -274,7 +274,7 @@ pub async fn r#loop(
 		.read()
 		.await
 		.clone_expect::<SongbirdKey>()
-		.get_or_insert(guild_id.into())
+		.get_or_insert(guild_id)
 		.clone();
 
 	let call = call.lock().await;

@@ -14,7 +14,6 @@ pub async fn summon(
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 	let guild = guild_id
 		.to_guild_cached(&ctx.cache)
-		.await
 		.ok_or("Internal bot error")?;
 
 	let channel_id = guild

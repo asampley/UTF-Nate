@@ -3,8 +3,8 @@ use tracing::{error, info};
 use serenity::async_trait;
 use serenity::builder::CreateEmbed;
 use serenity::client::Context;
+use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
 use serenity::model::channel::Message;
-use serenity::model::interactions::application_command::ApplicationCommandInteraction;
 use serenity::utils::Color;
 
 use std::fmt::Debug;
@@ -110,7 +110,7 @@ impl Respond for ApplicationCommandInteraction {
 	) -> serenity::Result<Self::Value> {
 		self.create_interaction_response(&ctx.http, |response| {
 			response.interaction_response_data(|data| {
-				data.create_embed(|embed| Response::embed(result, embed))
+				data.embed(|embed| Response::embed(result, embed))
 			})
 		})
 		.await

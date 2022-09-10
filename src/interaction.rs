@@ -1,7 +1,7 @@
 use tracing::{debug, info};
 
 use serenity::http::client::Http;
-use serenity::model::interactions::application_command::ApplicationCommand;
+use serenity::model::application::command::Command;
 
 use crate::commands::external::{cmd_interaction_create, cmdlist_interaction_create};
 use crate::commands::help::help_interaction_create;
@@ -33,7 +33,7 @@ pub async fn reregister(http: &Http) -> serenity::Result<()> {
 	}
 	info!("Deleted old slash commands");
 
-	ApplicationCommand::set_global_application_commands(http, |commands| {
+	Command::set_global_application_commands(http, |commands| {
 		commands
 			.create_application_command(intro_interaction_create)
 			.create_application_command(outro_interaction_create)
@@ -64,7 +64,7 @@ pub async fn reregister(http: &Http) -> serenity::Result<()> {
 
 	debug!(
 		"Registered slash commands: {:#?}",
-		ApplicationCommand::get_global_application_commands(&http).await?,
+		Command::get_global_application_commands(&http).await?,
 	);
 	info!("Reregistered slash commands");
 

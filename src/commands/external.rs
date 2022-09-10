@@ -2,10 +2,9 @@ use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{Args, CommandResult, Delimiter};
+use serenity::model::application::command::CommandOptionType;
+use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
 use serenity::model::channel::Message;
-use serenity::model::interactions::application_command::{
-	ApplicationCommandInteraction, ApplicationCommandOptionType,
-};
 
 use std::path::{Path, PathBuf};
 
@@ -57,14 +56,14 @@ pub fn cmd_interaction_create(cmd: &mut CreateApplicationCommand) -> &mut Create
 			option
 				.name("command")
 				.description("Command to run")
-				.kind(ApplicationCommandOptionType::String)
+				.kind(CommandOptionType::String)
 				.required(true)
 		})
 		.create_option(|option| {
 			option
 				.name("args")
 				.description("Arguments to pass on to the command")
-				.kind(ApplicationCommandOptionType::String)
+				.kind(CommandOptionType::String)
 		})
 }
 
@@ -104,6 +103,6 @@ pub fn cmdlist_interaction_create(
 		option
 			.name("path")
 			.description("Path to list commands underneath")
-			.kind(ApplicationCommandOptionType::String)
+			.kind(CommandOptionType::String)
 	})
 }

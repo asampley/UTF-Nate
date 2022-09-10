@@ -2,10 +2,9 @@ use serenity::builder::CreateApplicationCommand;
 use serenity::client::Context;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{Args, CommandResult};
+use serenity::model::application::command::CommandOptionType;
+use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
 use serenity::model::channel::Message;
-use serenity::model::interactions::application_command::{
-	ApplicationCommandInteraction, ApplicationCommandOptionType,
-};
 
 use crate::commands::{create_interaction_set_description, run};
 use crate::util::*;
@@ -36,7 +35,7 @@ pub fn roll_interaction_create(
 			option
 				.name("expression")
 				.description("Dice expression to roll and calculate")
-				.kind(ApplicationCommandOptionType::String)
+				.kind(CommandOptionType::String)
 				.required(true)
 		})
 }
