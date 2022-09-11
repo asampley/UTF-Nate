@@ -159,7 +159,7 @@ impl SerenityEventHandler for Handler {
 								.map_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
-								.unwrap_or("bnw/cowhappy".to_owned()),
+								.unwrap_or("bnw/cow happy".to_owned()),
 							IOClip::Outro => Config::get_outro(&pool, &new_state.user_id)
 								.await
 								.map_err(|e| error!("Error fetching outro: {:?}", e))
