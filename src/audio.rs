@@ -341,32 +341,20 @@ pub fn warn_duplicate_clip_names() {
 
 pub fn find_clip(loc: &str) -> FindClip {
 	let clip_path = clip_path();
-	let components = loc.split('/').collect_vec();
+	//let components = loc.split('/').collect_vec();
 
 	let top_two = WalkDir::new(&clip_path)
 		.into_iter()
 		.filter_map(|f| f.ok())
 		.filter(|f| f.file_type().is_file())
-		// The last element of the components must match the file name
-		.filter(|f| {
-			components.last().map_or(false, |last| {
-				last == &f.path().file_stem().unwrap().to_string_lossy().as_ref()
-			})
-		})
-		// count the number of components in a path which match the supplied components
-		// the highest score becomes the clip
-		// a tie results in no clip returned
-		.map(|f| OrdKey {
-			key: -(f
-				.path()
-				.components()
-				.filter(|c| {
-					components
-						.iter()
-						.any(|d| d == &c.as_os_str().to_string_lossy())
-				})
-				.count() as isize),
-			value: f,
+		// calculate the levenshtein distance of each file
+		.filter_map(|f| {
+			let dist = triple_accel::levenshtein::levenshtein_search(
+				&loc.as_bytes(),
+				f.path().to_string_lossy().as_bytes()
+			).nth(0)?.k;
+
+			Some(OrdKey { key: dist, value: f })
 		})
 		.k_smallest(2)
 		.collect_vec();
