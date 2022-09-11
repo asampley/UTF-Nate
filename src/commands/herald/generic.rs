@@ -20,10 +20,15 @@ pub async fn intro_outro(
 	let clip = match clip {
 		Some(clip) => match find_clip(&clip) {
 			FindClip::One(clip) => Some(clip),
-			FindClip::Multiple => {
+			FindClip::Multiple(clip_a, clip_b) => {
 				return Err(format!(
-					"Multiple clips matching {} found. Please be more specific.",
-					clip
+					"Multiple clips matching {} found. Please be more specific.\n\
+					> {}\n\
+					> {}\n\
+					> ...",
+					clip,
+					clip_a,
+					clip_b
 				)
 				.into())
 			}
@@ -82,10 +87,15 @@ pub async fn introbot(
 	let clip = match clip {
 		Some(clip) => match find_clip(&clip) {
 			FindClip::One(clip) => Some(clip),
-			FindClip::Multiple => {
+			FindClip::Multiple(clip_a, clip_b) => {
 				return Err(format!(
-					"Multiple clips matching {} found. Please be more specific.",
-					clip
+					"Multiple clips matching {} found. Please be more specific.\n\
+					> {}\n\
+					> {}\n\
+					> ...",
+					clip,
+					clip_a,
+					clip_b
 				)
 				.into())
 			}

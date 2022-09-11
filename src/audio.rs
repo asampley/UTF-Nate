@@ -67,7 +67,7 @@ pub enum AudioError {
 	#[error("unsupported url")]
 	UnsupportedUrl,
 	#[error("multiple clips matched")]
-	MultipleClip,
+	MultipleClip(String, String),
 	#[error("no clips matched")]
 	NotFound,
 }
@@ -78,7 +78,7 @@ pub async fn clip_source(loc: &str) -> Result<Input, AudioError> {
 			Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
 			None => Err(AudioError::NotFound),
 		},
-		FindClip::Multiple => Err(AudioError::MultipleClip),
+		FindClip::Multiple(clip_a, clip_b) => Err(AudioError::MultipleClip(clip_a, clip_b)),
 		FindClip::None => Err(AudioError::NotFound),
 	}
 }
@@ -323,7 +323,7 @@ where
 
 pub enum FindClip {
 	One(String),
-	Multiple,
+	Multiple(String, String),
 	None,
 }
 
@@ -364,7 +364,10 @@ pub fn find_clip(loc: &str) -> FindClip {
 	if top_two.len() == 0 {
 		FindClip::None
 	} else if top_two.len() > 1 && top_two[0].key == top_two[1].key {
-		FindClip::Multiple
+		FindClip::Multiple(
+            top_two[0].value.path().strip_prefix(&clip_path).unwrap().with_extension("").to_string_lossy().into_owned(),
+            top_two[1].value.path().strip_prefix(&clip_path).unwrap().with_extension("").to_string_lossy().into_owned()
+        )
 	} else {
 		FindClip::One(
 			top_two[0]

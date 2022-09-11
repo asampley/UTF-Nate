@@ -125,9 +125,14 @@ pub async fn play(
 				Err(match e {
 					AudioError::Songbird(_) => "Playback error".into(),
 					AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path).into(),
-					AudioError::MultipleClip => format!(
-						"Multiple clips matching {} found. Please be more specific.",
-						path
+					AudioError::MultipleClip(clip_a, clip_b) => format!(
+						"Multiple clips matching {} found. Please be more specific.\n\
+						> {}\n\
+						> {}\n\
+						> ...",
+						path,
+						clip_a,
+						clip_b
 					)
 					.into(),
 					AudioError::NotFound => format!("Clip {} not found", path).into(),
