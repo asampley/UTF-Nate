@@ -149,7 +149,7 @@ impl SerenityEventHandler for Handler {
 								.map_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
-								.unwrap_or("dota/bothello".to_owned()),
+								.unwrap_or("dota/bleep bloop I am a robot".to_owned()),
 							IOClip::Outro => return,
 						}
 					} else {
