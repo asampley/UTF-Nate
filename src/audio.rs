@@ -348,13 +348,24 @@ pub fn find_clip(loc: &str) -> FindClip {
 		.filter_map(|f| f.ok())
 		.filter(|f| f.file_type().is_file())
 		// calculate the levenshtein distance of each file
+        // break ties by prioritizing longest length of match
+        // followed by shortest length of clip path
 		.filter_map(|f| {
-			let dist = triple_accel::levenshtein::levenshtein_search(
-				&loc.as_bytes(),
-				f.path().to_string_lossy().as_bytes()
-			).nth(0)?.k;
+            let path = f.path().to_string_lossy();
 
-			Some(OrdKey { key: dist, value: f })
+			let leven = triple_accel::levenshtein::levenshtein_search(
+				&loc.as_bytes(),
+				path.as_bytes()
+			).nth(0)?;
+
+			Some(OrdKey {
+                key: (
+                     leven.k,
+                     -((leven.end - leven.start) as isize),
+                    path.len(),
+                ),
+                value: f 
+            })
 		})
 		.k_smallest(2)
 		.collect_vec();
