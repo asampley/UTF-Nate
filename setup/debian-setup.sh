@@ -8,7 +8,7 @@ set -euf
 # Install packages required for building, playing audio, and youtube-dl
 # Remove python if you don't need youtube-dl support
 # Remove postgresql if you don't require the database to be installed
-sudo apt install build-essential pkg-config libssl-dev ffmpeg autoconf libtool python postgresql
+sudo apt install build-essential pkg-config libssl-dev ffmpeg autoconf libtool python postgresql cmake
 
 # Add one of these youtube dl libraries to your install.
 # At time of writing, youtube-dlc proved to be the most functional and stable.
