@@ -339,6 +339,29 @@ pub fn warn_duplicate_clip_names() {
 		.for_each(|s| warn!("Multiple clips have the name \"{}\"", s));
 }
 
+pub fn warn_exact_name_finds_different_clip() {
+	let clip_path = clip_path();
+
+	WalkDir::new(&clip_path)
+		.into_iter()
+		.filter_map(|f| f.ok())
+		.filter(|f| f.file_type().is_file())
+		.filter(|f| {
+			let path = f.path();
+
+			match find_clip(&path.file_stem().unwrap().to_string_lossy()) {
+				FindClip::One(p) =>
+					p != path
+						.strip_prefix(&clip_path)
+						.unwrap()
+						.with_extension("")
+						.to_string_lossy(),
+				_ => true,
+			}
+		})
+		.for_each(|s| warn!("Clip {:?} does not get found searching for the exact name", s.path()));
+}
+
 pub fn find_clip(loc: &str) -> FindClip {
 	let clip_path = clip_path();
 	//let components = loc.split('/').collect_vec();

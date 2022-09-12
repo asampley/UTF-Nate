@@ -40,7 +40,7 @@ use util::{check_msg, read_toml, Respond};
 use std::sync::Arc;
 
 static OPT: Lazy<Opt> = Lazy::new(|| {
-	let opt = Opt::from_args();
+	let opt = Opt::parse();
 	println!("Options: {:#?}", opt);
 	opt
 });
@@ -109,6 +109,8 @@ async fn main() {
 
 	// warn if there are duplicate clip names
 	audio::warn_duplicate_clip_names();
+	// warn if clips cannot be found with search easily
+	audio::warn_exact_name_finds_different_clip();
 
 	// read keys file
 	let keys_path = "keys.toml";
