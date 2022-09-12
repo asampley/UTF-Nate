@@ -65,7 +65,8 @@ const RECOMMENDED_PERMISSIONS: Permissions = Permissions::SEND_MESSAGES
 const GATEWAY_INTENTS: GatewayIntents = GatewayIntents::GUILD_MESSAGES
 	.union(GatewayIntents::DIRECT_MESSAGES)
 	.union(GatewayIntents::GUILD_VOICE_STATES)
-	.union(GatewayIntents::GUILDS);
+	.union(GatewayIntents::GUILDS)
+	.union(GatewayIntents::MESSAGE_CONTENT);
 
 struct Pool;
 
