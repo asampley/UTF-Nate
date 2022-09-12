@@ -28,7 +28,7 @@ pub struct Play;
 #[example("peon werk werk")]
 #[example("peon/work work")]
 pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-	let path = args.current();
+	let path = args.remains();
 
 	run(
 		ctx,
