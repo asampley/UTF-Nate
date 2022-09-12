@@ -23,10 +23,10 @@ pub struct Play;
 #[only_in(guilds)]
 #[help_available]
 #[description("Play the specified clip immediately")]
-#[num_args(1)]
+#[min_args(1)]
 #[usage("<clip>")]
-#[example("dota/bothello")]
-#[example("bothello")]
+#[example("peon werk werk")]
+#[example("peon/work work")]
 pub async fn clip(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 	let path = args.current();
 
