@@ -18,6 +18,7 @@ use thiserror::Error;
 use walkdir::WalkDir;
 
 use std::borrow::Cow;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
 use crate::data::{ArcRw, Keys};
@@ -67,12 +68,12 @@ pub enum AudioError {
 	#[error("unsupported url")]
 	UnsupportedUrl,
 	#[error("multiple clips matched")]
-	MultipleClip(String, String),
+	MultipleClip(OsString, OsString),
 	#[error("no clips matched")]
 	NotFound,
 }
 
-pub async fn clip_source(loc: &str) -> Result<Input, AudioError> {
+pub async fn clip_source(loc: &OsStr) -> Result<Input, AudioError> {
 	match find_clip(&loc) {
 		FindClip::One(clip) => match get_clip(&clip) {
 			Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
@@ -322,8 +323,8 @@ where
 }
 
 pub enum FindClip {
-	One(String),
-	Multiple(String, String),
+	One(OsString),
+	Multiple(OsString, OsString),
 	None,
 }
 
@@ -334,7 +335,7 @@ pub fn warn_duplicate_clip_names() {
 		.into_iter()
 		.filter_map(|f| f.ok())
 		.filter(|f| f.file_type().is_file())
-		.map(|f| f.path().file_stem().unwrap().to_string_lossy().into_owned())
+		.filter_map(|f| f.path().file_stem().unwrap().to_str().map(ToOwned::to_owned))
 		.duplicates()
 		.for_each(|s| warn!("Multiple clips have the name \"{}\"", s));
 }
@@ -349,22 +350,16 @@ pub fn warn_exact_name_finds_different_clip() {
 		.filter(|f| {
 			let path = f.path();
 
-			match find_clip(&path.file_stem().unwrap().to_string_lossy()) {
-				FindClip::One(p) =>
-					p != path
-						.strip_prefix(&clip_path)
-						.unwrap()
-						.with_extension("")
-						.to_string_lossy(),
+			match find_clip(&path.file_stem().unwrap()) {
+				FindClip::One(p) => p != path.strip_prefix(&clip_path).unwrap().with_extension(""),
 				_ => true,
 			}
 		})
 		.for_each(|s| warn!("Clip {:?} does not get found searching for the exact name", s.path()));
 }
 
-pub fn find_clip(loc: &str) -> FindClip {
+pub fn find_clip(loc: &OsStr) -> FindClip {
 	let clip_path = clip_path();
-	//let components = loc.split('/').collect_vec();
 
 	let top_two = WalkDir::new(&clip_path)
 		.into_iter()
@@ -377,7 +372,7 @@ pub fn find_clip(loc: &str) -> FindClip {
             let path = f.path().to_string_lossy();
 
 			let leven = triple_accel::levenshtein::levenshtein_search(
-				&loc.as_bytes(),
+				&loc.to_string_lossy().as_bytes(),
 				path.as_bytes()
 			).nth(0)?;
 
@@ -399,8 +394,8 @@ pub fn find_clip(loc: &str) -> FindClip {
 		FindClip::None
 	} else if top_two.len() > 1 && top_two[0].key == top_two[1].key {
 		FindClip::Multiple(
-            top_two[0].value.path().strip_prefix(&clip_path).unwrap().with_extension("").to_string_lossy().into_owned(),
-            top_two[1].value.path().strip_prefix(&clip_path).unwrap().with_extension("").to_string_lossy().into_owned()
+            top_two[0].value.path().strip_prefix(&clip_path).unwrap().with_extension("").into(),
+            top_two[1].value.path().strip_prefix(&clip_path).unwrap().with_extension("").into()
         )
 	} else {
 		FindClip::One(
@@ -410,13 +405,12 @@ pub fn find_clip(loc: &str) -> FindClip {
 				.strip_prefix(&clip_path)
 				.unwrap()
 				.with_extension("")
-				.to_string_lossy()
-				.into_owned(),
+				.into(),
 		)
 	}
 }
 
-pub fn get_clip(loc: &str) -> Option<PathBuf> {
+pub fn get_clip(loc: &OsStr) -> Option<PathBuf> {
 	let clip_path = clip_path();
 	let mut play_path = clip_path.join(&loc);
 

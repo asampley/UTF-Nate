@@ -195,7 +195,7 @@ impl SerenityEventHandler for Handler {
 				let mut voice_guild = voice_guild_arc.write().await;
 
 				if let Some(call) = songbird.get(guild_id) {
-					match clip_source(&clip).await {
+					match clip_source(clip.as_ref()).await {
 						Ok(source) => {
 							voice_guild
 								.add_audio(call.lock().await.play_source(source), volume)

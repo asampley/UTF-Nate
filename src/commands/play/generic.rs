@@ -65,7 +65,7 @@ pub async fn play(
 		debug!("Fetching audio source");
 
 		let result = match play_style {
-			PlayStyle::Clip => match clip_source(&path).await {
+			PlayStyle::Clip => match clip_source(path.as_ref()).await {
 				Ok(clip) => {
 					if play_input(
 						play_style,
@@ -131,8 +131,8 @@ pub async fn play(
 						> {}\n\
 						> ...",
 						path,
-						clip_a,
-						clip_b
+						clip_a.to_string_lossy(),
+						clip_b.to_string_lossy()
 					)
 					.into(),
 					AudioError::NotFound => format!("Clip {} not found", path).into(),

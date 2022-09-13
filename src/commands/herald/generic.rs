@@ -18,7 +18,7 @@ pub async fn intro_outro(
 	clip: Option<String>,
 ) -> Result<Response, Response> {
 	let clip = match clip {
-		Some(clip) => match find_clip(&clip) {
+		Some(clip) => match find_clip(clip.as_ref()) {
 			FindClip::One(clip) => Some(clip),
 			FindClip::Multiple(clip_a, clip_b) => {
 				return Err(format!(
@@ -27,8 +27,8 @@ pub async fn intro_outro(
 					> {}\n\
 					> ...",
 					clip,
-					clip_a,
-					clip_b
+					clip_a.to_string_lossy(),
+					clip_b.to_string_lossy()
 				)
 				.into())
 			}
@@ -62,6 +62,11 @@ pub async fn intro_outro(
 			.into())
 		}
 		Some(clip) => {
+			let clip = &clip.to_str().ok_or_else(|| {
+				error!("Could not encode clip as unicode");
+				format!("Unable to set intro to {} due to unicode encoding issue", clip.to_string_lossy())
+			})?;
+
 			match mode {
 				Intro => Config::set_intro(&pool, &user_id, &clip).await,
 				Outro => Config::set_outro(&pool, &user_id, &clip).await,
@@ -85,7 +90,7 @@ pub async fn introbot(
 	let guild_id = guild_id.ok_or("Groups and DMs not supported".to_string())?;
 
 	let clip = match clip {
-		Some(clip) => match find_clip(&clip) {
+		Some(clip) => match find_clip(clip.as_ref()) {
 			FindClip::One(clip) => Some(clip),
 			FindClip::Multiple(clip_a, clip_b) => {
 				return Err(format!(
@@ -94,8 +99,8 @@ pub async fn introbot(
 					> {}\n\
 					> ...",
 					clip,
-					clip_a,
-					clip_b
+					clip_a.to_string_lossy(),
+					clip_b.to_string_lossy()
 				)
 				.into())
 			}
@@ -109,6 +114,11 @@ pub async fn introbot(
 
 	match clip {
 		Some(clip) => {
+			let clip =  &clip.to_str().ok_or_else(|| {
+				error!("Could not encode clip as unicode");
+				format!("Unable to set intro to {} due to unicode encoding issue", clip.to_string_lossy())
+			})?;
+
 			Config::set_bot_intro(&pool, &guild_id, &clip)
 				.await
 				.map_err(|e| {
