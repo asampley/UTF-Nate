@@ -1,17 +1,24 @@
-use itertools::Itertools;
-
-use serenity::framework::standard::{Command, CommandGroup};
+use poise::{Command, FrameworkContext};
 
 use std::fmt::Write;
 
 use crate::util::Response;
-use crate::GROUPS;
 
-#[tracing::instrument(level = "info", ret)]
-pub async fn help(name: Option<&str>) -> Result<Response, Response> {
-	match name {
-		Some(name) => {
-			let command = find_command(GROUPS, name);
+#[tracing::instrument(level = "info", ret, skip(framework))]
+pub async fn help<U, E>(
+	command_name: &[String],
+	framework: FrameworkContext<'_, U, E>,
+) -> Result<Response, Response> {
+	match command_name {
+		[] => {
+			let mut s = "Pass the name of any command to get more details\n".into();
+
+			write_groups(&mut s, &framework.options.commands);
+
+			Ok(s.into())
+		}
+		_ => {
+			let command = find_command(&framework.options.commands, command_name);
 
 			match command {
 				Some(command) => {
@@ -26,68 +33,67 @@ pub async fn help(name: Option<&str>) -> Result<Response, Response> {
 					.into()),
 			}
 		}
-		None => {
-			let mut s = "Pass the name of any command to get more details\n\n".into();
-
-			write_groups(&mut s, GROUPS, 0);
-
-			Ok(s.into())
-		}
 	}
 }
 
-pub fn write_command(text: &mut String, command: &Command) {
-	let name = command.options.names[0];
+pub fn write_command<U, E>(text: &mut String, command: &Command<U, E>) {
+	let name = &command.qualified_name;
 
-	writeln!(text, "__**{}**__\n", name).unwrap();
+	writeln!(text, "__**{}**__", name).unwrap();
 
-	if let Some(desc) = command.options.desc {
-		writeln!(text, "{}", desc).unwrap();
+	if let Some(desc) = &command.description {
+		writeln!(text, "\n{}", desc).unwrap();
 	}
 
-	if let Some(usage) = command.options.usage {
-		writeln!(text, "**Usage:** `{} {}`", name, usage).unwrap();
-	}
-
-	for example in command.options.examples.iter() {
-		writeln!(text, "**Example:** `{} {}`", name, example).unwrap();
+	if let Some(help_text) = command.help_text {
+		writeln!(text, "\n{}", help_text()).unwrap();
 	}
 }
 
-pub fn write_groups(text: &mut String, groups: &[&CommandGroup], nest_level: usize) {
-	let indent = "  ".repeat(nest_level);
-
-	for group in groups {
-		writeln!(
-			text,
-			"{}__**{}:**__ `{}`",
-			indent,
-			group.name,
-			group
-				.options
-				.commands
-				.iter()
-				.map(|c| c.options.names[0])
-				.join("`, `"),
-		)
-		.unwrap();
-
-		write_groups(text, group.options.sub_groups, nest_level + 1);
-	}
-}
-
-pub fn find_command(groups: &[&CommandGroup], name: &str) -> Option<&'static Command> {
-	groups
+pub fn write_groups<U, E>(text: &mut String, commands: &[Command<U, E>]) {
+	let mut commands = commands
 		.iter()
-		.filter_map(|group| {
-			group
-				.options
-				.commands
-				.iter()
-				.filter(|c| c.options.names.iter().any(|n| n == &name))
-				.next()
-				.map(|v| *v)
-				.or_else(|| find_command(group.options.sub_groups, name))
+		.map(|command| (
+            command.category,
+            &command.qualified_name,
+            &command.description,
+		))
+		.collect::<Vec<_>>();
+
+	commands.sort();
+
+	let mut heading = None;
+
+	for (cat, name, desc) in commands {
+		if heading != Some(cat) {
+			heading = Some(cat);
+
+			writeln!(text, "\n__**{}:**__", cat.unwrap_or("uncategorized")).unwrap();
+		}
+
+		write!(text, "  `{}`", name).unwrap();
+
+		if let Some(desc) = desc {
+			write!(text, " {}", desc).unwrap();
+		}
+
+		writeln!(text).unwrap();
+	}
+}
+
+pub fn find_command<'a, U, E>(
+	commands: &'a [Command<U, E>],
+	name: &[String],
+) -> Option<&'a Command<U, E>> {
+	commands
+		.iter()
+		.filter(|c| c.name == name[0] || c.aliases.contains(&name[0].as_str()))
+		.filter_map(|c| {
+			if name.len() == 1 {
+				Some(c)
+			} else {
+				find_command(&c.subcommands, &name[1..])
+			}
 		})
 		.next()
 }

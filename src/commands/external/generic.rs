@@ -12,13 +12,10 @@ use crate::util::*;
 
 #[tracing::instrument(level = "info", ret)]
 pub async fn cmd(
-	command: Option<&str>,
+	command: &str,
 	args: impl Iterator<Item = &str> + std::fmt::Debug,
 ) -> Result<Response, Response> {
-	let command = match command {
-		Some(command) => cmd_path().join(&command),
-		None => return Err("Must provide a command".into()),
-	};
+	let command = cmd_path().join(&command);
 
 	if !sandboxed_exists(&cmd_path(), &command) {
 		return Err("Invalid command".into());

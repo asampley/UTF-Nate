@@ -10,44 +10,42 @@ pub mod voice;
 
 use futures::Future;
 
-use serenity::builder::CreateApplicationCommand;
-use serenity::framework::standard::Command;
-use serenity::prelude::Context;
+use crate::util::{Command, CommandResult, Context, Respond, Response};
 
-use crate::util::{Respond, Response};
+pub fn commands() -> Vec<Command> {
+	vec![
+		external::cmd(),
+		external::cmdlist(),
+		help::help(),
+		herald::intro(),
+		herald::introbot(),
+		herald::outro(),
+		join::summon(),
+		join::banish(),
+		play::clip(),
+		play::play(),
+		play::playnext(),
+		play::playnow(),
+		queue::stop(),
+		queue::skip(),
+		queue::pause(),
+		queue::unpause(),
+		queue::queue(),
+		queue::shuffle(),
+		queue::shufflenow(),
+		queue::r#loop(),
+		roll::roll(),
+		unicode::unicode(),
+		voice::volume(),
+		voice::list(),
+	]
+}
 
-pub async fn run<R, F, E>(ctx: &Context, rsp: &R, f: F) -> Result<(), E>
+pub async fn run<F>(ctx: &Context<'_>, f: F) -> CommandResult
 where
-	R: Respond,
 	F: Future<Output = Result<Response, Response>>,
-	E: From<serenity::Error>,
 {
-	rsp.respond(ctx, f.await.as_ref()).await?;
+	ctx.respond(f.await.as_ref()).await?;
 
 	Ok(())
-}
-
-pub fn create_interaction<'a>(
-	cmd: &Command,
-	create: &'a mut CreateApplicationCommand,
-) -> &'a mut CreateApplicationCommand {
-	let opt = cmd.options;
-
-	create.name(opt.names[0]);
-	opt.desc.map(|d| create.description(d));
-
-	create
-}
-
-pub fn create_interaction_set_description<'a>(
-	cmd: &Command,
-	create: &'a mut CreateApplicationCommand,
-	desc: &str,
-) -> &'a mut CreateApplicationCommand {
-	let opt = cmd.options;
-
-	create.name(opt.names[0]);
-	create.description(desc);
-
-	create
 }

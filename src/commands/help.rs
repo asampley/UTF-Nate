@@ -1,47 +1,20 @@
-use serenity::builder::CreateApplicationCommand;
-use serenity::client::Context;
-use serenity::framework::standard::macros::{command, group};
-use serenity::framework::standard::{Args, CommandResult};
-use serenity::model::application::command::CommandOptionType;
-use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
-use serenity::model::channel::Message;
+use crate::util::{CommandResult, Context};
 
-use crate::commands::{create_interaction, run};
-use crate::util::*;
+use crate::commands::run;
 
 mod generic;
 
-#[group("help")]
-#[description("Display information about how to use the bot")]
-#[commands(help)]
-pub struct Help;
-
-#[command]
-#[help_available]
-#[description("Display information about all commands or specific commands")]
-#[usage("<command?>")]
-#[example("")]
-#[example("play")]
-pub async fn help(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-	run(ctx, msg, generic::help(args.current())).await
-}
-
-pub fn help_interaction_create(
-	cmd: &mut CreateApplicationCommand,
-) -> &mut CreateApplicationCommand {
-	create_interaction(&HELP_COMMAND, cmd).create_option(|option| {
-		option
-			.name("name")
-			.description("Name of command to get help for")
-			.kind(CommandOptionType::String)
-	})
-}
-
-pub async fn help_interaction(
-	ctx: &Context,
-	int: &ApplicationCommandInteraction,
-) -> serenity::Result<()> {
-	let name = get_option_string(ctx, int, &int.data.options, "name").await?;
-
-	run(ctx, int, generic::help(name)).await
+/// Display information about all commands or specific commands
+///
+/// **Usage:** `help <command?>`
+///
+/// **Examples:**
+/// - `help`
+/// - `help play`
+#[poise::command(category = "help", prefix_command, slash_command)]
+pub async fn help(
+	ctx: Context<'_>,
+	#[description = "Command to display information about"] command: Vec<String>,
+) -> CommandResult {
+	run(&ctx, generic::help(&command, ctx.framework())).await
 }

@@ -2,7 +2,6 @@ use itertools::Itertools;
 
 use tracing::error;
 
-use serenity::client::Context;
 use serenity::model::prelude::GuildId;
 
 use songbird::error::TrackError;
@@ -66,14 +65,14 @@ pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 
 #[tracing::instrument(level = "info", ret, skip(ctx))]
 pub async fn volume(
-	ctx: &Context,
+	ctx: &Context<'_>,
 	style: Option<PlayStyle>,
 	guild_id: Option<GuildId>,
 	volume: Option<f32>,
 ) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
-	let data_lock = ctx.data.read().await;
+	let data_lock = ctx.discord().data.read().await;
 
 	match (style, volume) {
 		(None, None) | (Some(_), None) => {

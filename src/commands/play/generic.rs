@@ -15,18 +15,17 @@ use crate::audio::{clip_source, play_sources};
 use crate::audio::{AudioError, PlayStyle};
 use crate::configuration::Config;
 use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
-use crate::util::*;
+use crate::util::{GetExpect, Response};
 use crate::Pool;
 
 #[tracing::instrument(level = "info", ret, skip(ctx))]
 pub async fn play(
 	ctx: &Context,
 	play_style: PlayStyle,
-	path: Option<&str>,
+	search: &str,
 	guild_id: Option<GuildId>,
 	play_index: Option<usize>,
 ) -> Result<Response, Response> {
-	let path = path.ok_or("Must provide a source")?;
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
 	let (songbird, voice_guild_arc, volume, keys) = {
@@ -65,7 +64,7 @@ pub async fn play(
 		debug!("Fetching audio source");
 
 		let result = match play_style {
-			PlayStyle::Clip => match clip_source(path.as_ref()).await {
+			PlayStyle::Clip => match clip_source(search.as_ref()).await {
 				Ok(clip) => {
 					if play_input(
 						play_style,
@@ -77,15 +76,15 @@ pub async fn play(
 					)
 					.await
 					{
-						Ok(format!("Playing {}", path))
+						Ok(format!("Playing {}", search))
 					} else {
-						Ok(format!("Error playing {}", path))
+						Ok(format!("Error playing {}", search))
 					}
 				}
 				Err(e) => Err(e),
 			},
 			PlayStyle::Play => {
-				match play_sources(keys, &path, play_index.is_none(), move |input| {
+				match play_sources(keys, &search, play_index.is_none(), move |input| {
 					let call = call.clone();
 					let voice_guild_arc = voice_guild_arc.clone();
 
@@ -97,7 +96,7 @@ pub async fn play(
 				.await
 				{
 					Ok(info) => {
-						let title = info.title.as_deref().unwrap_or(path);
+						let title = info.title.as_deref().unwrap_or(search);
 
 						Ok(format!(
 							"Queuing {} {}",
@@ -124,18 +123,18 @@ pub async fn play(
 				error!("Error playing audio: {}", e);
 				Err(match e {
 					AudioError::Songbird(_) => "Playback error".into(),
-					AudioError::UnsupportedUrl => format!("Unsupported URL: {}", path).into(),
+					AudioError::UnsupportedUrl => format!("Unsupported URL: {}", search).into(),
 					AudioError::MultipleClip(clip_a, clip_b) => format!(
 						"Multiple clips matching {} found. Please be more specific.\n\
 						> {}\n\
 						> {}\n\
 						> ...",
-						path,
+						search,
 						clip_a.to_string_lossy(),
 						clip_b.to_string_lossy()
 					)
 					.into(),
-					AudioError::NotFound => format!("Clip {} not found", path).into(),
+					AudioError::NotFound => format!("Clip {} not found", search).into(),
 					AudioError::Spotify => "Error reading from Spotify".into(),
 					AudioError::YoutubePlaylist => "Error reading youtube playlist".into(),
 					AudioError::PlaylistNotAllowed => {

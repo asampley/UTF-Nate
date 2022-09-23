@@ -1,14 +1,6 @@
-use serenity::builder::CreateApplicationCommand;
-use serenity::client::Context;
-use serenity::framework::standard::macros::{command, group};
-use serenity::framework::standard::{Args, CommandResult, Delimiter};
-use serenity::model::application::command::CommandOptionType;
-use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
-use serenity::model::channel::Message;
-
 use std::path::{Path, PathBuf};
 
-use crate::commands::{create_interaction, run};
+use crate::commands::run;
 use crate::util::*;
 
 mod generic;
@@ -17,92 +9,36 @@ fn cmd_path() -> PathBuf {
 	return Path::new("./resources/cmd/").canonicalize().unwrap();
 }
 
-#[group("external")]
-#[description("Commands relating to external commands, such as starting a factorio server")]
-#[commands(cmd, cmdlist)]
-struct External;
-
-#[command]
-#[help_available]
-#[description("Execute an external command")]
-#[usage("<command> [arg ...]")]
-#[example("date")]
-pub async fn cmd(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-	let mut args = args.raw_quoted();
-	let command = args.next();
-
-	run(ctx, msg, generic::cmd(command, args)).await
+/// Execute an external command
+///
+/// **Usage:** `cmd <command> [arg ...]`
+///
+/// **Examples:**
+/// - `cmd date`
+#[poise::command(category = "external", prefix_command, slash_command)]
+pub async fn cmd(
+	ctx: Context<'_>,
+	#[description = "Command to run"] command: String,
+	#[description = "Arguments to pass on to the command"] args: Vec<String>,
+) -> CommandResult {
+	run(
+		&ctx,
+		generic::cmd(&command, args.iter().map(|a| a.as_str())),
+	)
+	.await
 }
 
-pub async fn cmd_interaction(
-	ctx: &Context,
-	int: &ApplicationCommandInteraction,
-) -> serenity::Result<()> {
-	let command = get_option_string(ctx, int, &int.data.options, "command").await?;
-
-	let args = get_option_string(ctx, int, &int.data.options, "args")
-		.await?
-		.unwrap_or("");
-
-	let args = Args::new(args, &[Delimiter::Single(' ')]);
-	let args = args.raw_quoted();
-
-	run(ctx, int, generic::cmd(command, args)).await
-}
-
-pub fn cmd_interaction_create(cmd: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-	create_interaction(&CMD_COMMAND, cmd)
-		.create_option(|option| {
-			option
-				.name("command")
-				.description("Command to run")
-				.kind(CommandOptionType::String)
-				.required(true)
-		})
-		.create_option(|option| {
-			option
-				.name("args")
-				.description("Arguments to pass on to the command")
-				.kind(CommandOptionType::String)
-		})
-}
-
-#[command]
-#[help_available]
-#[description("List available commands to be run with cmd")]
-#[min_args(0)]
-#[max_args(1)]
-#[usage("<section?>")]
-#[example("")]
-#[example("valheim")]
-pub async fn cmdlist(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-	if args.len() > 1 {
-		msg.respond_err(ctx, &"Expected at most one path to be specified".into())
-			.await?;
-		return Ok(());
-	}
-
-	let path = args.current();
-
-	run(ctx, msg, generic::cmdlist(path)).await
-}
-
-pub async fn cmdlist_interaction(
-	ctx: &Context,
-	int: &ApplicationCommandInteraction,
-) -> serenity::Result<()> {
-	let path = get_option_string(ctx, int, &int.data.options, "path").await?;
-
-	run(ctx, int, generic::cmdlist(path)).await
-}
-
-pub fn cmdlist_interaction_create(
-	cmd: &mut CreateApplicationCommand,
-) -> &mut CreateApplicationCommand {
-	create_interaction(&CMDLIST_COMMAND, cmd).create_option(|option| {
-		option
-			.name("path")
-			.description("Path to list commands underneath")
-			.kind(CommandOptionType::String)
-	})
+/// List available commands to be run with cmd
+///
+/// **Usage:** `cmdlist <section?>`
+///
+/// **Examples:**
+/// - `cmdlist`
+/// - `cmdlist valheim`
+#[poise::command(category = "external", prefix_command, slash_command)]
+pub async fn cmdlist(
+	ctx: Context<'_>,
+	#[description = "Path to list commands underneath"] path: Option<String>,
+) -> CommandResult {
+	run(&ctx, generic::cmdlist(path.as_deref())).await
 }

@@ -2,8 +2,6 @@ use std::collections::HashSet;
 
 use itertools::Itertools;
 
-use tracing::{error, info};
-
 use rand::Rng;
 
 use serenity::client::Context;
@@ -11,9 +9,13 @@ use serenity::model::prelude::GuildId;
 
 use songbird::SongbirdKey;
 
+use thiserror::Error;
+
+use tracing::{error, info};
+
 use crate::data::VoiceGuilds;
 use crate::parser::NumOrRange;
-use crate::util::*;
+use crate::util::{GetExpect, Response};
 
 #[tracing::instrument(level = "info", ret, skip(ctx))]
 pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
@@ -247,8 +249,12 @@ pub enum LoopArg {
 	Count(usize),
 }
 
+#[derive(Debug, Error)]
+#[error("expected \"on\", \"off\", or an integer")]
+pub struct ParseLoopArgError;
+
 impl core::str::FromStr for LoopArg {
-	type Err = core::num::ParseIntError;
+	type Err = ParseLoopArgError;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		Ok(if s.eq_ignore_ascii_case("on") {
@@ -256,7 +262,7 @@ impl core::str::FromStr for LoopArg {
 		} else if s.eq_ignore_ascii_case("off") {
 			LoopArg::Off
 		} else {
-			LoopArg::Count(s.parse()?)
+			LoopArg::Count(s.parse().map_err(|_| ParseLoopArgError)?)
 		})
 	}
 }

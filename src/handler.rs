@@ -1,11 +1,10 @@
 use tracing::{error, info};
 
 use serenity::async_trait;
-use serenity::model::application::interaction::Interaction;
+use serenity::client::Context as SerenityContext;
 use serenity::model::gateway::Ready;
 use serenity::model::prelude::Activity;
 use serenity::model::voice::VoiceState;
-use serenity::prelude::Context;
 use serenity::prelude::EventHandler as SerenityEventHandler;
 
 use songbird::SongbirdKey;
@@ -13,19 +12,6 @@ use songbird::SongbirdKey;
 use crate::Pool;
 
 use crate::audio::clip_source;
-use crate::commands::external::{cmd_interaction, cmdlist_interaction};
-use crate::commands::help::help_interaction;
-use crate::commands::herald::{intro_outro_interaction, introbot_interaction, IntroOutroMode};
-use crate::commands::join::{banish_interaction, summon_interaction};
-use crate::commands::play::{
-	clip_interaction, play_interaction, playnext_interaction, playnow_interaction,
-};
-use crate::commands::queue::{
-	loop_interaction, pause_interaction, queue_interaction, shuffle_interaction,
-	shufflenow_interaction, skip_interaction, stop_interaction, unpause_interaction,
-};
-use crate::commands::roll::roll_interaction;
-use crate::commands::voice::{list_interaction, volume_interaction};
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
 use crate::util::*;
@@ -39,7 +25,7 @@ enum IOClip {
 
 #[async_trait]
 impl SerenityEventHandler for Handler {
-	async fn ready(&self, ctx: Context, _: Ready) {
+	async fn ready(&self, ctx: SerenityContext, _: Ready) {
 		info!("Bot started!");
 
 		info!("Bot info {:?}", ctx.cache.current_user_id());
@@ -47,53 +33,9 @@ impl SerenityEventHandler for Handler {
 		ctx.set_activity(Activity::watching("you.")).await;
 	}
 
-	async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-		if let Interaction::ApplicationCommand(command) = interaction {
-			info!(
-				"Staring interaction name: {:?}, id: {:?}, token: {:?}",
-				command.data.name, command.id, command.token
-			);
-
-			match match command.data.name.as_str() {
-				"intro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Intro).await,
-				"outro" => intro_outro_interaction(&ctx, &command, IntroOutroMode::Outro).await,
-				"introbot" => introbot_interaction(&ctx, &command).await,
-				"summon" => summon_interaction(&ctx, &command).await,
-				"banish" => banish_interaction(&ctx, &command).await,
-				"list" => list_interaction(&ctx, &command).await,
-				"clip" => clip_interaction(&ctx, &command).await,
-				"play" => play_interaction(&ctx, &command).await,
-				"playnext" => playnext_interaction(&ctx, &command).await,
-				"playnow" => playnow_interaction(&ctx, &command).await,
-				"volume" => volume_interaction(&ctx, &command).await,
-				"stop" => stop_interaction(&ctx, &command).await,
-				"skip" => skip_interaction(&ctx, &command).await,
-				"pause" => pause_interaction(&ctx, &command).await,
-				"unpause" => unpause_interaction(&ctx, &command).await,
-				"queue" => queue_interaction(&ctx, &command).await,
-				"shuffle" => shuffle_interaction(&ctx, &command).await,
-				"shufflenow" => shufflenow_interaction(&ctx, &command).await,
-				"loop" => loop_interaction(&ctx, &command).await,
-				"roll" => roll_interaction(&ctx, &command).await,
-				"help" => help_interaction(&ctx, &command).await,
-				"cmd" => cmd_interaction(&ctx, &command).await,
-				"cmdlist" => cmdlist_interaction(&ctx, &command).await,
-				_ => command.respond_err(&ctx, &"Unknown command".into()).await,
-			} {
-				Ok(_) => (),
-				Err(e) => error!("Error running interaction: {:?}", e),
-			}
-
-			info!(
-				"Completed interaction name: {:?}, id: {:?}, token: {:?}",
-				command.data.name, command.id, command.token
-			);
-		}
-	}
-
 	async fn voice_state_update(
 		&self,
-		ctx: Context,
+		ctx: SerenityContext,
 		old_state: Option<VoiceState>,
 		new_state: VoiceState,
 	) {
