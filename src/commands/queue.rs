@@ -26,13 +26,12 @@ pub async fn stop(ctx: Context<'_>) -> CommandResult {
 #[poise::command(category = "queue", prefix_command, slash_command, guild_only)]
 pub async fn skip(
 	ctx: Context<'_>,
-	#[description = "Range or index of songs to skip, separated by commas"] selection: Selection<
-		usize,
-	>,
+	#[description = "Range or index of songs to skip, separated by commas"]
+	selection: Option<Selection<usize>>,
 ) -> CommandResult {
 	run(
 		&ctx,
-		generic::skip(ctx.discord(), ctx.guild_id(), selection.0),
+		generic::skip(ctx.discord(), ctx.guild_id(), selection),
 	)
 	.await
 }
