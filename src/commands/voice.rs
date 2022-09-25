@@ -8,7 +8,7 @@ use generic::VolumeMode;
 
 /// Get or change the volume of the bot
 ///
-/// **Usage:** `volume <get|play|clip> <volume?>`
+/// **Usage:** `volume <get|play|clip|now> <volume?>`
 ///
 /// **Examples:**
 /// - `volume get`
