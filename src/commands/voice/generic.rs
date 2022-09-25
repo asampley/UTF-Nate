@@ -17,6 +17,12 @@ use crate::data::VoiceGuilds;
 use crate::util::*;
 use crate::Pool;
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum VolumeSetMode {
+	Current,
+	Config,
+}
+
 #[tracing::instrument(level = "info", ret)]
 pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 	let dir = clip_path().join(Path::new(match path {
@@ -68,7 +74,7 @@ pub async fn volume(
 	ctx: &Context<'_>,
 	style: Option<PlayStyle>,
 	guild_id: Option<GuildId>,
-	volume: Option<f32>,
+	volume: Option<(VolumeSetMode, f32)>,
 ) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
@@ -122,7 +128,7 @@ pub async fn volume(
 		(None, Some(_)) => {
 			Err("Please specify \"play\" or \"clip\" to set the volume for each command".into())
 		}
-		(Some(style), Some(volume)) => {
+		(Some(style), Some((mode, volume))) => {
 			if !(volume >= 0.0 && volume <= 1.0) {
 				return Err("Volume must be between 0.0 and 1.0".into());
 			} else {
@@ -145,6 +151,10 @@ pub async fn volume(
 								Some(_) => return Err("Error setting volume".into()),
 								None => (),
 							}
+
+							if mode == VolumeSetMode::Current {
+								break;
+							}
 						}
 
 						Ok(format!("Play volume set to {}", volume).into())
@@ -161,16 +171,18 @@ pub async fn volume(
 						.map_err(|_| "Error setting volume".into()),
 				};
 
-				let pool = data_lock.clone_expect::<Pool>();
+				if mode == VolumeSetMode::Config {
+					let pool = data_lock.clone_expect::<Pool>();
 
-				match style {
-					PlayStyle::Clip => Config::set_volume_clip(&pool, &guild_id, volume).await,
-					PlayStyle::Play => Config::set_volume_play(&pool, &guild_id, volume).await,
+					match style {
+						PlayStyle::Clip => Config::set_volume_clip(&pool, &guild_id, volume).await,
+						PlayStyle::Play => Config::set_volume_play(&pool, &guild_id, volume).await,
+					}
+					.map_err(|e| {
+						error!("Error setting volume: {:?}", e);
+						"Error setting volume"
+					})?;
 				}
-				.map_err(|e| {
-					error!("Error setting volume: {:?}", e);
-					"Error setting volume"
-				})?;
 
 				return ret;
 			}

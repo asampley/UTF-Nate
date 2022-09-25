@@ -4,6 +4,8 @@ use crate::util::*;
 
 mod generic;
 
+use generic::VolumeSetMode;
+
 /// Get or change the volume of the bot
 ///
 /// **Usage:** `volume <get|play|clip> <volume?>`
@@ -11,21 +13,23 @@ mod generic;
 /// **Examples:**
 /// - `volume get`
 /// - `volume play`
-/// - `volume clip`
 /// - `volume play .25`
+/// - `volume clip`
 /// - `volume clip 0.5`
+/// - `volume now`
+/// - `volume now 1.0`
 #[poise::command(
 	category = "voice",
 	prefix_command,
 	slash_command,
 	guild_only,
-	subcommands("volume_get", "volume_play", "volume_clip")
+	subcommands("volume_get", "volume_play", "volume_clip", "volume_now")
 )]
 pub async fn volume(ctx: Context<'_>) -> CommandResult {
 	run(&ctx, generic::volume(&ctx, None, ctx.guild_id(), None)).await
 }
 
-/// Get or change the volume of the bot
+/// Get the play and clip volumes of the bot
 ///
 /// **Usage:** `volume get`
 #[poise::command(
@@ -39,7 +43,7 @@ pub async fn volume_get(ctx: Context<'_>) -> CommandResult {
 	run(&ctx, generic::volume(&ctx, None, ctx.guild_id(), None)).await
 }
 
-/// Get or change the volume of the bot
+/// Get or change the play volume of the bot
 ///
 /// **Usage:** `volume play <volume?>`
 ///
@@ -60,12 +64,12 @@ pub async fn volume_play(
 ) -> CommandResult {
 	run(
 		&ctx,
-		generic::volume(&ctx, Some(PlayStyle::Play), ctx.guild_id(), volume),
+		generic::volume(&ctx, Some(PlayStyle::Play), ctx.guild_id(), volume.map(|v| (VolumeSetMode::Config, v))),
 	)
 	.await
 }
 
-/// Get or change the volume of the bot
+/// Get or change the clip volume of the bot
 ///
 /// **Usage:** `volume clip <volume?>`
 ///
@@ -86,7 +90,33 @@ pub async fn volume_clip(
 ) -> CommandResult {
 	run(
 		&ctx,
-		generic::volume(&ctx, Some(PlayStyle::Clip), ctx.guild_id(), volume),
+		generic::volume(&ctx, Some(PlayStyle::Clip), ctx.guild_id(), volume.map(|v| (VolumeSetMode::Config, v))),
+	)
+	.await
+}
+
+/// Get or change the play volume of the bot for the current song only
+///
+/// **Usage:** `volume now <volume?>`
+///
+/// **Examples:**
+/// - `volume now`
+/// - `volume now .25`
+/// - `volume now 0.5`
+#[poise::command(
+	category = "voice",
+	rename = "now",
+	prefix_command,
+	slash_command,
+	guild_only
+)]
+pub async fn volume_now(
+	ctx: Context<'_>,
+	#[description = "Volume between 0.0 and 1.0"] volume: Option<f32>,
+) -> CommandResult {
+	run(
+		&ctx,
+		generic::volume(&ctx, Some(PlayStyle::Play), ctx.guild_id(), volume.map(|v| (VolumeSetMode::Current, v))),
 	)
 	.await
 }
