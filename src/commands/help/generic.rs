@@ -53,11 +53,13 @@ pub fn write_command<U, E>(text: &mut String, command: &Command<U, E>) {
 pub fn write_groups<U, E>(text: &mut String, commands: &[Command<U, E>]) {
 	let mut commands = commands
 		.iter()
-		.map(|command| (
-            command.category,
-            &command.qualified_name,
-            &command.description,
-		))
+		.map(|command| {
+			(
+				command.category,
+				&command.qualified_name,
+				&command.description,
+			)
+		})
 		.collect::<Vec<_>>();
 
 	commands.sort();

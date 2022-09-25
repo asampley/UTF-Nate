@@ -100,7 +100,8 @@ pub async fn volume(
 						"Unable to retrieve volume"
 					})?
 					.unwrap_or(0.5)
-			).into())
+			)
+			.into())
 		}
 		VolumeMode::Config(style, None) => {
 			let pool = data_lock.clone_expect::<Pool>();
@@ -167,18 +168,16 @@ pub async fn volume(
 
 					Ok(format!("Play volume set to {}", volume).into())
 				}
-				PlayStyle::Clip => {
-					data_lock
-						.clone_expect::<VoiceGuilds>()
-						.entry(guild_id)
-						.or_default()
-						.clone()
-						.write()
-						.await
-						.set_volume(volume)
-						.map(|_| format!("Clip volume set to {}", volume).into())
-						.map_err(|_| "Error setting volume".into())
-				}
+				PlayStyle::Clip => data_lock
+					.clone_expect::<VoiceGuilds>()
+					.entry(guild_id)
+					.or_default()
+					.clone()
+					.write()
+					.await
+					.set_volume(volume)
+					.map(|_| format!("Clip volume set to {}", volume).into())
+					.map_err(|_| "Error setting volume".into()),
 			};
 
 			if let VolumeMode::Config(_, _) = mode {
@@ -214,7 +213,7 @@ pub async fn volume(
 					"Error getting volume"
 				})?;
 
-				Ok(format!("Current volume set to {}", volume).into())
+			Ok(format!("Current volume set to {}", volume).into())
 		}
 	}
 }

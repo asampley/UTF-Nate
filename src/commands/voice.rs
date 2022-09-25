@@ -26,7 +26,11 @@ use generic::VolumeMode;
 	subcommands("volume_get", "volume_play", "volume_clip", "volume_now")
 )]
 pub async fn volume(ctx: Context<'_>) -> CommandResult {
-	run(&ctx, generic::volume(&ctx, ctx.guild_id(), VolumeMode::ConfigAllStyles)).await
+	run(
+		&ctx,
+		generic::volume(&ctx, ctx.guild_id(), VolumeMode::ConfigAllStyles),
+	)
+	.await
 }
 
 /// Get the play and clip volumes of the bot
@@ -40,7 +44,11 @@ pub async fn volume(ctx: Context<'_>) -> CommandResult {
 	guild_only
 )]
 pub async fn volume_get(ctx: Context<'_>) -> CommandResult {
-	run(&ctx, generic::volume(&ctx, ctx.guild_id(), VolumeMode::ConfigAllStyles)).await
+	run(
+		&ctx,
+		generic::volume(&ctx, ctx.guild_id(), VolumeMode::ConfigAllStyles),
+	)
+	.await
 }
 
 /// Get or change the play volume of the bot
@@ -64,7 +72,11 @@ pub async fn volume_play(
 ) -> CommandResult {
 	run(
 		&ctx,
-		generic::volume(&ctx, ctx.guild_id(), VolumeMode::Config(PlayStyle::Play, volume)),
+		generic::volume(
+			&ctx,
+			ctx.guild_id(),
+			VolumeMode::Config(PlayStyle::Play, volume),
+		),
 	)
 	.await
 }
@@ -90,7 +102,11 @@ pub async fn volume_clip(
 ) -> CommandResult {
 	run(
 		&ctx,
-		generic::volume(&ctx, ctx.guild_id(), VolumeMode::Config(PlayStyle::Clip, volume)),
+		generic::volume(
+			&ctx,
+			ctx.guild_id(),
+			VolumeMode::Config(PlayStyle::Clip, volume),
+		),
 	)
 	.await
 }
