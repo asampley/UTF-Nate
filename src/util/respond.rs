@@ -1,10 +1,9 @@
+use poise::{Context, ReplyHandle};
+
 use tracing::{error, info};
 
 use serenity::async_trait;
 use serenity::builder::CreateEmbed;
-use serenity::client::Context;
-use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
-use serenity::model::channel::Message;
 use serenity::utils::Color;
 
 use std::fmt::Debug;
@@ -58,62 +57,36 @@ impl Response {
 #[async_trait]
 pub trait Respond {
 	type Value;
+	type Error;
 
 	async fn respond(
 		&self,
-		ctx: &Context,
 		result: Result<&Response, &Response>,
-	) -> serenity::Result<Self::Value>;
+	) -> Result<Self::Value, Self::Error>;
 
-	async fn respond_ok(
-		&self,
-		ctx: &Context,
-		response: &Response,
-	) -> serenity::Result<Self::Value> {
-		self.respond(ctx, Ok(response)).await
+	async fn respond_ok(&self, response: &Response) -> Result<Self::Value, Self::Error> {
+		self.respond(Ok(response)).await
 	}
 
-	async fn respond_err(
-		&self,
-		ctx: &Context,
-		response: &Response,
-	) -> serenity::Result<Self::Value> {
-		self.respond(ctx, Err(response)).await
+	async fn respond_err(&self, response: &Response) -> Result<Self::Value, Self::Error> {
+		self.respond(Err(response)).await
 	}
 }
 
 #[async_trait]
-impl Respond for Message {
-	type Value = Message;
+impl<'a, U, E> Respond for Context<'a, U, E>
+where
+	U: Sync,
+{
+	type Value = ReplyHandle<'a>;
+	type Error = serenity::prelude::SerenityError;
 
 	async fn respond(
 		&self,
-		ctx: &Context,
 		result: Result<&Response, &Response>,
-	) -> serenity::Result<Self::Value> {
-		self.channel_id
-			.send_message(&ctx.http, |message| {
-				message.embed(|embed| Response::embed(result, embed))
-			})
+	) -> Result<Self::Value, Self::Error> {
+		self.send(|reply| reply.embed(|embed| Response::embed(result, embed)))
 			.await
-	}
-}
-
-#[async_trait]
-impl Respond for ApplicationCommandInteraction {
-	type Value = ();
-
-	async fn respond(
-		&self,
-		ctx: &Context,
-		result: Result<&Response, &Response>,
-	) -> serenity::Result<Self::Value> {
-		self.create_interaction_response(&ctx.http, |response| {
-			response.interaction_response_data(|data| {
-				data.embed(|embed| Response::embed(result, embed))
-			})
-		})
-		.await
 	}
 }
 

@@ -1,9 +1,6 @@
-use serenity::framework::standard::macros::{command, group};
-use serenity::framework::standard::{Args, CommandResult};
-use serenity::model::channel::Message;
-use serenity::prelude::Context;
-
 use std::num::ParseIntError;
+
+use crate::util::{CommandResult, Context, Respond};
 
 enum ParseCodeError {
 	ParseIntError(ParseIntError),
@@ -27,26 +24,25 @@ fn parse_code(string: &str) -> Result<char, ParseCodeError> {
 		},
 	}
 }
-#[group("unicode")]
-#[description("Some fun with unicode")]
-#[commands(unicode)]
-struct Unicode;
 
-#[command]
-#[aliases("u")]
-#[help_available]
-#[description("Print the characters based on the unicode code point. The code point can be specified in either decimal or hexidecimal (by preceding it with 0x).")]
-#[usage("[codepoint...]")]
-#[example("0x252C 0x2500 0x252C 0x30CE 0x28 0x20 0xBA 0x20 0x5F 0x20 0xBA 0x30CE 0x29")]
-pub async fn unicode(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-	let mut chars = Vec::with_capacity(args.len());
+/// Print the characters based on the unicode code point.
+///
+/// The code point can be specified in either decimal or hexidecimal (by preceding it with 0x).
+///
+/// **Usage:** `unicode [codepoint...]`
+///
+/// **Examples:**
+/// - `unicode 0x252C 0x2500 0x252C 0x30CE 0x28 0x20 0xBA 0x20 0x5F 0x20 0xBA 0x30CE 0x29`
+#[poise::command(category = "unicode", prefix_command, slash_command)]
+pub async fn unicode(
+	ctx: Context<'_>,
+	#[description = "Unicode code points"] codepoints: Vec<String>,
+) -> CommandResult {
+	let mut chars = Vec::with_capacity(codepoints.len());
 	let mut reply = None;
 
-	for arg in args.iter::<String>() {
-		let code_str = arg.unwrap();
-		let code = parse_code(&code_str);
-
-		let c = match code {
+	for code_str in &codepoints {
+		let c = match parse_code(&code_str) {
 			Err(_) => {
 				reply = Some(format!("Invalid character code: {}", code_str));
 				break;
@@ -61,7 +57,7 @@ pub async fn unicode(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
 		reply = Some(chars.into_iter().collect());
 	}
 
-	msg.reply(&ctx, &reply.unwrap()).await?;
+	ctx.respond_ok(&reply.unwrap().into()).await?;
 
 	Ok(())
 }

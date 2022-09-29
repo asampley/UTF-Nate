@@ -2,8 +2,6 @@ use std::collections::HashSet;
 
 use itertools::Itertools;
 
-use tracing::{error, info};
-
 use rand::Rng;
 
 use serenity::client::Context;
@@ -11,9 +9,13 @@ use serenity::model::prelude::GuildId;
 
 use songbird::SongbirdKey;
 
+use thiserror::Error;
+
+use tracing::{error, info};
+
 use crate::data::VoiceGuilds;
-use crate::parser::NumOrRange;
-use crate::util::*;
+use crate::parser::{NumOrRange, Selection};
+use crate::util::{GetExpect, Response};
 
 #[tracing::instrument(level = "info", ret, skip(ctx))]
 pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, Response> {
@@ -42,7 +44,7 @@ pub async fn stop(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response, 
 pub async fn skip(
 	ctx: &Context,
 	guild_id: Option<GuildId>,
-	mut skip_set: Vec<NumOrRange<usize>>,
+	skip_set: Option<Selection<usize>>,
 ) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
@@ -58,51 +60,54 @@ pub async fn skip(
 
 	let queue = call.queue();
 
-	let result = if !skip_set.is_empty() {
-		let mut removed = HashSet::new();
+	let result = match skip_set {
+		Some(mut skip_set) if !skip_set.0.is_empty() => {
+			let mut removed = HashSet::new();
 
-		queue.modify_queue(|deque| {
-			skip_set.sort_unstable_by_key(|s| match s {
-				NumOrRange::Num(n) => *n,
-				NumOrRange::Range(r) => *r.end(),
-			});
+			queue.modify_queue(|deque| {
+				skip_set.0.sort_unstable_by_key(|s| match s {
+					NumOrRange::Num(n) => *n,
+					NumOrRange::Range(r) => *r.end(),
+				});
 
-			// remove in reverse order to prevent indices from shifting
-			for s in skip_set.into_iter().rev() {
-				if deque.is_empty() {
-					continue;
-				}
-
-				match s {
-					NumOrRange::Num(n) => {
-						if !removed.contains(&n) && n < deque.len() {
-							deque.remove(n).map(|q| q.stop());
-							removed.insert(n);
-						}
+				// remove in reverse order to prevent indices from shifting
+				for s in skip_set.0.into_iter().rev() {
+					if deque.is_empty() {
+						continue;
 					}
-					NumOrRange::Range(r) => {
-						// remove in reverse order to prevent indices from shifting
-						for i in r.into_iter().rev() {
-							if !removed.contains(&i) && i < deque.len() {
-								deque.remove(i).map(|q| q.stop());
-								removed.insert(i);
+
+					match s {
+						NumOrRange::Num(n) => {
+							if !removed.contains(&n) && n < deque.len() {
+								deque.remove(n).map(|q| q.stop());
+								removed.insert(n);
+							}
+						}
+						NumOrRange::Range(r) => {
+							// remove in reverse order to prevent indices from shifting
+							for i in r.into_iter().rev() {
+								if !removed.contains(&i) && i < deque.len() {
+									deque.remove(i).map(|q| q.stop());
+									removed.insert(i);
+								}
 							}
 						}
 					}
 				}
+			});
+
+			info!("Skipped tracks {:?}", &removed);
+
+			queue.resume().map(|_| removed.len())
+		}
+		_ => {
+			if queue.is_empty() {
+				info!("No tracks to skip");
+				Ok(0)
+			} else {
+				info!("Skipped first track");
+				queue.skip().map(|_| 1)
 			}
-		});
-
-		info!("Skipped tracks {:?}", &removed);
-
-		queue.resume().map(|_| removed.len())
-	} else {
-		if queue.is_empty() {
-			info!("No tracks to skip");
-			Ok(0)
-		} else {
-			info!("Skipped first track");
-			queue.skip().map(|_| 1)
 		}
 	};
 
@@ -247,8 +252,12 @@ pub enum LoopArg {
 	Count(usize),
 }
 
+#[derive(Debug, Error)]
+#[error("expected \"on\", \"off\", or an integer")]
+pub struct ParseLoopArgError;
+
 impl core::str::FromStr for LoopArg {
-	type Err = core::num::ParseIntError;
+	type Err = ParseLoopArgError;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		Ok(if s.eq_ignore_ascii_case("on") {
@@ -256,7 +265,7 @@ impl core::str::FromStr for LoopArg {
 		} else if s.eq_ignore_ascii_case("off") {
 			LoopArg::Off
 		} else {
-			LoopArg::Count(s.parse()?)
+			LoopArg::Count(s.parse().map_err(|_| ParseLoopArgError)?)
 		})
 	}
 }

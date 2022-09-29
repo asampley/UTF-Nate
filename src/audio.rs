@@ -335,7 +335,13 @@ pub fn warn_duplicate_clip_names() {
 		.into_iter()
 		.filter_map(|f| f.ok())
 		.filter(|f| f.file_type().is_file())
-		.filter_map(|f| f.path().file_stem().unwrap().to_str().map(ToOwned::to_owned))
+		.filter_map(|f| {
+			f.path()
+				.file_stem()
+				.unwrap()
+				.to_str()
+				.map(ToOwned::to_owned)
+		})
 		.duplicates()
 		.for_each(|s| warn!("Multiple clips have the name \"{}\"", s));
 }
@@ -355,7 +361,12 @@ pub fn warn_exact_name_finds_different_clip() {
 				_ => true,
 			}
 		})
-		.for_each(|s| warn!("Clip {:?} does not get found searching for the exact name", s.path()));
+		.for_each(|s| {
+			warn!(
+				"Clip {:?} does not get found searching for the exact name",
+				s.path()
+			)
+		});
 }
 
 pub fn find_clip(loc: &OsStr) -> FindClip {
@@ -366,24 +377,21 @@ pub fn find_clip(loc: &OsStr) -> FindClip {
 		.filter_map(|f| f.ok())
 		.filter(|f| f.file_type().is_file())
 		// calculate the levenshtein distance of each file
-        // break ties by prioritizing longest length of match
-        // followed by shortest length of clip path
+		// break ties by prioritizing longest length of match
+		// followed by shortest length of clip path
 		.filter_map(|f| {
-            let path = f.path().to_string_lossy();
+			let path = f.path().to_string_lossy();
 
 			let leven = triple_accel::levenshtein::levenshtein_search(
 				&loc.to_string_lossy().as_bytes(),
-				path.as_bytes()
-			).nth(0)?;
+				path.as_bytes(),
+			)
+			.nth(0)?;
 
 			Some(OrdKey {
-                key: (
-                     leven.k,
-                     -((leven.end - leven.start) as isize),
-                    path.len(),
-                ),
-                value: f 
-            })
+				key: (leven.k, -((leven.end - leven.start) as isize), path.len()),
+				value: f,
+			})
 		})
 		.k_smallest(2)
 		.collect_vec();
@@ -394,9 +402,21 @@ pub fn find_clip(loc: &OsStr) -> FindClip {
 		FindClip::None
 	} else if top_two.len() > 1 && top_two[0].key == top_two[1].key {
 		FindClip::Multiple(
-            top_two[0].value.path().strip_prefix(&clip_path).unwrap().with_extension("").into(),
-            top_two[1].value.path().strip_prefix(&clip_path).unwrap().with_extension("").into()
-        )
+			top_two[0]
+				.value
+				.path()
+				.strip_prefix(&clip_path)
+				.unwrap()
+				.with_extension("")
+				.into(),
+			top_two[1]
+				.value
+				.path()
+				.strip_prefix(&clip_path)
+				.unwrap()
+				.with_extension("")
+				.into(),
+		)
 	} else {
 		FindClip::One(
 			top_two[0]

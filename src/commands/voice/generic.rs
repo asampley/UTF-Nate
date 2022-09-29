@@ -2,7 +2,6 @@ use itertools::Itertools;
 
 use tracing::error;
 
-use serenity::client::Context;
 use serenity::model::prelude::GuildId;
 
 use songbird::error::TrackError;
@@ -17,6 +16,13 @@ use crate::configuration::Config;
 use crate::data::VoiceGuilds;
 use crate::util::*;
 use crate::Pool;
+
+#[derive(Debug)]
+pub enum VolumeMode {
+	ConfigAllStyles,
+	Config(PlayStyle, Option<f32>),
+	Current(Option<f32>),
+}
 
 #[tracing::instrument(level = "info", ret)]
 pub async fn list(path: Option<&str>) -> Result<Response, Response> {
@@ -66,38 +72,42 @@ pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 
 #[tracing::instrument(level = "info", ret, skip(ctx))]
 pub async fn volume(
-	ctx: &Context,
-	style: Option<PlayStyle>,
+	ctx: &Context<'_>,
 	guild_id: Option<GuildId>,
-	volume: Option<f32>,
+	mode: VolumeMode,
 ) -> Result<Response, Response> {
 	let guild_id = guild_id.ok_or("This command is only available in guilds")?;
 
-	let data_lock = ctx.data.read().await;
+	let data_lock = ctx.discord().data.read().await;
 
-	match (style, volume) {
-		(None, None) | (Some(_), None) => {
+	match mode {
+		VolumeMode::ConfigAllStyles => {
+			let pool = data_lock.clone_expect::<Pool>();
+
+			Ok(format!(
+				"Play volume: {}\nClip volume: {}",
+				Config::get_volume_play(&pool, &guild_id)
+					.await
+					.map_err(|e| {
+						error!("Unable to retrieve volume: {:?}", e);
+						"Unable to retrieve volume"
+					})?
+					.unwrap_or(0.5),
+				Config::get_volume_clip(&pool, &guild_id)
+					.await
+					.map_err(|e| {
+						error!("Unable to retrieve volume: {:?}", e);
+						"Unable to retrieve volume"
+					})?
+					.unwrap_or(0.5)
+			)
+			.into())
+		}
+		VolumeMode::Config(style, None) => {
 			let pool = data_lock.clone_expect::<Pool>();
 
 			Ok(match style {
-				None => format!(
-					"Play volume: {}\nClip volume: {}",
-					Config::get_volume_play(&pool, &guild_id)
-						.await
-						.map_err(|e| {
-							error!("Unable to retrieve volume: {:?}", e);
-							"Unable to retrieve volume"
-						})?
-						.unwrap_or(0.5),
-					Config::get_volume_clip(&pool, &guild_id)
-						.await
-						.map_err(|e| {
-							error!("Unable to retrieve volume: {:?}", e);
-							"Unable to retrieve volume"
-						})?
-						.unwrap_or(0.5),
-				),
-				Some(PlayStyle::Clip) => format!(
+				PlayStyle::Clip => format!(
 					"Clip volume: {}",
 					Config::get_volume_clip(&pool, &guild_id)
 						.await
@@ -107,7 +117,7 @@ pub async fn volume(
 						})?
 						.unwrap_or(0.5),
 				),
-				Some(PlayStyle::Play) => format!(
+				PlayStyle::Play => format!(
 					"Play volume: {}",
 					Config::get_volume_play(&pool, &guild_id)
 						.await
@@ -120,48 +130,57 @@ pub async fn volume(
 			}
 			.into())
 		}
-		(None, Some(_)) => {
-			Err("Please specify \"play\" or \"clip\" to set the volume for each command".into())
-		}
-		(Some(style), Some(volume)) => {
+		VolumeMode::Config(_, Some(volume)) | VolumeMode::Current(Some(volume)) => {
 			if !(volume >= 0.0 && volume <= 1.0) {
 				return Err("Volume must be between 0.0 and 1.0".into());
-			} else {
-				let ret = match style {
-					PlayStyle::Play => {
-						let songbird = data_lock.clone_expect::<SongbirdKey>();
+			}
 
-						for handle in songbird
-							.get_or_insert(guild_id)
-							.lock()
-							.await
-							.queue()
-							.current_queue()
+			let style = if let VolumeMode::Config(style, _) = mode {
+				style
+			} else {
+				PlayStyle::Play
+			};
+
+			let ret = match style {
+				PlayStyle::Play => {
+					let songbird = data_lock.clone_expect::<SongbirdKey>();
+
+					for handle in songbird
+						.get_or_insert(guild_id)
+						.lock()
+						.await
+						.queue()
+						.current_queue()
+					{
+						match handle
+							.set_volume(volume)
+							.err()
+							.filter(|e| e == &TrackError::Finished)
 						{
-							match handle
-								.set_volume(volume)
-								.err()
-								.filter(|e| e == &TrackError::Finished)
-							{
-								Some(_) => return Err("Error setting volume".into()),
-								None => (),
-							}
+							Some(_) => return Err("Error setting volume".into()),
+							None => (),
 						}
 
-						Ok(format!("Play volume set to {}", volume).into())
+						if let VolumeMode::Current(_) = &mode {
+							break;
+						}
 					}
-					PlayStyle::Clip => data_lock
-						.clone_expect::<VoiceGuilds>()
-						.entry(guild_id)
-						.or_default()
-						.clone()
-						.write()
-						.await
-						.set_volume(volume)
-						.map(|_| format!("Clip volume set to {}", volume).into())
-						.map_err(|_| "Error setting volume".into()),
-				};
 
+					Ok(format!("Play volume set to {}", volume).into())
+				}
+				PlayStyle::Clip => data_lock
+					.clone_expect::<VoiceGuilds>()
+					.entry(guild_id)
+					.or_default()
+					.clone()
+					.write()
+					.await
+					.set_volume(volume)
+					.map(|_| format!("Clip volume set to {}", volume).into())
+					.map_err(|_| "Error setting volume".into()),
+			};
+
+			if let VolumeMode::Config(_, _) = mode {
 				let pool = data_lock.clone_expect::<Pool>();
 
 				match style {
@@ -172,9 +191,29 @@ pub async fn volume(
 					error!("Error setting volume: {:?}", e);
 					"Error setting volume"
 				})?;
-
-				return ret;
 			}
+
+			return ret;
+		}
+		VolumeMode::Current(None) => {
+			let songbird = data_lock.clone_expect::<SongbirdKey>();
+
+			let volume = songbird
+				.get_or_insert(guild_id)
+				.lock()
+				.await
+				.queue()
+				.current()
+				.ok_or("No song currently playing")?
+				.get_info()
+				.await
+				.map(|info| info.volume)
+				.map_err(|e| {
+					error!("Error getting volume: {:?}", e);
+					"Error getting volume"
+				})?;
+
+			Ok(format!("Current volume set to {}", volume).into())
 		}
 	}
 }

@@ -1,5 +1,4 @@
 use serenity::async_trait;
-use serenity::client::Context;
 use serenity::model::channel::Message;
 
 use crate::util::{Respond, UtilError};
@@ -77,7 +76,7 @@ impl<T: Send> Say for Option<T> {
 	) -> Result<Self::AndUnwrap, UtilError> {
 		match self {
 			Some(_) => {
-				msg.respond_err(ctx, say.as_ref().to_string().into()).await?;
+				ctx.respond_err(say.as_ref().to_string().into()).await?;
 				Err(UtilError::Other(say.to_string()))
 			}
 			None => Ok(()),
@@ -93,7 +92,7 @@ impl<T: Send> Say for Option<T> {
 		match self {
 			Some(v) => Ok(v),
 			None => {
-				msg.respond_err(ctx, say.as_ref().to_string().into()).await?;
+				ctx.respond_err(say.as_ref().to_string().into()).await?;
 				Err(UtilError::Other(say.to_string()))
 			}
 		}
@@ -139,7 +138,7 @@ impl<T: Send, E: Send> Say for Result<T, E> {
 	) -> Result<Self::AndUnwrap, UtilError> {
 		match self {
 			Ok(_) => {
-				msg.respond_err(ctx, say.as_ref().to_string().into()).await?;
+				ctx.respond_err(say.as_ref().to_string().into()).await?;
 				Err(UtilError::Other(say.to_string()))
 			}
 			Err(e) => Ok(e),
@@ -155,7 +154,7 @@ impl<T: Send, E: Send> Say for Result<T, E> {
 		match self {
 			Ok(v) => Ok(v),
 			Err(_) => {
-				msg.respond_err(ctx, say.as_ref().to_string().into()).await?;
+				ctx.respond_err(say.as_ref().to_string().into()).await?;
 				Err(UtilError::Other(say.to_string()))
 			}
 		}

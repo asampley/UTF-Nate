@@ -16,16 +16,10 @@ use tracing_subscriber::filter::LevelFilter;
 
 use once_cell::sync::Lazy;
 
-use serenity::client::ClientBuilder;
-use serenity::framework::standard::macros::hook;
-use serenity::framework::standard::{
-	CommandGroup, CommandResult, DispatchError, StandardFramework,
-};
 use serenity::http::client::Http;
-use serenity::model::channel::Message;
 use serenity::model::gateway::GatewayIntents;
 use serenity::model::Permissions;
-use serenity::prelude::{Context, RwLock};
+use serenity::prelude::RwLock;
 
 use songbird::serenity::SerenityInit;
 
@@ -35,8 +29,9 @@ use configuration::Config;
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use interaction::reregister;
-use util::{check_msg, read_toml, Respond};
+use util::{check_msg, read_toml, Context, FrameworkError, Respond};
 
+use std::fmt::{Debug, Write};
 use std::sync::Arc;
 
 static OPT: Lazy<Opt> = Lazy::new(|| {
@@ -45,17 +40,7 @@ static OPT: Lazy<Opt> = Lazy::new(|| {
 	opt
 });
 
-static GROUPS: &[&'static CommandGroup] = &[
-	&commands::help::HELP_GROUP,
-	&commands::herald::HERALD_GROUP,
-	&commands::join::JOIN_GROUP,
-	&commands::play::PLAY_GROUP,
-	&commands::queue::QUEUE_GROUP,
-	&commands::voice::VOICE_GROUP,
-	&commands::unicode::UNICODE_GROUP,
-	&commands::roll::ROLL_GROUP,
-	&commands::external::EXTERNAL_GROUP,
-];
+static CONFIG: Lazy<Config> = Lazy::new(|| load_config());
 
 const RECOMMENDED_PERMISSIONS: Permissions = Permissions::SEND_MESSAGES
 	.union(Permissions::EMBED_LINKS)
@@ -91,6 +76,10 @@ struct Opt {
 	/// Run command with additional logging
 	#[clap(long, short)]
 	verbose: bool,
+
+	/// Do not check for clip collisions. Speeds up start by disabling.
+	#[clap(long)]
+	no_check_clips: bool,
 }
 
 #[tokio::main]
@@ -107,10 +96,12 @@ async fn main() {
 	tracing::subscriber::set_global_default(subscriber)
 		.expect("unable to set default tracing subscriber");
 
-	// warn if there are duplicate clip names
-	audio::warn_duplicate_clip_names();
-	// warn if clips cannot be found with search easily
-	audio::warn_exact_name_finds_different_clip();
+	if !OPT.no_check_clips {
+		// warn if there are duplicate clip names
+		audio::warn_duplicate_clip_names();
+		// warn if clips cannot be found with search easily
+		audio::warn_exact_name_finds_different_clip();
+	}
 
 	// read keys file
 	let keys_path = "keys.toml";
@@ -138,11 +129,12 @@ async fn main() {
 		RECOMMENDED_PERMISSIONS.bits(),
 	);
 
-	let http =
-		Http::new_with_application_id(&keys.discord.token, keys.discord.application_id);
+	let http = Http::new_with_application_id(&keys.discord.token, keys.discord.application_id);
+
+	let commands = commands::commands();
 
 	if OPT.reregister {
-		match reregister(&http).await {
+		match reregister(&http, &commands).await {
 			Ok(()) => (),
 			Err(e) => {
 				error!("Unable to reregister slash commands: {e}");
@@ -151,93 +143,95 @@ async fn main() {
 		}
 	}
 
-	// initialize database connection
-	let db_pool = match PgPool::connect(&keys.database.connect_string).await {
-		Ok(p) => p,
-		Err(e) => {
-			error!("Failed to connect to database: {e}");
-			return;
-		}
-	};
-
-	if OPT.init_database {
-		let create_tables = match std::fs::read_to_string("database/create-tables.sql") {
-			Ok(t) => t,
+	if OPT.init_database || !OPT.no_bot {
+		// initialize database connection
+		let db_pool = match PgPool::connect(&keys.database.connect_string).await {
+			Ok(p) => p,
 			Err(e) => {
-				error!("Failed to read create tables file: {e}");
+				error!("Failed to connect to database: {e}");
 				return;
 			}
 		};
 
-		let mut trans = match db_pool.begin().await {
-			Ok(t) => t,
-			Err(e) => {
-				error!("Failed to intialize database transaction: {e}");
-				return;
-			}
-		};
+		if OPT.init_database {
+			let create_tables = match std::fs::read_to_string("database/create-tables.sql") {
+				Ok(t) => t,
+				Err(e) => {
+					error!("Failed to read create tables file: {e}");
+					return;
+				}
+			};
 
-		match trans.execute(create_tables.as_str()).await {
-			Ok(_) => (),
-			Err(e) => {
-				error!("Error creating tables: {e}");
-				return;
+			let mut trans = match db_pool.begin().await {
+				Ok(t) => t,
+				Err(e) => {
+					error!("Failed to intialize database transaction: {e}");
+					return;
+				}
+			};
+
+			match trans.execute(create_tables.as_str()).await {
+				Ok(_) => (),
+				Err(e) => {
+					error!("Error creating tables: {e}");
+					return;
+				}
 			}
+
+			match trans.commit().await {
+				Ok(_) => (),
+				Err(e) => {
+					error!("Error committing table creation: {e}");
+					return;
+				}
+			}
+
+			info!("Data tables created");
 		}
 
-		match trans.commit().await {
-			Ok(_) => (),
-			Err(e) => {
-				error!("Error committing table creation: {e}");
-				return;
+		if !OPT.no_bot {
+			info!("Config: {CONFIG:#?}");
+
+			// create a framework to process message commands
+			poise::Framework::builder()
+				.token(&keys.discord.token)
+				.intents(GATEWAY_INTENTS)
+				.user_data_setup(|_, _, _| Box::pin(async move { Ok(()) }))
+				.options(poise::FrameworkOptions {
+					prefix_options: poise::PrefixFrameworkOptions {
+						prefix: Some(CONFIG.prefixes[0].clone()),
+						additional_prefixes: CONFIG.prefixes[1..]
+							.iter()
+							.map(|p| poise::Prefix::Literal(p))
+							.collect(),
+						case_insensitive_commands: true,
+						..Default::default()
+					},
+					commands: commands,
+					pre_command: |ctx| Box::pin(before_hook(ctx)),
+					post_command: |ctx| Box::pin(after_hook(ctx)),
+					on_error: |err| Box::pin(on_error(err)),
+					..Default::default()
+				})
+				.client_settings(|client_builder| {
+					client_builder
+						.event_handler(Handler)
+						.type_map_insert::<VoiceUserCache>(Default::default())
+						.type_map_insert::<VoiceGuilds>(Default::default())
+						.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
+						.type_map_insert::<Pool>(db_pool)
+						.register_songbird_from_config(
+							songbird::Config::default()
+								.decode_mode(songbird::driver::DecodeMode::Pass)
+								.preallocated_tracks(5),
+						)
+				})
+				.run()
+				.await
+				.expect("Error starting bot");
 			}
 		}
-
-		info!("Data tables created");
 	}
-
-	if !OPT.no_bot {
-		let config = load_config();
-
-		info!("Config: {config:#?}");
-
-		// create a framework to process message commands
-		let framework = StandardFramework::new()
-			.configure(|c| c.prefixes(config.prefixes))
-			.before(before_hook)
-			.after(after_hook)
-			.unrecognised_command(unrecognised_command)
-			.on_dispatch_error(on_dispatch_error);
-
-		let framework = GROUPS.iter().fold(framework, |f, group| f.group(group));
-
-		// login with a bot token from file
-		let mut client = match ClientBuilder::new_with_http(http, GATEWAY_INTENTS)
-			.event_handler(Handler)
-			.framework(framework)
-			.type_map_insert::<VoiceUserCache>(Default::default())
-			.type_map_insert::<VoiceGuilds>(Default::default())
-			.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
-			.type_map_insert::<Pool>(db_pool)
-			.register_songbird_from_config(
-				songbird::Config::default()
-					.decode_mode(songbird::driver::DecodeMode::Pass)
-					.preallocated_tracks(5),
-			)
-			.await
-		{
-			Ok(c) => c,
-			Err(e) => {
-				error!("Error creating client: {e}");
-				return;
-			}
-		};
-
-		if let Err(e) = client.start().await {
-			error!("An error occurred while running the client: {e}")
-		}
-	}
-}
 
 fn load_config() -> Config {
 	let path = "config.toml";
@@ -255,67 +249,88 @@ fn load_config() -> Config {
 	}
 }
 
-#[hook]
-async fn unrecognised_command(ctx: &Context, msg: &Message, cmd: &str) {
-	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone());
-	check_msg(
-		msg.reply(&ctx, format!("Unrecognised command: {}", cmd))
-			.await,
-	);
+async fn before_hook(ctx: Context<'_>) {
+	let guild_name = ctx
+		.guild_id()
+		.map(|gid| ctx.discord().cache.guild_field(gid, |g| g.name.clone()));
 
 	info!(
-		"User {} ({}) in guild {:?} ({:?}) command {} not recognised with message: {}",
-		msg.author.name, msg.author.id, guild_name, msg.guild_id, cmd, msg.content
+		"User {} ({}) in guild {:?} ({:?}) running {}",
+		ctx.author().name,
+		ctx.author().id,
+		guild_name,
+		ctx.guild_id(),
+		ctx.invoked_command_name()
 	);
 }
 
-#[hook]
-async fn before_hook(ctx: &Context, msg: &Message, cmd: &str) -> bool {
-	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone());
-	info!(
-		"User {} ({}) in guild {:?} ({:?}) running {} with message: {}",
-		msg.author.name, msg.author.id, guild_name, msg.guild_id, cmd, msg.content
-	);
-
-	true
-}
-
-#[hook]
-async fn after_hook(ctx: &Context, msg: &Message, cmd: &str, res: CommandResult) {
-	let guild_name = msg.guild_field(&ctx.cache, |g| g.name.clone());
+async fn after_hook(ctx: Context<'_>) {
+	let guild_name = ctx
+		.guild_id()
+		.map(|gid| ctx.discord().cache.guild_field(gid, |g| g.name.clone()));
 
 	info!(
-		"User {} ({}) in guild {:?} ({:?}) completed {} with result {:?} with message: {}",
-		msg.author.name, msg.author.id, guild_name, msg.guild_id, cmd, res, msg.content
+		"User {} ({}) in guild {:?} ({:?}) completed {}",
+		ctx.author().name,
+		ctx.author().id,
+		guild_name,
+		ctx.guild_id(),
+		ctx.invoked_command_name()
 	);
 }
 
-#[hook]
-async fn on_dispatch_error(ctx: &Context, msg: &Message, err: DispatchError, cmd: &str) {
-	use DispatchError::*;
-	match err {
-		NotEnoughArguments { min, given } => {
-			let s = format!(
-				"Too few arguments for the {} command. Expected at least {}, but got {}.",
-				cmd, min, given
-			);
+async fn on_error(err: FrameworkError<'_>) {
+	use poise::FrameworkError::*;
 
-			check_msg(msg.respond_err(ctx, &s.into()).await);
-		}
-		TooManyArguments { max, given } => {
-			let s = format!(
-				"Too many arguments for the {} command. Expected at most {}, but got {}.",
-				cmd, max, given
-			);
-
-			check_msg(msg.respond_err(ctx, &s.into()).await);
-		}
-		OnlyForGuilds => {
+	match &err {
+		GuildOnly { ctx } | DmOnly { ctx } | NsfwOnly { ctx } => {
 			check_msg(
-				msg.respond_err(ctx, &format!("The {} command is only available in guilds", cmd).into())
-					.await,
+				ctx.respond_err(
+					&format!(
+						"`{}{}` is only available in {}",
+						ctx.prefix(),
+						ctx.command().qualified_name,
+						match &err {
+							GuildOnly { .. } => "guilds",
+							DmOnly { .. } => "dms",
+							NsfwOnly { .. } => "nsfw channels",
+							_ => unreachable!(),
+						}
+					)
+					.into(),
+				)
+				.await,
 			);
 		}
-		_ => error!("Unhandled dispatch error: {:?}", err),
+		ArgumentParse { error, ctx, .. } => {
+			let mut response = if error.is::<poise::TooManyArguments>() {
+				format!("Too many arguments supplied")
+			} else if error.is::<poise::TooFewArguments>() {
+				format!("Too few arguments supplied")
+			} else if error.is::<core::num::ParseFloatError>() {
+				format!("Expected a float like 0.5")
+			} else if error.is::<commands::queue::ParseLoopArgError>()
+				|| error.is::<parser::ParseSelectionError>()
+			{
+				let mut msg = format!("{}.", error);
+				msg[..1].make_ascii_uppercase();
+				msg
+			} else {
+				error!("Unhandled argument parse error: {:?}", error);
+
+				format!("Could not parse arguments for command")
+			};
+
+			write!(
+				response,
+				"\n\nUse `{}help {}` for more info",
+				ctx.prefix(),
+				ctx.command().qualified_name
+			)
+			.unwrap();
+
+			check_msg(ctx.respond_err(&response.into()).await);
+		}
+		_ => error!("Unhandled error: {:?}", err),
 	}
 }

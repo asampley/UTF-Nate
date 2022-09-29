@@ -64,7 +64,10 @@ pub async fn intro_outro(
 		Some(clip) => {
 			let clip = &clip.to_str().ok_or_else(|| {
 				error!("Could not encode clip as unicode");
-				format!("Unable to set intro to {} due to unicode encoding issue", clip.to_string_lossy())
+				format!(
+					"Unable to set intro to {} due to unicode encoding issue",
+					clip.to_string_lossy()
+				)
 			})?;
 
 			match mode {
@@ -114,9 +117,12 @@ pub async fn introbot(
 
 	match clip {
 		Some(clip) => {
-			let clip =  &clip.to_str().ok_or_else(|| {
+			let clip = &clip.to_str().ok_or_else(|| {
 				error!("Could not encode clip as unicode");
-				format!("Unable to set intro to {} due to unicode encoding issue", clip.to_string_lossy())
+				format!(
+					"Unable to set intro to {} due to unicode encoding issue",
+					clip.to_string_lossy()
+				)
 			})?;
 
 			Config::set_bot_intro(&pool, &guild_id, &clip)

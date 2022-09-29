@@ -1,168 +1,152 @@
-use serenity::builder::CreateApplicationCommand;
-use serenity::client::Context;
-use serenity::framework::standard::macros::{command, group};
-use serenity::framework::standard::{Args, CommandResult};
-use serenity::model::application::command::CommandOptionType;
-use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
-use serenity::model::channel::Message;
-
 use crate::audio::PlayStyle;
-use crate::commands::{create_interaction, run};
+use crate::commands::run;
 use crate::util::*;
 
 mod generic;
 
-#[group("voice")]
-#[description("Commands for info and settings for playback.")]
-#[commands(volume, list)]
-pub struct Voice;
+use generic::VolumeMode;
 
-#[command]
-#[only_in(guilds)]
-#[help_available]
-#[description("Get or change the volume of the bot")]
-#[min_args(0)]
-#[max_args(2)]
-#[usage("<get|play|clip> <volume?>")]
-#[example("get")]
-#[example("play")]
-#[example("clip")]
-#[example("play .25")]
-#[example("clip 0.5")]
-pub async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-	let style = match args.remaining() {
-		0 => None,
-		_ => match args.parse::<PlayStyle>().ok() {
-			Some(v) => Some(v),
-			None => {
-				if args.current().unwrap() == "get" {
-					None
-				} else {
-					msg.respond_err(ctx, &"Specify \"get\", \"play\", or \"clip\"".into())
-						.await?;
-
-					return Ok(());
-				}
-			}
-		},
-	};
-
-	args.advance();
-
-	let volume = match args.remaining() {
-		0 => None,
-		_ => match args.single::<f32>() {
-			Ok(volume) => Some(volume),
-			Err(_) => {
-				msg.respond_err(
-					ctx,
-					&"Volume must be a valid float between 0.0 and 1.0".into(),
-				)
-				.await?;
-
-				return Ok(());
-			}
-		},
-	};
-
-	run(ctx, msg, generic::volume(ctx, style, msg.guild_id, volume)).await
+/// Get or change the volume of the bot
+///
+/// **Usage:** `volume <get|play|clip|now> <volume?>`
+///
+/// **Examples:**
+/// - `volume get`
+/// - `volume play`
+/// - `volume play .25`
+/// - `volume clip`
+/// - `volume clip 0.5`
+/// - `volume now`
+/// - `volume now 1.0`
+#[poise::command(
+	category = "voice",
+	prefix_command,
+	slash_command,
+	guild_only,
+	subcommands("volume_get", "volume_play", "volume_clip", "volume_now")
+)]
+pub async fn volume(ctx: Context<'_>) -> CommandResult {
+	run(
+		&ctx,
+		generic::volume(&ctx, ctx.guild_id(), VolumeMode::ConfigAllStyles),
+	)
+	.await
 }
 
-pub async fn volume_interaction(
-	ctx: &Context,
-	int: &ApplicationCommandInteraction,
-) -> serenity::Result<()> {
-	let options = &int.data.options;
-
-	let opt = get_option(options, "play")
-		.or_else(|| get_option(options, "clip"))
-		.map(|sub| {
-			(
-				sub.name.parse().ok(),
-				get_option_f32(ctx, int, &sub.options, "volume"),
-			)
-		});
-
-	let (style, volume) = if let Some((style, volume_fut_res)) = opt {
-		(style, volume_fut_res.await?)
-	} else {
-		(None, None)
-	};
-
-	run(ctx, int, generic::volume(ctx, style, int.guild_id, volume)).await
+/// Get the play and clip volumes of the bot
+///
+/// **Usage:** `volume get`
+#[poise::command(
+	category = "voice",
+	rename = "get",
+	prefix_command,
+	slash_command,
+	guild_only
+)]
+pub async fn volume_get(ctx: Context<'_>) -> CommandResult {
+	run(
+		&ctx,
+		generic::volume(&ctx, ctx.guild_id(), VolumeMode::ConfigAllStyles),
+	)
+	.await
 }
 
-pub fn volume_interaction_create(
-	cmd: &mut CreateApplicationCommand,
-) -> &mut CreateApplicationCommand {
-	create_interaction(&VOLUME_COMMAND, cmd)
-		.create_option(|option| {
-			option
-				.name("get")
-				.description("Get the volume for both play and clip commands")
-				.kind(CommandOptionType::SubCommand)
-		})
-		.create_option(|option| {
-			option
-				.name("play")
-				.description("Get or set the volume for play commands")
-				.kind(CommandOptionType::SubCommand)
-				.create_sub_option(|option| {
-					option
-						.name("volume")
-						.description("Volume between 0.0 and 1.0")
-						.kind(CommandOptionType::Number)
-				})
-		})
-		.create_option(|option| {
-			option
-				.name("clip")
-				.description("Get or set the volume for play commands")
-				.kind(CommandOptionType::SubCommand)
-				.create_sub_option(|option| {
-					option
-						.name("volume")
-						.description("Volume between 0.0 and 1.0")
-						.kind(CommandOptionType::Number)
-				})
-		})
+/// Get or change the play volume of the bot
+///
+/// **Usage:** `volume play <volume?>`
+///
+/// **Examples:**
+/// - `volume play`
+/// - `volume play .25`
+/// - `volume play 0.5`
+#[poise::command(
+	category = "voice",
+	rename = "play",
+	prefix_command,
+	slash_command,
+	guild_only
+)]
+pub async fn volume_play(
+	ctx: Context<'_>,
+	#[description = "Volume between 0.0 and 1.0"] volume: Option<f32>,
+) -> CommandResult {
+	run(
+		&ctx,
+		generic::volume(
+			&ctx,
+			ctx.guild_id(),
+			VolumeMode::Config(PlayStyle::Play, volume),
+		),
+	)
+	.await
 }
 
-#[command]
-#[help_available]
-#[description("List all the sections and/or clips available in the section")]
-#[min_args(0)]
-#[max_args(1)]
-#[usage("<section?>")]
-#[example("bnw")]
-pub async fn list(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-	if args.len() > 1 {
-		msg.respond_err(ctx, &"Expected at most one path to be specified".into())
-			.await?;
-		return Ok(());
-	}
-
-	let path = args.current();
-
-	run(ctx, msg, generic::list(path)).await
+/// Get or change the clip volume of the bot
+///
+/// **Usage:** `volume clip <volume?>`
+///
+/// **Examples:**
+/// - `volume clip`
+/// - `volume clip .25`
+/// - `volume clip 0.5`
+#[poise::command(
+	category = "voice",
+	rename = "clip",
+	prefix_command,
+	slash_command,
+	guild_only
+)]
+pub async fn volume_clip(
+	ctx: Context<'_>,
+	#[description = "Volume between 0.0 and 1.0"] volume: Option<f32>,
+) -> CommandResult {
+	run(
+		&ctx,
+		generic::volume(
+			&ctx,
+			ctx.guild_id(),
+			VolumeMode::Config(PlayStyle::Clip, volume),
+		),
+	)
+	.await
 }
 
-pub async fn list_interaction(
-	ctx: &Context,
-	int: &ApplicationCommandInteraction,
-) -> serenity::Result<()> {
-	let path = get_option_string(ctx, int, &int.data.options, "path").await?;
-
-	run(ctx, int, generic::list(path)).await
+/// Get or change the play volume of the bot for the current song only
+///
+/// **Usage:** `volume now <volume?>`
+///
+/// **Examples:**
+/// - `volume now`
+/// - `volume now .25`
+/// - `volume now 0.5`
+#[poise::command(
+	category = "voice",
+	rename = "now",
+	prefix_command,
+	slash_command,
+	guild_only
+)]
+pub async fn volume_now(
+	ctx: Context<'_>,
+	#[description = "Volume between 0.0 and 1.0"] volume: Option<f32>,
+) -> CommandResult {
+	run(
+		&ctx,
+		generic::volume(&ctx, ctx.guild_id(), VolumeMode::Current(volume)),
+	)
+	.await
 }
 
-pub fn list_interaction_create(
-	cmd: &mut CreateApplicationCommand,
-) -> &mut CreateApplicationCommand {
-	create_interaction(&LIST_COMMAND, cmd).create_option(|option| {
-		option
-			.name("path")
-			.description("Path to list clips underneath")
-			.kind(CommandOptionType::String)
-	})
+/// List all the sections and/or clips available in the section
+///
+/// **Usage:** `list <section?>`
+///
+/// **Examples:**
+/// - `list bnw`
+#[poise::command(category = "voice", prefix_command, slash_command)]
+pub async fn list(
+	ctx: Context<'_>,
+	#[description = "Path to list clips underneath"] path: Option<String>,
+) -> CommandResult {
+	run(&ctx, generic::list(path.as_deref())).await
 }
