@@ -76,6 +76,10 @@ struct Opt {
 	/// Run command with additional logging
 	#[clap(long, short)]
 	verbose: bool,
+
+	/// Do not check for clip collisions. Speeds up start by disabling.
+	#[clap(long)]
+	no_check_clips: bool,
 }
 
 #[tokio::main]
@@ -92,10 +96,12 @@ async fn main() {
 	tracing::subscriber::set_global_default(subscriber)
 		.expect("unable to set default tracing subscriber");
 
-	// warn if there are duplicate clip names
-	audio::warn_duplicate_clip_names();
-	// warn if clips cannot be found with search easily
-	audio::warn_exact_name_finds_different_clip();
+	if !OPT.no_check_clips {
+		// warn if there are duplicate clip names
+		audio::warn_duplicate_clip_names();
+		// warn if clips cannot be found with search easily
+		audio::warn_exact_name_finds_different_clip();
+	}
 
 	// read keys file
 	let keys_path = "keys.toml";
@@ -137,93 +143,95 @@ async fn main() {
 		}
 	}
 
-	// initialize database connection
-	let db_pool = match PgPool::connect(&keys.database.connect_string).await {
-		Ok(p) => p,
-		Err(e) => {
-			error!("Failed to connect to database: {e}");
-			return;
-		}
-	};
-
-	if OPT.init_database {
-		let create_tables = match std::fs::read_to_string("database/create-tables.sql") {
-			Ok(t) => t,
+	if OPT.init_database || !OPT.no_bot {
+		// initialize database connection
+		let db_pool = match PgPool::connect(&keys.database.connect_string).await {
+			Ok(p) => p,
 			Err(e) => {
-				error!("Failed to read create tables file: {e}");
+				error!("Failed to connect to database: {e}");
 				return;
 			}
 		};
 
-		let mut trans = match db_pool.begin().await {
-			Ok(t) => t,
-			Err(e) => {
-				error!("Failed to intialize database transaction: {e}");
-				return;
-			}
-		};
+		if OPT.init_database {
+			let create_tables = match std::fs::read_to_string("database/create-tables.sql") {
+				Ok(t) => t,
+				Err(e) => {
+					error!("Failed to read create tables file: {e}");
+					return;
+				}
+			};
 
-		match trans.execute(create_tables.as_str()).await {
-			Ok(_) => (),
-			Err(e) => {
-				error!("Error creating tables: {e}");
-				return;
+			let mut trans = match db_pool.begin().await {
+				Ok(t) => t,
+				Err(e) => {
+					error!("Failed to intialize database transaction: {e}");
+					return;
+				}
+			};
+
+			match trans.execute(create_tables.as_str()).await {
+				Ok(_) => (),
+				Err(e) => {
+					error!("Error creating tables: {e}");
+					return;
+				}
 			}
+
+			match trans.commit().await {
+				Ok(_) => (),
+				Err(e) => {
+					error!("Error committing table creation: {e}");
+					return;
+				}
+			}
+
+			info!("Data tables created");
 		}
 
-		match trans.commit().await {
-			Ok(_) => (),
-			Err(e) => {
-				error!("Error committing table creation: {e}");
-				return;
-			}
-		}
+		if !OPT.no_bot {
+			info!("Config: {CONFIG:#?}");
 
-		info!("Data tables created");
-	}
-
-	if !OPT.no_bot {
-		info!("Config: {CONFIG:#?}");
-
-		// create a framework to process message commands
-		poise::Framework::builder()
-			.token(&keys.discord.token)
-			.intents(GATEWAY_INTENTS)
-			.user_data_setup(|_, _, _| Box::pin(async move { Ok(()) }))
-			.options(poise::FrameworkOptions {
-				prefix_options: poise::PrefixFrameworkOptions {
-					prefix: Some(CONFIG.prefixes[0].clone()),
-					additional_prefixes: CONFIG.prefixes[1..]
-						.iter()
-						.map(|p| poise::Prefix::Literal(p))
-						.collect(),
-					case_insensitive_commands: true,
+			// create a framework to process message commands
+			poise::Framework::builder()
+				.token(&keys.discord.token)
+				.intents(GATEWAY_INTENTS)
+				.user_data_setup(|_, _, _| Box::pin(async move { Ok(()) }))
+				.options(poise::FrameworkOptions {
+					prefix_options: poise::PrefixFrameworkOptions {
+						prefix: Some(CONFIG.prefixes[0].clone()),
+						additional_prefixes: CONFIG.prefixes[1..]
+							.iter()
+							.map(|p| poise::Prefix::Literal(p))
+							.collect(),
+						case_insensitive_commands: true,
+						..Default::default()
+					},
+					commands: commands,
+					pre_command: |ctx| Box::pin(before_hook(ctx)),
+					post_command: |ctx| Box::pin(after_hook(ctx)),
+					on_error: |err| Box::pin(on_error(err)),
 					..Default::default()
-				},
-				commands: commands,
-				pre_command: |ctx| Box::pin(before_hook(ctx)),
-				post_command: |ctx| Box::pin(after_hook(ctx)),
-				on_error: |err| Box::pin(on_error(err)),
-				..Default::default()
-			})
-			.client_settings(|client_builder| {
-				client_builder
-					.event_handler(Handler)
-					.type_map_insert::<VoiceUserCache>(Default::default())
-					.type_map_insert::<VoiceGuilds>(Default::default())
-					.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
-					.type_map_insert::<Pool>(db_pool)
-					.register_songbird_from_config(
-						songbird::Config::default()
-							.decode_mode(songbird::driver::DecodeMode::Pass)
-							.preallocated_tracks(5),
-					)
-			})
-			.run()
-			.await
-			.expect("Error starting bot");
+				})
+				.client_settings(|client_builder| {
+					client_builder
+						.event_handler(Handler)
+						.type_map_insert::<VoiceUserCache>(Default::default())
+						.type_map_insert::<VoiceGuilds>(Default::default())
+						.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
+						.type_map_insert::<Pool>(db_pool)
+						.register_songbird_from_config(
+							songbird::Config::default()
+								.decode_mode(songbird::driver::DecodeMode::Pass)
+								.preallocated_tracks(5),
+						)
+				})
+				.run()
+				.await
+				.expect("Error starting bot");
+			}
+		}
 	}
-}
 
 fn load_config() -> Config {
 	let path = "config.toml";
