@@ -7,7 +7,7 @@ use std::path::Path;
 use std::process;
 use std::process::Stdio;
 
-use crate::commands::external::cmd_path;
+use crate::commands::external::CMD_PATH;
 use crate::util::*;
 
 #[tracing::instrument(level = "info", ret)]
@@ -15,9 +15,9 @@ pub async fn cmd(
 	command: &str,
 	args: impl Iterator<Item = &str> + std::fmt::Debug,
 ) -> Result<Response, Response> {
-	let command = cmd_path().join(&command);
+	let command = CMD_PATH.join(&command);
 
-	if !sandboxed_exists(&cmd_path(), &command) {
+	if !sandboxed_exists(&CMD_PATH, &command) {
 		return Err("Invalid command".into());
 	}
 
@@ -50,14 +50,14 @@ pub async fn cmd(
 
 #[tracing::instrument(level = "info", ret)]
 pub async fn cmdlist(path: Option<&str>) -> Result<Response, Response> {
-	let dir = cmd_path().join(Path::new(match path {
+	let dir = CMD_PATH.join(Path::new(match path {
 		None => "",
 		Some(ref path) => path,
 	}));
 
 	let dir = dir.canonicalize().map_err(|_| "Invalid directory")?;
 
-	if !sandboxed_exists(&cmd_path(), &dir) {
+	if !sandboxed_exists(&CMD_PATH, &dir) {
 		return Err("Invalid directory".into());
 	}
 

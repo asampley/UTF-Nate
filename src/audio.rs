@@ -21,10 +21,13 @@ use std::borrow::Cow;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
+use crate::RESOURCE_PATH;
 use crate::data::{ArcRw, Keys};
 use crate::spotify;
 use crate::util::*;
 use crate::youtube::{self, YtdlLazy, YtdlSearchLazy};
+
+pub const CLIP_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("clips/"));
 
 static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
 
@@ -49,10 +52,6 @@ impl std::str::FromStr for PlayStyle {
 			_ => Err(()),
 		}
 	}
-}
-
-pub fn clip_path() -> PathBuf {
-	return Path::new("./resources/clips").canonicalize().unwrap();
 }
 
 #[derive(Debug, Error)]
@@ -329,9 +328,7 @@ pub enum FindClip {
 }
 
 pub fn warn_duplicate_clip_names() {
-	let clip_path = clip_path();
-
-	WalkDir::new(&clip_path)
+	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
 		.filter_map(|f| f.ok())
 		.filter(|f| f.file_type().is_file())
@@ -347,9 +344,7 @@ pub fn warn_duplicate_clip_names() {
 }
 
 pub fn warn_exact_name_finds_different_clip() {
-	let clip_path = clip_path();
-
-	WalkDir::new(&clip_path)
+	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
 		.filter_map(|f| f.ok())
 		.filter(|f| f.file_type().is_file())
@@ -357,7 +352,7 @@ pub fn warn_exact_name_finds_different_clip() {
 			let path = f.path();
 
 			match find_clip(&path.file_stem().unwrap()) {
-				FindClip::One(p) => p != path.strip_prefix(&clip_path).unwrap().with_extension(""),
+				FindClip::One(p) => p != path.strip_prefix(&*CLIP_PATH).unwrap().with_extension(""),
 				_ => true,
 			}
 		})
@@ -370,9 +365,7 @@ pub fn warn_exact_name_finds_different_clip() {
 }
 
 pub fn find_clip(loc: &OsStr) -> FindClip {
-	let clip_path = clip_path();
-
-	let top_two = WalkDir::new(&clip_path)
+	let top_two = WalkDir::new(&*CLIP_PATH)
 		.into_iter()
 		.filter_map(|f| f.ok())
 		.filter(|f| f.file_type().is_file())
@@ -405,14 +398,14 @@ pub fn find_clip(loc: &OsStr) -> FindClip {
 			top_two[0]
 				.value
 				.path()
-				.strip_prefix(&clip_path)
+				.strip_prefix(&*CLIP_PATH)
 				.unwrap()
 				.with_extension("")
 				.into(),
 			top_two[1]
 				.value
 				.path()
-				.strip_prefix(&clip_path)
+				.strip_prefix(&*CLIP_PATH)
 				.unwrap()
 				.with_extension("")
 				.into(),
@@ -422,7 +415,7 @@ pub fn find_clip(loc: &OsStr) -> FindClip {
 			top_two[0]
 				.value
 				.path()
-				.strip_prefix(&clip_path)
+				.strip_prefix(&*CLIP_PATH)
 				.unwrap()
 				.with_extension("")
 				.into(),
@@ -431,8 +424,7 @@ pub fn find_clip(loc: &OsStr) -> FindClip {
 }
 
 pub fn get_clip(loc: &OsStr) -> Option<PathBuf> {
-	let clip_path = clip_path();
-	let mut play_path = clip_path.join(&loc);
+	let mut play_path = CLIP_PATH.join(&loc);
 
 	for ext in &["mp3", "wav"] {
 		play_path.set_extension(ext);
@@ -446,5 +438,5 @@ pub fn get_clip(loc: &OsStr) -> Option<PathBuf> {
 }
 
 pub fn valid_clip(path: &Path) -> bool {
-	sandboxed_exists(&clip_path(), &path)
+	sandboxed_exists(&*CLIP_PATH, &path)
 }

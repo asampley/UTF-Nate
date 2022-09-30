@@ -10,8 +10,7 @@ use songbird::SongbirdKey;
 use std::fs::read_dir;
 use std::path::Path;
 
-use crate::audio::clip_path;
-use crate::audio::PlayStyle;
+use crate::audio::{CLIP_PATH, PlayStyle};
 use crate::configuration::Config;
 use crate::data::VoiceGuilds;
 use crate::util::*;
@@ -26,14 +25,14 @@ pub enum VolumeMode {
 
 #[tracing::instrument(level = "info", ret)]
 pub async fn list(path: Option<&str>) -> Result<Response, Response> {
-	let dir = clip_path().join(Path::new(match path {
+	let dir = CLIP_PATH.join(Path::new(match path {
 		None => "",
 		Some(ref path) => path,
 	}));
 
 	let dir = dir.canonicalize().map_err(|_| "Invalid directory")?;
 
-	if !sandboxed_exists(&clip_path(), &dir) {
+	if !sandboxed_exists(&CLIP_PATH, &dir) {
 		return Err("Invalid directory".into());
 	}
 

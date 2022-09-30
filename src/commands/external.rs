@@ -1,13 +1,14 @@
-use std::path::{Path, PathBuf};
+use once_cell::sync::Lazy;
 
+use std::path::PathBuf;
+
+use crate::RESOURCE_PATH;
 use crate::commands::run;
 use crate::util::*;
 
 mod generic;
 
-fn cmd_path() -> PathBuf {
-	return Path::new("./resources/cmd/").canonicalize().unwrap();
-}
+pub const CMD_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("cmd/"));
 
 /// Execute an external command
 ///

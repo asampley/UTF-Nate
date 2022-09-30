@@ -32,7 +32,10 @@ use interaction::reregister;
 use util::{check_msg, read_toml, Context, FrameworkError, Respond};
 
 use std::fmt::{Debug, Write};
+use std::path::Path;
 use std::sync::Arc;
+
+const RESOURCE_PATH: Lazy<&'static Path> = Lazy::new(|| Path::new("resources/"));
 
 static OPT: Lazy<Opt> = Lazy::new(|| {
 	let opt = Opt::parse();

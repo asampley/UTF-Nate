@@ -1,3 +1,5 @@
+use once_cell::sync::Lazy;
+
 use serde::{Deserialize, Serialize};
 use serenity::model::id::{GuildId, UserId};
 
@@ -8,6 +10,11 @@ use thiserror::Error;
 
 use std::fmt;
 use std::fs::read_to_string;
+use std::path::{Path, PathBuf};
+
+use crate::RESOURCE_PATH;
+
+const DB_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("database/"));
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -30,7 +37,7 @@ pub struct Config {
 impl Config {
 	async fn get_by_id<'e, E, I, T>(
 		executor: E,
-		file_name: &str,
+		file_name: &Path,
 		id: I,
 	) -> Result<Option<T>, ConfigError>
 	where
@@ -46,7 +53,7 @@ impl Config {
 
 	async fn set_by_id<'e, E, I, T>(
 		executor: E,
-		file_name: &str,
+		file_name: &Path,
 		id: I,
 		value: T,
 	) -> Result<(), ConfigError>
@@ -72,14 +79,14 @@ impl Config {
 		user_id: &UserId,
 		intro: &str,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(executor, "database/set-intro.sql", user_id.0 as i64, intro).await
+		Config::set_by_id(executor, &DB_PATH.join("set-intro.sql"), user_id.0 as i64, intro).await
 	}
 
 	pub async fn get_intro<'e, E: Executor<'e>>(
 		executor: E,
 		user_id: &UserId,
 	) -> Result<Option<String>, ConfigError> {
-		Config::get_by_id(executor, "database/get-intro.sql", user_id.0 as i64).await
+		Config::get_by_id(executor, &DB_PATH.join("get-intro.sql"), user_id.0 as i64).await
 	}
 
 	pub async fn set_outro<'e, E: Executor<'e>>(
@@ -87,14 +94,14 @@ impl Config {
 		user_id: &UserId,
 		outro: &str,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(executor, "database/set-outro.sql", user_id.0 as i64, outro).await
+		Config::set_by_id(executor, &DB_PATH.join("set-outro.sql"), user_id.0 as i64, outro).await
 	}
 
 	pub async fn get_outro<'e, E: Executor<'e>>(
 		executor: E,
 		user_id: &UserId,
 	) -> Result<Option<String>, ConfigError> {
-		Config::get_by_id(executor, "database/get-outro.sql", user_id.0 as i64).await
+		Config::get_by_id(executor, &DB_PATH.join("get-outro.sql"), user_id.0 as i64).await
 	}
 
 	pub async fn set_bot_intro<'e, E: Executor<'e>>(
@@ -104,7 +111,7 @@ impl Config {
 	) -> Result<(), ConfigError> {
 		Config::set_by_id(
 			executor,
-			"database/set-bot-intro.sql",
+			&DB_PATH.join("set-bot-intro.sql"),
 			guild_id.0 as i64,
 			intro,
 		)
@@ -115,7 +122,7 @@ impl Config {
 		executor: E,
 		guild_id: &GuildId,
 	) -> Result<Option<String>, ConfigError> {
-		Config::get_by_id(executor, "database/get-bot-intro.sql", guild_id.0 as i64).await
+		Config::get_by_id(executor, &DB_PATH.join("get-bot-intro.sql"), guild_id.0 as i64).await
 	}
 
 	pub async fn set_volume_play<'e, E: Executor<'e>>(
@@ -125,7 +132,7 @@ impl Config {
 	) -> Result<(), ConfigError> {
 		Config::set_by_id(
 			executor,
-			"database/set-volume-play.sql",
+			&DB_PATH.join("set-volume-play.sql"),
 			guild_id.0 as i64,
 			volume,
 		)
@@ -136,7 +143,7 @@ impl Config {
 		executor: E,
 		guild_id: &GuildId,
 	) -> Result<Option<f32>, ConfigError> {
-		Config::get_by_id(executor, "database/get-volume-play.sql", guild_id.0 as i64).await
+		Config::get_by_id(executor, &DB_PATH.join("get-volume-play.sql"), guild_id.0 as i64).await
 	}
 
 	pub async fn set_volume_clip<'e, E: Executor<'e>>(
@@ -146,7 +153,7 @@ impl Config {
 	) -> Result<(), ConfigError> {
 		Config::set_by_id(
 			executor,
-			"database/set-volume-clip.sql",
+			&DB_PATH.join("set-volume-clip.sql"),
 			guild_id.0 as i64,
 			volume,
 		)
@@ -157,6 +164,6 @@ impl Config {
 		executor: E,
 		guild_id: &GuildId,
 	) -> Result<Option<f32>, ConfigError> {
-		Config::get_by_id(executor, "database/get-volume-clip.sql", guild_id.0 as i64).await
+		Config::get_by_id(executor, &DB_PATH.join("get-volume-clip.sql"), guild_id.0 as i64).await
 	}
 }
