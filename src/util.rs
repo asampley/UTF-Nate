@@ -14,7 +14,7 @@ use serenity::prelude::{TypeMap, TypeMapKey};
 use thiserror::Error;
 
 use std::fmt;
-use std::path::Path;
+use std::path::{Component, Path};
 
 type Data = ();
 pub type Command = poise::Command<Data, CommandError>;
@@ -45,10 +45,29 @@ pub enum TomlFileError {
 
 pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
 	match sandbox.canonicalize() {
-		Ok(sandbox) => match path.canonicalize() {
-			Ok(path) => path.ancestors().any(|d| d == sandbox) && path.exists(),
-			Err(_) => false,
-		},
+		Ok(sandbox) => {
+			// check for any illegal components
+			let illegal_components = path.components()
+				// normal or current dir okay
+				.map(|c| match c {
+					Component::Normal(_) | Component::CurDir => false,
+					_ => true,
+				})
+				.any(|illegal| illegal);
+
+			// return false if any components are illegal
+			// prevents scanning the directory structure
+			if illegal_components {
+				return false;
+			}
+
+			// return false if the canonicalized path does not have the sandbox as a parent
+			// prevents accessing files outside of the parent
+			match path.canonicalize() {
+				Ok(path) => path.ancestors().any(|d| d == sandbox) && path.exists(),
+				Err(_) => false,
+			}
+		}
 		Err(_) => false,
 	}
 }
