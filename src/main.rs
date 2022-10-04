@@ -193,7 +193,7 @@ async fn main() {
 		}
 
 		if !OPT.no_bot {
-			info!("Config: {CONFIG:#?}");
+			info!("Config: {:#?}", *CONFIG);
 
 			// create a framework to process message commands
 			poise::Framework::builder()
@@ -210,7 +210,7 @@ async fn main() {
 						case_insensitive_commands: true,
 						..Default::default()
 					},
-					commands: commands,
+					commands,
 					pre_command: |ctx| Box::pin(before_hook(ctx)),
 					post_command: |ctx| Box::pin(after_hook(ctx)),
 					on_error: |err| Box::pin(on_error(err)),
@@ -305,24 +305,29 @@ async fn on_error(err: FrameworkError<'_>) {
 				.await,
 			);
 		}
-		ArgumentParse { error, ctx, .. } => {
-			let mut response = if error.is::<poise::TooManyArguments>() {
-				format!("Too many arguments supplied")
+		ArgumentParse { error, ctx, input } => {
+			let mut response = match input {
+				Some(input) => format!("Could not parse {:?}. ", input),
+				None => String::new(),
+			};
+
+			if error.is::<poise::TooManyArguments>() {
+				write!(response, "Too many arguments supplied.").unwrap()
 			} else if error.is::<poise::TooFewArguments>() {
-				format!("Too few arguments supplied")
+				write!(response, "Too few arguments supplied.").unwrap()
 			} else if error.is::<core::num::ParseFloatError>() {
-				format!("Expected a float like 0.5")
+				write!(response, "Expected a float like 0.25.").unwrap()
 			} else if error.is::<commands::queue::ParseLoopArgError>()
 				|| error.is::<parser::ParseSelectionError>()
 			{
 				let mut msg = format!("{}.", error);
 				msg[..1].make_ascii_uppercase();
-				msg
+				write!(response, "{}", msg).unwrap()
 			} else {
 				error!("Unhandled argument parse error: {:?}", error);
 
-				format!("Could not parse arguments for command")
-			};
+				write!(response, "Could not parse arguments for command.").unwrap()
+			}
 
 			write!(
 				response,
