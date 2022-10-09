@@ -25,12 +25,12 @@ poise = "0.3"
 const_format = "0.2"
 
 [features]
-default = ["youtube-dlc"]
+default = []
 yt-dlp = ["songbird/yt-dlp"]
 youtube-dlc = ["songbird/youtube-dlc"]
 
 [dependencies.clap]
-version = "3.2"
+version = "4.0"
 features = ["derive"]
 
 [dependencies.tracing]

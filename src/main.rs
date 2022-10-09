@@ -65,23 +65,23 @@ impl serenity::prelude::TypeMapKey for Pool {
 #[derive(Debug, Parser)]
 struct Opt {
 	/// Run initializing scripts for database
-	#[clap(long)]
+	#[arg(long)]
 	init_database: bool,
 
 	/// Reregister slash commands with discord
-	#[clap(long)]
+	#[arg(long)]
 	reregister: bool,
 
 	/// Do not run the bot. Useful when registering slash commands or initializing the database
-	#[clap(long)]
+	#[arg(long)]
 	no_bot: bool,
 
 	/// Run command with additional logging
-	#[clap(long, short)]
+	#[arg(long, short)]
 	verbose: bool,
 
 	/// Do not check for clip collisions. Speeds up start by disabling.
-	#[clap(long)]
+	#[arg(long)]
 	no_check_clips: bool,
 }
 
