@@ -2,9 +2,9 @@ use once_cell::sync::Lazy;
 
 use std::path::PathBuf;
 
-use crate::RESOURCE_PATH;
 use crate::commands::run;
 use crate::util::*;
+use crate::RESOURCE_PATH;
 
 mod generic;
 

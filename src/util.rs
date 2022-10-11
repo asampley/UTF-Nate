@@ -47,7 +47,8 @@ pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
 	match sandbox.canonicalize() {
 		Ok(sandbox) => {
 			// check for any illegal components
-			let illegal_components = path.components()
+			let illegal_components = path
+				.components()
 				// normal or current dir okay
 				.map(|c| match c {
 					Component::Normal(_) | Component::CurDir => false,

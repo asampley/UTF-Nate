@@ -21,11 +21,11 @@ use std::borrow::Cow;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
-use crate::RESOURCE_PATH;
 use crate::data::{ArcRw, Keys};
 use crate::spotify;
 use crate::util::*;
 use crate::youtube::{self, YtdlLazy, YtdlSearchLazy};
+use crate::RESOURCE_PATH;
 
 pub const CLIP_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("clips/"));
 

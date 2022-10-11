@@ -79,7 +79,13 @@ impl Config {
 		user_id: &UserId,
 		intro: &str,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(executor, &DB_PATH.join("set-intro.sql"), user_id.0 as i64, intro).await
+		Config::set_by_id(
+			executor,
+			&DB_PATH.join("set-intro.sql"),
+			user_id.0 as i64,
+			intro,
+		)
+		.await
 	}
 
 	pub async fn get_intro<'e, E: Executor<'e>>(
@@ -94,7 +100,13 @@ impl Config {
 		user_id: &UserId,
 		outro: &str,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(executor, &DB_PATH.join("set-outro.sql"), user_id.0 as i64, outro).await
+		Config::set_by_id(
+			executor,
+			&DB_PATH.join("set-outro.sql"),
+			user_id.0 as i64,
+			outro,
+		)
+		.await
 	}
 
 	pub async fn get_outro<'e, E: Executor<'e>>(
@@ -122,7 +134,12 @@ impl Config {
 		executor: E,
 		guild_id: &GuildId,
 	) -> Result<Option<String>, ConfigError> {
-		Config::get_by_id(executor, &DB_PATH.join("get-bot-intro.sql"), guild_id.0 as i64).await
+		Config::get_by_id(
+			executor,
+			&DB_PATH.join("get-bot-intro.sql"),
+			guild_id.0 as i64,
+		)
+		.await
 	}
 
 	pub async fn set_volume_play<'e, E: Executor<'e>>(
@@ -143,7 +160,12 @@ impl Config {
 		executor: E,
 		guild_id: &GuildId,
 	) -> Result<Option<f32>, ConfigError> {
-		Config::get_by_id(executor, &DB_PATH.join("get-volume-play.sql"), guild_id.0 as i64).await
+		Config::get_by_id(
+			executor,
+			&DB_PATH.join("get-volume-play.sql"),
+			guild_id.0 as i64,
+		)
+		.await
 	}
 
 	pub async fn set_volume_clip<'e, E: Executor<'e>>(
@@ -164,6 +186,11 @@ impl Config {
 		executor: E,
 		guild_id: &GuildId,
 	) -> Result<Option<f32>, ConfigError> {
-		Config::get_by_id(executor, &DB_PATH.join("get-volume-clip.sql"), guild_id.0 as i64).await
+		Config::get_by_id(
+			executor,
+			&DB_PATH.join("get-volume-clip.sql"),
+			guild_id.0 as i64,
+		)
+		.await
 	}
 }

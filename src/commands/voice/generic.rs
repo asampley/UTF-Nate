@@ -10,7 +10,7 @@ use songbird::SongbirdKey;
 use std::fs::read_dir;
 use std::path::Path;
 
-use crate::audio::{CLIP_PATH, PlayStyle};
+use crate::audio::{PlayStyle, CLIP_PATH};
 use crate::configuration::Config;
 use crate::data::VoiceGuilds;
 use crate::util::*;
