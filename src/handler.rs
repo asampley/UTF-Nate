@@ -58,13 +58,10 @@ impl SerenityEventHandler for Handler {
 				}
 
 				// get the bot's channel
-				let bot_channel = cache_guild
-					.get(&bot_id)
-					.map(|r| r.value().clone())
-					.flatten();
+				let bot_channel = cache_guild.get(&bot_id).and_then(|r| *r.value());
 
 				// get previous channel for the user
-				let previous_channel = old_state.map(|s| s.channel_id).flatten();
+				let previous_channel = old_state.and_then(|s| s.channel_id);
 				let user_channel = new_state.channel_id;
 
 				(bot_channel, previous_channel, user_channel)
@@ -91,7 +88,7 @@ impl SerenityEventHandler for Handler {
 								.map_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
-								.unwrap_or("dota/bleep bloop I am a robot".to_owned()),
+								.unwrap_or_else(|| "dota/bleep bloop I am a robot".to_owned()),
 							IOClip::Outro => return,
 						}
 					} else {
@@ -101,13 +98,13 @@ impl SerenityEventHandler for Handler {
 								.map_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
-								.unwrap_or("bnw/cow happy".to_owned()),
+								.unwrap_or_else(|| "bnw/cow happy".to_owned()),
 							IOClip::Outro => Config::get_outro(&pool, &new_state.user_id)
 								.await
 								.map_err(|e| error!("Error fetching outro: {:?}", e))
 								.ok()
 								.flatten()
-								.unwrap_or("bnw/death".to_owned()),
+								.unwrap_or_else(|| "bnw/death".to_owned()),
 						}
 					}
 				};

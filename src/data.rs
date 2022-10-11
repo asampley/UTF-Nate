@@ -134,16 +134,13 @@ pub struct TrackEventHandler(mpsc::UnboundedSender<Uuid>);
 #[async_trait]
 impl songbird::EventHandler for TrackEventHandler {
 	async fn act(&self, ctx: &songbird::EventContext<'_>) -> Option<songbird::Event> {
-		match ctx {
-			songbird::EventContext::Track(track_events) => {
-				for (state, handle) in track_events.iter() {
-					if state.playing.is_done() {
-						self.0.unbounded_send(handle.uuid()).unwrap();
-					}
+		if let songbird::EventContext::Track(track_events) = ctx {
+			for (state, handle) in track_events.iter() {
+				if state.playing.is_done() {
+					self.0.unbounded_send(handle.uuid()).unwrap();
 				}
 			}
-			_ => (),
-		}
+		};
 
 		None
 	}

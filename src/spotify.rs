@@ -38,6 +38,7 @@ impl SpotifyApi {
 #[derive(Debug, Deserialize)]
 pub struct SpotifyToken {
 	pub access_token: String,
+	#[allow(dead_code)]
 	token_type: String,
 	expires_in: u64,
 	#[serde(skip)]
@@ -79,7 +80,7 @@ impl SpotifyToken {
 
 impl From<&Track> for YtdlSearchLazy {
 	fn from(track: &Track) -> Self {
-		let artist = if track.artists.len() == 0 {
+		let artist = if track.artists.is_empty() {
 			None
 		} else {
 			Some(track.artists.iter().map(|a| &a.name).join(", "))
@@ -93,7 +94,7 @@ impl From<&Track> for YtdlSearchLazy {
 			),
 			Metadata {
 				title: Some(track.name.clone()),
-				artist: artist,
+				artist,
 				source_url: Some(format!("https://open.spotify.com/track/{}", track.id)),
 
 				..Default::default()

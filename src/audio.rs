@@ -27,7 +27,7 @@ use crate::util::*;
 use crate::youtube::{self, YtdlLazy, YtdlSearchLazy};
 use crate::RESOURCE_PATH;
 
-pub const CLIP_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("clips/"));
+pub static CLIP_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("clips/"));
 
 static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
 
@@ -73,7 +73,7 @@ pub enum AudioError {
 }
 
 pub async fn clip_source(loc: &OsStr) -> Result<Input, AudioError> {
-	match find_clip(&loc) {
+	match find_clip(loc) {
 		FindClip::One(clip) => match get_clip(&clip) {
 			Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
 			None => Err(AudioError::NotFound),
@@ -157,7 +157,7 @@ where
 
 				tokio::spawn(async move {
 					for item in playlist_items {
-						match YtdlLazy::from(item).as_input().await {
+						match YtdlLazy::from(item).into_input().await {
 							Ok(input) => f(input).await,
 							Err(e) => error!("Error creating input: {:?}", e),
 						}
@@ -229,7 +229,7 @@ where
 						AudioError::Spotify
 					})?;
 
-					match YtdlSearchLazy::from(&track).as_input().await {
+					match YtdlSearchLazy::from(&track).into_input().await {
 						Ok(input) => f(input).await,
 						Err(e) => error!("Error creating input: {:?}", e),
 					}
@@ -260,7 +260,7 @@ where
 
 					tokio::spawn(async move {
 						for track in playlist.tracks.items.into_iter().map(|t| t.track) {
-							match YtdlSearchLazy::from(&track).as_input().await {
+							match YtdlSearchLazy::from(&track).into_input().await {
 								Ok(input) => f(input).await,
 								Err(e) => error!("Error creating input: {:?}", e),
 							}
@@ -289,7 +289,7 @@ where
 
 					tokio::spawn(async move {
 						for track in album.tracks.items {
-							match YtdlSearchLazy::from(&track).as_input().await {
+							match YtdlSearchLazy::from(&track).into_input().await {
 								Ok(input) => f(input).await,
 								Err(e) => error!("Error creating input: {:?}", e),
 							}
@@ -351,7 +351,7 @@ pub fn warn_exact_name_finds_different_clip() {
 		.filter(|f| {
 			let path = f.path();
 
-			match find_clip(&path.file_stem().unwrap()) {
+			match find_clip(path.file_stem().unwrap()) {
 				FindClip::One(p) => p != path.strip_prefix(&*CLIP_PATH).unwrap().with_extension(""),
 				_ => true,
 			}
@@ -376,10 +376,10 @@ pub fn find_clip(loc: &OsStr) -> FindClip {
 			let path = f.path().to_string_lossy();
 
 			let leven = triple_accel::levenshtein::levenshtein_search(
-				&loc.to_string_lossy().as_bytes(),
+				loc.to_string_lossy().as_bytes(),
 				path.as_bytes(),
 			)
-			.nth(0)?;
+			.next()?;
 
 			Some(OrdKey {
 				key: (leven.k, -((leven.end - leven.start) as isize), path.len()),
@@ -391,7 +391,7 @@ pub fn find_clip(loc: &OsStr) -> FindClip {
 
 	debug!("Found the follwing top two clips: {:?}", top_two);
 
-	if top_two.len() == 0 {
+	if top_two.is_empty() {
 		FindClip::None
 	} else if top_two.len() > 1 && top_two[0].key == top_two[1].key {
 		FindClip::Multiple(
@@ -438,5 +438,5 @@ pub fn get_clip(loc: &OsStr) -> Option<PathBuf> {
 }
 
 pub fn valid_clip(path: &Path) -> bool {
-	sandboxed_exists(&*CLIP_PATH, &path)
+	sandboxed_exists(&*CLIP_PATH, path)
 }

@@ -27,7 +27,7 @@ pub enum VolumeMode {
 pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 	let dir = CLIP_PATH.join(Path::new(match path {
 		None => "",
-		Some(ref path) => path,
+		Some(path) => path,
 	}));
 
 	let dir = dir.canonicalize().map_err(|_| "Invalid directory")?;
@@ -39,7 +39,7 @@ pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 	match read_dir(dir) {
 		Err(reason) => {
 			error!("Unable to read directory: {:?}", reason);
-			return Err("Invalid directory".into());
+			Err("Invalid directory".into())
 		}
 		Ok(dir_iter) => {
 			let message = dir_iter
@@ -64,7 +64,7 @@ pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 				.map(|chunk| chunk.fold("".to_owned(), |acc, s| acc + &s))
 				.fold("".to_owned(), |acc, s| acc + "\n" + &s);
 
-			return Ok(("```\n".to_owned() + &message + "\n```").into());
+			Ok(("```\n".to_owned() + &message + "\n```").into())
 		}
 	}
 }
@@ -130,7 +130,7 @@ pub async fn volume(
 			.into())
 		}
 		VolumeMode::Config(_, Some(volume)) | VolumeMode::Current(Some(volume)) => {
-			if !(volume >= 0.0 && volume <= 1.0) {
+			if (0.0..=1.0).contains(&volume) {
 				return Err("Volume must be between 0.0 and 1.0".into());
 			}
 
@@ -192,7 +192,7 @@ pub async fn volume(
 				})?;
 			}
 
-			return ret;
+			ret
 		}
 		VolumeMode::Current(None) => {
 			let songbird = data_lock.clone_expect::<SongbirdKey>();

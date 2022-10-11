@@ -50,10 +50,7 @@ pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
 			let illegal_components = path
 				.components()
 				// normal or current dir okay
-				.map(|c| match c {
-					Component::Normal(_) | Component::CurDir => false,
-					_ => true,
-				})
+				.map(|c| !matches!(c, Component::Normal(_) | Component::CurDir))
 				.any(|illegal| illegal);
 
 			// return false if any components are illegal
@@ -96,17 +93,13 @@ pub trait GetExpect {
 
 impl GetExpect for TypeMap {
 	fn get_expect<T: TypeMapKey>(&self) -> &<T as TypeMapKey>::Value {
-		self.get::<T>().expect(&format!(
-			"Expected {} in TypeMap",
-			std::any::type_name::<T>()
-		))
+		self.get::<T>()
+			.unwrap_or_else(|| panic!("Expected {} in TypeMap", std::any::type_name::<T>()))
 	}
 
 	fn get_mut_expect<T: TypeMapKey>(&mut self) -> &mut <T as TypeMapKey>::Value {
-		self.get_mut::<T>().expect(&format!(
-			"Expected {} in TypeMap",
-			std::any::type_name::<T>()
-		))
+		self.get_mut::<T>()
+			.unwrap_or_else(|| panic!("Expected {} in TypeMap", std::any::type_name::<T>()))
 	}
 }
 

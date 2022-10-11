@@ -180,7 +180,7 @@ pub async fn queue(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response,
 	let len = current_queue.len();
 
 	Ok(if len == 0 {
-		format!("Nothing queued")
+		"Nothing queued".to_owned()
 	} else {
 		let queue = current_queue
 			.into_iter()
@@ -197,7 +197,7 @@ pub async fn queue(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response,
 			.join("\n");
 
 		if len <= 10 {
-			format!("Current queue:\n{}", queue).into()
+			format!("Current queue:\n{}", queue)
 		} else {
 			format!("Current queue:\n{}\n... and {} more", queue, len - 10)
 		}

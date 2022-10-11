@@ -55,7 +55,7 @@ pub async fn intro_outro(
 				"User {} is {}",
 				mode.lowercase(),
 				match clip {
-					None => format!("default"),
+					None => "default".to_owned(),
 					Some(clip) => format!("\"{}\"", clip),
 				}
 			)
@@ -71,8 +71,8 @@ pub async fn intro_outro(
 			})?;
 
 			match mode {
-				Intro => Config::set_intro(&pool, &user_id, &clip).await,
-				Outro => Config::set_outro(&pool, &user_id, &clip).await,
+				Intro => Config::set_intro(&pool, &user_id, clip).await,
+				Outro => Config::set_outro(&pool, &user_id, clip).await,
 			}
 			.map_err(|e| {
 				error!("Unable to write user data: {:?}", e);
@@ -90,7 +90,7 @@ pub async fn introbot(
 	guild_id: Option<GuildId>,
 	clip: Option<String>,
 ) -> Result<Response, Response> {
-	let guild_id = guild_id.ok_or("Groups and DMs not supported".to_string())?;
+	let guild_id = guild_id.ok_or_else(|| "Groups and DMs not supported".to_string())?;
 
 	let clip = match clip {
 		Some(clip) => match find_clip(clip.as_ref()) {
@@ -125,7 +125,7 @@ pub async fn introbot(
 				)
 			})?;
 
-			Config::set_bot_intro(&pool, &guild_id, &clip)
+			Config::set_bot_intro(&pool, &guild_id, clip)
 				.await
 				.map_err(|e| {
 					error!("Unable to set bot intro: {:?}", e);
@@ -143,7 +143,7 @@ pub async fn introbot(
 			Ok(format!(
 				"Bot intro is {}",
 				match intro {
-					None => format!("default"),
+					None => "default".to_owned(),
 					Some(intro) => format!("\"{}\"", intro),
 				}
 			)

@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use crate::RESOURCE_PATH;
 
-const DB_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("database/"));
+static DB_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("database/"));
 
 #[derive(Debug, Error)]
 pub enum ConfigError {

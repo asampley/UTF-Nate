@@ -6,3 +6,8 @@ if ! cargo fmt -- --check; then
 	echo "Run cargo fmt first."
 	exit 1
 fi
+
+if ! cargo clippy --all-targets -- -D warnings; then
+	echo "There are some clippy issues."
+	exit 1
+fi

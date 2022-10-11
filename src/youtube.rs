@@ -40,11 +40,11 @@ impl YtdlLazy {
 		Self { uri, metadata }
 	}
 
-	pub async fn as_input(self) -> songbird::input::error::Result<Input> {
-		self.as_restartable().await.map(|v| v.into())
+	pub async fn into_input(self) -> songbird::input::error::Result<Input> {
+		self.into_restartable().await.map(|v| v.into())
 	}
 
-	pub async fn as_restartable(self) -> songbird::input::error::Result<Restartable> {
+	pub async fn into_restartable(self) -> songbird::input::error::Result<Restartable> {
 		Restartable::new(self, true).await
 	}
 }
@@ -82,11 +82,11 @@ impl YtdlSearchLazy {
 		Self { search, metadata }
 	}
 
-	pub async fn as_input(self) -> songbird::input::error::Result<Input> {
-		self.as_restartable().await.map(|v| v.into())
+	pub async fn into_input(self) -> songbird::input::error::Result<Input> {
+		self.into_restartable().await.map(|v| v.into())
 	}
 
-	pub async fn as_restartable(self) -> songbird::input::error::Result<Restartable> {
+	pub async fn into_restartable(self) -> songbird::input::error::Result<Restartable> {
 		Restartable::new(self, true).await
 	}
 }

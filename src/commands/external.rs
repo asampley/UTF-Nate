@@ -8,7 +8,7 @@ use crate::RESOURCE_PATH;
 
 mod generic;
 
-pub const CMD_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("cmd/"));
+pub static CMD_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("cmd/"));
 
 /// Execute an external command
 ///

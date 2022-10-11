@@ -84,7 +84,7 @@ pub async fn play(
 				Err(e) => Err(e),
 			},
 			PlayStyle::Play => {
-				match play_sources(keys, &search, play_index.is_none(), move |input| {
+				match play_sources(keys, search, play_index.is_none(), move |input| {
 					let call = call.clone();
 					let voice_guild_arc = voice_guild_arc.clone();
 
@@ -106,7 +106,7 @@ pub async fn play(
 							},
 							match info.url {
 								Some(url) => format!("[{}]({})", title, url),
-								None => format!("{}", title),
+								None => title.to_string(),
 							}
 						))
 					}

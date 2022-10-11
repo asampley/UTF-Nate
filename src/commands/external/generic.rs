@@ -52,7 +52,7 @@ pub async fn cmd(
 pub async fn cmdlist(path: Option<&str>) -> Result<Response, Response> {
 	let dir = CMD_PATH.join(Path::new(match path {
 		None => "",
-		Some(ref path) => path,
+		Some(path) => path,
 	}));
 
 	let dir = dir.canonicalize().map_err(|_| "Invalid directory")?;
@@ -64,7 +64,7 @@ pub async fn cmdlist(path: Option<&str>) -> Result<Response, Response> {
 	match read_dir(dir) {
 		Err(reason) => {
 			error!("Unable to read directory: {:?}", reason);
-			return Err("Invalid directory".into());
+			Err("Invalid directory".into())
 		}
 		Ok(dir_iter) => {
 			let message = dir_iter
@@ -89,7 +89,7 @@ pub async fn cmdlist(path: Option<&str>) -> Result<Response, Response> {
 				.map(|chunk| chunk.fold("".to_owned(), |acc, s| acc + &s))
 				.fold("".to_owned(), |acc, s| acc + "\n" + &s);
 
-			return Ok(("```\n".to_owned() + &message + "\n```").into());
+			Ok(("```\n".to_owned() + &message + "\n```").into())
 		}
 	}
 }

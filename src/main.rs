@@ -36,7 +36,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 /// Path to shared resources directory for things such as clips or database scripts.
-const RESOURCE_PATH: Lazy<&'static Path> = Lazy::new(|| Path::new("resources/"));
+static RESOURCE_PATH: Lazy<&'static Path> = Lazy::new(|| Path::new("resources/"));
 
 /// Options parsed from the command line using [`clap`].
 static OPT: Lazy<Opt> = Lazy::new(|| {
@@ -46,7 +46,7 @@ static OPT: Lazy<Opt> = Lazy::new(|| {
 });
 
 /// Configuration parameters from a file. See [`load_config()`].
-static CONFIG: Lazy<Config> = Lazy::new(|| load_config());
+static CONFIG: Lazy<Config> = Lazy::new(load_config);
 
 /// Permissions recommended for registering the bot with a server, for full
 /// functionality.

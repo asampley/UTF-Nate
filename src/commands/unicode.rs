@@ -10,10 +10,10 @@ enum ParseCodeError {
 fn parse_code(string: &str) -> Result<char, ParseCodeError> {
 	use ParseCodeError::*;
 
-	let code = if string.starts_with("0x") {
-		u32::from_str_radix(&string[2..], 16)
+	let code = if let Some(code) = string.strip_prefix("0x") {
+		u32::from_str_radix(code, 16)
 	} else {
-		u32::from_str_radix(string, 10)
+		string.parse()
 	};
 
 	match code {
@@ -42,7 +42,7 @@ pub async fn unicode(
 	let mut reply = None;
 
 	for code_str in &codepoints {
-		let c = match parse_code(&code_str) {
+		let c = match parse_code(code_str) {
 			Err(_) => {
 				reply = Some(format!("Invalid character code: {}", code_str));
 				break;
