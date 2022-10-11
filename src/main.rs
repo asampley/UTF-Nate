@@ -35,27 +35,38 @@ use std::fmt::{Debug, Write};
 use std::path::Path;
 use std::sync::Arc;
 
+/// Path to shared resources directory for things such as clips or database scripts.
 const RESOURCE_PATH: Lazy<&'static Path> = Lazy::new(|| Path::new("resources/"));
 
+/// Options parsed from the command line using [`clap`].
 static OPT: Lazy<Opt> = Lazy::new(|| {
 	let opt = Opt::parse();
 	println!("Options: {:#?}", opt);
 	opt
 });
 
+/// Configuration parameters from a file. See [`load_config()`].
 static CONFIG: Lazy<Config> = Lazy::new(|| load_config());
 
+/// Permissions recommended for registering the bot with a server, for full
+/// functionality.
+///
+/// If some permissions are excluded when adding the bot to a server, it may not
+/// function properly.
 const RECOMMENDED_PERMISSIONS: Permissions = Permissions::SEND_MESSAGES
 	.union(Permissions::EMBED_LINKS)
 	.union(Permissions::CONNECT)
 	.union(Permissions::SPEAK);
 
+/// Gateway intents registered with discord to properly receive events from
+/// discord's API.
 const GATEWAY_INTENTS: GatewayIntents = GatewayIntents::GUILD_MESSAGES
 	.union(GatewayIntents::DIRECT_MESSAGES)
 	.union(GatewayIntents::GUILD_VOICE_STATES)
 	.union(GatewayIntents::GUILDS)
 	.union(GatewayIntents::MESSAGE_CONTENT);
 
+/// Key for [`serenity::prelude::TypeMap`] to enter the database pool.
 struct Pool;
 
 impl serenity::prelude::TypeMapKey for Pool {
@@ -64,19 +75,20 @@ impl serenity::prelude::TypeMapKey for Pool {
 
 #[derive(Debug, Parser)]
 struct Opt {
-	/// Run initializing scripts for database
+	/// Run initializing scripts for database.
 	#[arg(long)]
 	init_database: bool,
 
-	/// Reregister slash commands with discord
+	/// Reregister slash commands with discord.
 	#[arg(long)]
 	reregister: bool,
 
-	/// Do not run the bot. Useful when registering slash commands or initializing the database
+	/// Do not run the bot. Useful when registering slash commands or
+	/// initializing the database.
 	#[arg(long)]
 	no_bot: bool,
 
-	/// Run command with additional logging
+	/// Run command with additional logging.
 	#[arg(long, short)]
 	verbose: bool,
 
@@ -232,10 +244,11 @@ async fn main() {
 				.run()
 				.await
 				.expect("Error starting bot");
-			}
 		}
 	}
+}
 
+/// Load the configuration from `config.toml`.
 fn load_config() -> Config {
 	let path = "config.toml";
 
@@ -252,6 +265,11 @@ fn load_config() -> Config {
 	}
 }
 
+/// Log every execution of a command, before it is executed.
+///
+/// Information is logged with [`info!()`].
+///
+/// See [`poise::FrameworkOptions::pre_command`] for more information.
 async fn before_hook(ctx: Context<'_>) {
 	let guild_name = ctx
 		.guild_id()
@@ -267,6 +285,11 @@ async fn before_hook(ctx: Context<'_>) {
 	);
 }
 
+/// Log every execution of a command, after it is executed.
+///
+/// Information is logged with [`info!()`].
+///
+/// See [`poise::FrameworkOptions::post_command`] for more information.
 async fn after_hook(ctx: Context<'_>) {
 	let guild_name = ctx
 		.guild_id()
@@ -282,6 +305,13 @@ async fn after_hook(ctx: Context<'_>) {
 	);
 }
 
+/// Respond to the command, and depending on the nature of the error, log it.
+///
+/// Some errors are an issue only with the usage of the command, and should just
+/// have a response. Other errors which are an issue with the bot should be
+/// logged.
+///
+/// See [`poise::FrameworkOptions::on_error`] for more information.
 async fn on_error(err: FrameworkError<'_>) {
 	use poise::FrameworkError::*;
 
