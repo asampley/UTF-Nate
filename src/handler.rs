@@ -1,3 +1,8 @@
+//! Handle events other than regular commands.
+//!
+//! This is how the intro and outro clips are played when voice state changes
+//! are detected.
+
 use tracing::{error, info};
 
 use serenity::async_trait;
@@ -16,8 +21,11 @@ use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
 use crate::util::*;
 
+/// Handler that handeles serenity events for playing intros and outros, and
+/// other non-command events.
 pub struct Handler;
 
+/// Enum tagging either an intro or outro.
 enum IOClip {
 	Intro,
 	Outro,

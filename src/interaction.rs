@@ -1,3 +1,5 @@
+//! Code to register interations (slash commands) with discord.
+
 use tracing::{debug, info};
 
 use poise::Command;
@@ -5,6 +7,8 @@ use poise::Command;
 use serenity::http::client::Http;
 use serenity::model::application::command::Command as SerenityCommand;
 
+/// Reregister all of the slash commands with Discord. If this function isn't
+/// called then the slash commands will not appear as commands to users.
 pub async fn reregister<U, E>(
 	http: impl AsRef<Http>,
 	commands: &[Command<U, E>],

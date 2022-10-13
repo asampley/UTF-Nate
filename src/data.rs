@@ -1,3 +1,5 @@
+//! Definitions of data like API keys and runtime data for guild voice state.
+
 use dashmap::DashMap;
 
 use fxhash::FxBuildHasher as BuildHasher;
@@ -21,38 +23,55 @@ use std::sync::Arc;
 use crate::spotify::SpotifyApi;
 use crate::youtube::YoutubeApi;
 
+/// Authentication keys required to connect to assorted external interfaces.
 #[derive(Deserialize)]
 pub struct Keys {
+	/// Connection info for the database.
 	pub database: DatabaseKeys,
+
+	/// Connection info for the discord API.
 	pub discord: DiscordApi,
+
+	/// Connection info for the youtube API, if set up.
 	pub youtube: Option<YoutubeApi>,
+
+	/// Connection info for the spotify API, if set up.
 	pub spotify: Option<SpotifyApi>,
 }
 
+/// Token and application id for connecting to the discord API.
 #[derive(Deserialize)]
 pub struct DiscordApi {
 	pub application_id: u64,
 	pub token: String,
 }
 
+/// Connection string for the database, which includes credentials if
+/// necessary.
 #[derive(Deserialize)]
 pub struct DatabaseKeys {
 	pub connect_string: String,
 }
 
+/// Allow these keys to be inserted into a typemap.
 impl TypeMapKey for Keys {
 	type Value = ArcRw<Keys>;
 }
 
+/// Empty struct to be a [`TypeMapKey`].
 pub struct VoiceUserCache;
 
+/// Alias for `Arc<RwLock<T>>`.
 pub type ArcRw<T> = Arc<RwLock<T>>;
 
+/// Allow a cache of users mapped to channels, for tracking when to intro and
+/// outro, for example.
 impl TypeMapKey for VoiceUserCache {
 	type Value =
 		Arc<DashMap<GuildId, Arc<DashMap<UserId, Option<ChannelId>, BuildHasher>>, BuildHasher>>;
 }
 
+/// Collection of audios that have been queued.
 pub struct VoiceGuild {
 	audios: Vec<TrackHandle>,
 	to_remove: mpsc::UnboundedReceiver<Uuid>,
@@ -60,6 +79,7 @@ pub struct VoiceGuild {
 }
 
 impl Default for VoiceGuild {
+	/// Create an empty list of audios.
 	fn default() -> Self {
 		let (to_remove_sender, to_remove) = mpsc::unbounded();
 		VoiceGuild {
@@ -71,6 +91,10 @@ impl Default for VoiceGuild {
 }
 
 impl VoiceGuild {
+	/// Add an audio with the specified volume.
+	///
+	/// Before the audio is added, any audios that need to be cleaned up are
+	/// first cleared with [`Self::clean_audios`].
 	pub fn add_audio(
 		&mut self,
 		audio: TrackHandle,
@@ -89,12 +113,14 @@ impl VoiceGuild {
 		Ok(())
 	}
 
+	/// Stop all audios. See [`TrackHandle::stop`].
 	pub fn stop(&mut self) {
 		for audio in &self.audios {
 			let _ = audio.stop();
 		}
 	}
 
+	/// Set the volume for all audios contained within.
 	pub fn set_volume(&mut self, volume: f32) -> songbird::error::TrackResult<()> {
 		for audio in &self.audios {
 			match audio.set_volume(volume) {
@@ -105,6 +131,8 @@ impl VoiceGuild {
 		Ok(())
 	}
 
+	/// Clean up audios that have been added to be removed by the sender side
+	/// of the channel.
 	fn clean_audios(&mut self) {
 		debug!("Cleaning audios. List before cleaning: {:?}", self.audios);
 
@@ -129,6 +157,8 @@ impl VoiceGuild {
 	}
 }
 
+/// Send events when the tracks finish, to remove them from a [`VoiceGuild`],
+/// for example.
 pub struct TrackEventHandler(mpsc::UnboundedSender<Uuid>);
 
 #[async_trait]
@@ -146,6 +176,7 @@ impl songbird::EventHandler for TrackEventHandler {
 	}
 }
 
+/// Allow storing a [`VoiceGuild`] for each guild.
 pub struct VoiceGuilds;
 
 impl TypeMapKey for VoiceGuilds {

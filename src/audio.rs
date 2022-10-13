@@ -1,3 +1,12 @@
+//! Fetch Spotify, YouTube, and locally stored clips for playing.
+//!
+//! Ultimately all audio sources that are streamed are from youtube, but the
+//! metadata from Spotify is parsed in order to create a search on youtube
+//! which will likely return the source being searched for.
+//!
+//! Clip searches are done using levenshtein distance in order to fuzzily
+//! match making it easier to use without knowing exact clip names.
+
 use futures::Future;
 
 use itertools::Itertools;
@@ -27,18 +36,25 @@ use crate::util::*;
 use crate::youtube::{self, YtdlLazy, YtdlSearchLazy};
 use crate::RESOURCE_PATH;
 
+/// Path to shared directory for clips.
 pub static CLIP_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("clips/"));
 
+/// Regular expression which matches valid http or https urls.
 static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
 
+/// Regular expression which matches the host portion of a url if the host is youtube.
 static YOUTUBE_HOST: Lazy<Regex> =
 	Lazy::new(|| Regex::new("^([^.]*\\.)?(youtube\\.com|youtu.be)").unwrap());
 
+/// Regular expression which matches the host portion of a url if the host is spotify.
 static SPOTIFY_HOST: Lazy<Regex> = Lazy::new(|| Regex::new("^open\\.spotify\\.com").unwrap());
 
+/// Enum for the two styles of audio source.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PlayStyle {
+	/// Remote streamed audio sources that are queued.
 	Play,
+	/// Local audio clips that are played immediately.
 	Clip,
 }
 
@@ -54,24 +70,42 @@ impl std::str::FromStr for PlayStyle {
 	}
 }
 
+/// Error type for all audio errors in fetching clips or playing clips.
 #[derive(Debug, Error)]
 pub enum AudioError {
+	/// Pass through to a songbird error.
 	#[error("encountered songbird error: {0}")]
 	Songbird(#[from] songbird::input::error::Error),
+
+	/// Error indicating the context does not allow playlists.
 	#[error("playlists are not allowed in this context")]
 	PlaylistNotAllowed,
+
+	/// Generic error when using spotify.
 	#[error("error using the spotify api")]
 	Spotify,
+
+	/// Generic error when fetching a youtube playlist.
 	#[error("error reading youtube api for playlist")]
 	YoutubePlaylist,
+
+	/// Error indicating that the url that was supplied cannot be used to get clips.
 	#[error("unsupported url")]
 	UnsupportedUrl,
+
+	/// Error indicating too many matching clips were found.
 	#[error("multiple clips matched")]
 	MultipleClip(OsString, OsString),
+
+	/// Error indicating no matching clips were found.
 	#[error("no clips matched")]
 	NotFound,
 }
 
+/// Create an audio source for a clip based on a search string.
+///
+/// The search functionality is based on the [`find_clip`] function, and this
+/// merely converts it into a playable source for [`songbird`].
 pub async fn clip_source(loc: &OsStr) -> Result<Input, AudioError> {
 	match find_clip(loc) {
 		FindClip::One(clip) => match get_clip(&clip) {
@@ -83,13 +117,34 @@ pub async fn clip_source(loc: &OsStr) -> Result<Input, AudioError> {
 	}
 }
 
+/// Contains a few details for a source for display. This could be a single source
+/// or a playlist, but either way should have a title and url, if possible.
 #[derive(Debug)]
 pub struct SourceInfo {
+	/// The title that can be used as a good display string.
 	pub title: Option<String>,
+
+	/// The url which actually directs to the resource.
 	pub url: Option<String>,
+
+	/// The number of actual sources, if a playlist.
 	pub count: usize,
 }
 
+/// Creates audio sources for [`songbird`], and as each audio source is created
+/// it is run through the supplied callback `f`. Information about the audio
+/// sources is returned upon completion of all callbacks.
+///
+/// If `loc` is a URL, as matched by the [`URL`] regular expression, then it
+/// must match either a youtube or spotify URL, based on the host names in the
+/// [`YOUTUBE_HOST`] and [`SPOTIFY_HOST`] regular expressions. Any other URL
+/// will return an [`AudioError::UnsupportedUrl`].
+///
+/// If `loc` is not a URL then it will instead do a search on youtube and grab
+/// the first match.
+///
+/// Certain contexts may wish to exclude playlists, so `allow_playlist` can be
+/// used to return an [`AudioError::PlaylistNotAllowed`] instead.
 pub async fn play_sources<F, T>(
 	keys: ArcRw<Keys>,
 	loc: &str,
@@ -321,12 +376,22 @@ where
 	}
 }
 
+/// Results from searching for a clip.
 pub enum FindClip {
+	/// A single best matching clip was found.
 	One(OsString),
+
+	/// At least two equally matching clips were found.
 	Multiple(OsString, OsString),
+
+	/// No matching clips were found.
 	None,
 }
 
+/// Log a warning if any clips have the same file stem.
+///
+/// Different extensions are ignored, the comparison is done using
+/// [`Path::file_stem`]. The messages are logged using [`warn!()`].
 pub fn warn_duplicate_clip_names() {
 	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
@@ -343,6 +408,11 @@ pub fn warn_duplicate_clip_names() {
 		.for_each(|s| warn!("Multiple clips have the name \"{}\"", s));
 }
 
+/// Log a warning if any clips are not found with the exact clip name, ignoring
+/// directories.
+///
+/// Different extensions are ignored, the comparison is done using
+/// [`Path::file_stem`]. The messages are logged using [`warn!()`].
 pub fn warn_exact_name_finds_different_clip() {
 	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
@@ -364,6 +434,16 @@ pub fn warn_exact_name_finds_different_clip() {
 		});
 }
 
+/// Try to find a clip based on the search `loc`.
+///
+/// The actual search is done by searching for the lowest levenshtein distance.
+/// Ties are broken by using whichever clip has the longest match, followed by
+/// whichever clip has the shortest path, including the directory. In the case
+/// there is still a tie [`FindClip::Multiple`] is returned.
+///
+/// As specified by [`triple_accel::levenshtein::levenshtein_search`], half the
+/// bytes of the search have to be found in the clip, or else it is possible
+/// for [`FindClip::None`] to be returned.
 pub fn find_clip(loc: &OsStr) -> FindClip {
 	let top_two = WalkDir::new(&*CLIP_PATH)
 		.into_iter()
@@ -437,6 +517,7 @@ pub fn get_clip(loc: &OsStr) -> Option<PathBuf> {
 	None
 }
 
+/// Verify that the clip exists within the clip path directory.
 pub fn valid_clip(path: &Path) -> bool {
 	sandboxed_exists(&*CLIP_PATH, path)
 }

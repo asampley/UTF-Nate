@@ -1,3 +1,8 @@
+//! Structures and functions to authenticate and access the [YouTube API]
+//!
+//! In order to access the API, you just need a key, defined in [`YoutubeApi`]
+//!
+//! [YouTube API]: https://developers.google.com/youtube/v3/docs
 pub mod api;
 
 use tracing::{error, info};

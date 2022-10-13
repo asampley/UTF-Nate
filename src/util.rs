@@ -1,3 +1,9 @@
+//! Some shared utilities.
+//!
+//! This includes some functions to make sure files that are accessed are only
+//! contained within a folder to prevent people from going up directories
+//! ([`sandboxed_exists`]), and some functions to help responding to commands.
+
 mod ord_key;
 mod respond;
 
@@ -35,6 +41,7 @@ impl fmt::Display for UtilError {
 	}
 }
 
+/// Errors that can occur when reading a toml file.
 #[derive(Debug, Error)]
 pub enum TomlFileError {
 	#[error("unable to parse toml: {0}")]
@@ -43,6 +50,8 @@ pub enum TomlFileError {
 	IoError(#[from] std::io::Error),
 }
 
+/// Confirm that a path relative to the `sandbox` does not move up outside of
+/// the sandbox. It additionally checks that the path exists.
 pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
 	match sandbox.canonicalize() {
 		Ok(sandbox) => {
@@ -70,12 +79,18 @@ pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
 	}
 }
 
+/// Log an error if `result` is an error. This is useful for checking if
+/// sending a message was successful.
 pub fn check_msg<T>(result: serenity::Result<T>) {
 	if let Err(reason) = result {
 		error!("Error sending message: {:?}", reason);
 	}
 }
 
+/// Trait which combines get and expect, panicking if the get function fails.
+///
+/// This is useful for when the get function should never fail, but could if
+/// something was inconfigured correctly.
 #[async_trait]
 pub trait GetExpect {
 	fn get_expect<T: TypeMapKey>(&self) -> &<T as TypeMapKey>::Value;
@@ -103,6 +118,7 @@ impl GetExpect for TypeMap {
 	}
 }
 
+/// Read and parse a toml file.
 pub fn read_toml<T, P>(path: P) -> Result<T, TomlFileError>
 where
 	T: for<'de> Deserialize<'de>,

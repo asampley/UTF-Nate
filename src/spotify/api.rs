@@ -1,3 +1,7 @@
+//! Contains data structures defined by the [Spotify API].
+//!
+//! [Spotify API]: https://developer.spotify.com/documentation/web-api/reference/#/
+
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

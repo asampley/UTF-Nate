@@ -1,3 +1,7 @@
+//! All commands are defined under this module.
+//!
+//! Commands can be created for adding to the bot using [`commands()`].
+
 pub mod external;
 pub mod help;
 pub mod herald;
@@ -12,6 +16,7 @@ use futures::Future;
 
 use crate::util::{Command, CommandResult, Context, Respond, Response};
 
+/// Create a vector containing all the commands.
 pub fn commands() -> Vec<Command> {
 	vec![
 		external::cmd(),
@@ -41,6 +46,8 @@ pub fn commands() -> Vec<Command> {
 	]
 }
 
+/// Await a command `f`, and then reply to the initiating message with the
+/// response from the command.
 pub async fn run<F>(ctx: &Context<'_>, f: F) -> CommandResult
 where
 	F: Future<Output = Result<Response, Response>>,
