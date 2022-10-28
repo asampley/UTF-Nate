@@ -130,7 +130,7 @@ pub async fn volume(
 			.into())
 		}
 		VolumeMode::Config(_, Some(volume)) | VolumeMode::Current(Some(volume)) => {
-			if (0.0..=1.0).contains(&volume) {
+			if !(0.0..=1.0).contains(&volume) {
 				return Err("Volume must be between 0.0 and 1.0".into());
 			}
 
