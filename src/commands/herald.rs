@@ -28,7 +28,7 @@ use IntroOutroMode::*;
 /// - `intro`
 /// - `intro angels`
 /// - `intro bnw/angels`
-#[poise::command(category = "herald", prefix_command, slash_command, guild_only)]
+#[poise::command(category = "herald", prefix_command, slash_command)]
 pub async fn intro(
 	ctx: Context<'_>,
 	#[description = "Clip search to play when you enter the channel"]
@@ -68,7 +68,7 @@ pub async fn introbot(
 /// - `outro`
 /// - `outro death`
 /// - `outro bnw/death`
-#[poise::command(category = "herald", prefix_command, slash_command, guild_only)]
+#[poise::command(category = "herald", prefix_command, slash_command)]
 pub async fn outro(
 	ctx: Context<'_>,
 	#[description = "Clip search to play when you exit the channel"]
