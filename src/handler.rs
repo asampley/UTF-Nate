@@ -75,7 +75,7 @@ impl SerenityEventHandler for Handler {
 				(bot_channel, previous_channel, user_channel)
 			};
 
-			if bot_channel != None {
+			if bot_channel.is_some() {
 				let io = if user_channel == previous_channel {
 					return;
 				} else if user_channel == bot_channel {

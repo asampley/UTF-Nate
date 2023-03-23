@@ -151,14 +151,11 @@ pub async fn volume(
 						.queue()
 						.current_queue()
 					{
-						match handle
+						handle
 							.set_volume(volume)
 							.err()
 							.filter(|e| e == &TrackError::Finished)
-						{
-							Some(_) => return Err("Error setting volume".into()),
-							None => (),
-						}
+							.ok_or("Error setting volume")?;
 
 						if let VolumeMode::Current(_) = &mode {
 							break;

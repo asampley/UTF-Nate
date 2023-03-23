@@ -15,7 +15,7 @@ pub async fn cmd(
 	command: &str,
 	args: impl Iterator<Item = &str> + std::fmt::Debug,
 ) -> Result<Response, Response> {
-	let command = CMD_PATH.join(&command);
+	let command = CMD_PATH.join(command);
 
 	if !sandboxed_exists(&CMD_PATH, &command) {
 		return Err("Invalid command".into());
