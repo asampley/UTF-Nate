@@ -1,4 +1,5 @@
-//! Fetch Spotify, YouTube, and locally stored clips for playing.
+//! Fetch Spotify, YouTube, online audio files, and locally stored clips for
+//! playing.
 //!
 //! Ultimately all audio sources that are streamed are from youtube, but the
 //! metadata from Spotify is parsed in order to create a search on youtube
@@ -135,10 +136,11 @@ pub struct SourceInfo {
 /// it is run through the supplied callback `f`. Information about the audio
 /// sources is returned upon completion of all callbacks.
 ///
-/// If `loc` is a URL, as matched by the [`URL`] regular expression, then it
-/// must match either a youtube or spotify URL, based on the host names in the
+/// If `loc` is a URL, as matched by the [`URL`] regular expression, it will try
+/// to match either a youtube or spotify URL, based on the host names in the
 /// [`YOUTUBE_HOST`] and [`SPOTIFY_HOST`] regular expressions. Any other URL
-/// will return an [`AudioError::UnsupportedUrl`].
+/// will be run through ffmpeg, and if that fails, it returns an
+/// [`AudioError::UnsupportedUrl`] error.
 ///
 /// If `loc` is not a URL then it will instead do a search on youtube and grab
 /// the first match.
@@ -356,7 +358,21 @@ where
 				_ => Err(AudioError::UnsupportedUrl),
 			}
 		} else {
-			Err(AudioError::UnsupportedUrl)
+			match songbird::ffmpeg(loc).await {
+				Ok(source) => {
+					f(source).await;
+
+					Ok(SourceInfo {
+						title: None,
+						url: Some(loc.to_string()),
+						count: 1,
+					})
+				}
+				Err(e) => {
+					error!("Error creating input: {:?}", e);
+					Err(AudioError::UnsupportedUrl)
+				}
+			}
 		}
 	} else {
 		let loc_string = loc.to_string();
@@ -436,6 +452,8 @@ pub fn warn_exact_name_finds_different_clip() {
 
 /// Try to find a clip based on the search `loc`.
 ///
+/// If the clip is recognized as a URL, it leaves it as is.
+///
 /// The actual search is done by searching for the lowest levenshtein distance.
 /// Ties are broken by using whichever clip has the longest match, followed by
 /// whichever clip has the shortest path, including the directory. In the case
@@ -445,6 +463,10 @@ pub fn warn_exact_name_finds_different_clip() {
 /// bytes of the search have to be found in the clip, or else it is possible
 /// for [`FindClip::None`] to be returned.
 pub fn find_clip(loc: &OsStr) -> FindClip {
+	if URL.is_match(&loc.to_string_lossy()) {
+		return FindClip::One(loc.to_owned());
+	}
+
 	let top_two = WalkDir::new(&*CLIP_PATH)
 		.into_iter()
 		.filter_map(|f| f.ok())
@@ -503,14 +525,18 @@ pub fn find_clip(loc: &OsStr) -> FindClip {
 	}
 }
 
-pub fn get_clip(loc: &OsStr) -> Option<PathBuf> {
+pub fn get_clip(loc: &OsStr) -> Option<OsString> {
+	if URL.is_match(&loc.to_string_lossy()) {
+		return Some(loc.to_os_string());
+	}
+
 	let mut play_path = CLIP_PATH.join(&loc);
 
 	for ext in &["mp3", "wav"] {
 		play_path.set_extension(ext);
 
 		if valid_clip(&play_path) {
-			return Some(play_path);
+			return Some(play_path.into());
 		}
 	}
 
