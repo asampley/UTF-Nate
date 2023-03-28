@@ -20,5 +20,8 @@ pub async fn summon(ctx: Context<'_>) -> CommandResult {
 /// **Usage:** `banish`
 #[poise::command(category = "join", prefix_command, slash_command, guild_only)]
 pub async fn banish(ctx: Context<'_>) -> CommandResult {
-	run(&ctx, generic::banish(ctx.discord(), ctx.guild_id())).await
+	run(&ctx, async {
+		Err("I actually quite like it here, think I'll stay a while longer".into())
+	})
+	.await
 }
