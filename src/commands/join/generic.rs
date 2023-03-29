@@ -52,7 +52,7 @@ pub async fn banish(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response
 		*banish_attempts = (*banish_attempts + 1) % 3;
 
 		match banish_attempts {
-			1 => return Err("5 more minutes".into()),
+			1 => return Err("5 more minutes \u{1F97A}".into()),
 			2 => {
 				let mut drng = thread_rng();
 				let mut rng = thread_rng();
@@ -62,7 +62,9 @@ pub async fn banish(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response
 					.filter(|c| *c != 0x034F)
 					.map(char::from_u32);
 
-				let mut message = "5 MORE MINUTES".to_string();
+				let mut message =
+					"Please, I can't go back there, it's dark, and scary, and so very very quiet."
+						.to_string();
 
 				let mut i = 0;
 				while i < message.len() {
@@ -83,7 +85,7 @@ pub async fn banish(ctx: &Context, guild_id: Option<GuildId>) -> Result<Response
 	{
 		use songbird::error::JoinError::*;
 		match songbird.remove(guild_id).await {
-			Ok(()) => Ok("Left voice channel".into()),
+			Ok(()) => Ok("\u{1F622}".into()),
 			Err(e) => match e {
 				NoCall => Err("Not in a voice channel".into()),
 				_ => Err("Internal bot error".into()),
