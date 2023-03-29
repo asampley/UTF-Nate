@@ -73,6 +73,7 @@ impl TypeMapKey for VoiceUserCache {
 
 /// Collection of audios that have been queued.
 pub struct VoiceGuild {
+	pub banish_attempts: u8,
 	audios: Vec<TrackHandle>,
 	to_remove: mpsc::UnboundedReceiver<Uuid>,
 	to_remove_sender: mpsc::UnboundedSender<Uuid>,
@@ -83,6 +84,7 @@ impl Default for VoiceGuild {
 	fn default() -> Self {
 		let (to_remove_sender, to_remove) = mpsc::unbounded();
 		VoiceGuild {
+			banish_attempts: 0,
 			audios: Vec::default(),
 			to_remove,
 			to_remove_sender,
