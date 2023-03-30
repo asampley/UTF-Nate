@@ -71,17 +71,17 @@ async fn shuffle_type_command(ctx: Context<'_>, starting_from: usize) -> Command
 
 /// Shuffle the queue of songs, after the current song
 ///
-/// **Usage:** `shuffle`
+/// **Usage:** `qmix`
 #[poise::command(category = "queue", prefix_command, slash_command, guild_only)]
-pub async fn shuffle(ctx: Context<'_>) -> CommandResult {
+pub async fn qmix(ctx: Context<'_>) -> CommandResult {
 	shuffle_type_command(ctx, 1).await
 }
 
 /// Shuffle the queue of songs, including the current song
 ///
-/// **Usage:** `shufflenow`
+/// **Usage:** `qmixnow`
 #[poise::command(category = "queue", prefix_command, slash_command, guild_only)]
-pub async fn shufflenow(ctx: Context<'_>) -> CommandResult {
+pub async fn qmixnow(ctx: Context<'_>) -> CommandResult {
 	shuffle_type_command(ctx, 0).await
 }
 

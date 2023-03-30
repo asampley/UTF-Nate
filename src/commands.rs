@@ -2,6 +2,7 @@
 //!
 //! Commands can be created for adding to the bot using [`commands()`].
 
+pub mod cards;
 pub mod external;
 pub mod help;
 pub mod herald;
@@ -19,6 +20,7 @@ use crate::util::{Command, CommandResult, Context, Respond, Response};
 /// Create a vector containing all the commands.
 pub fn commands() -> Vec<Command> {
 	vec![
+		cards::shuffle(),
 		external::cmd(),
 		external::cmdlist(),
 		help::help(),
@@ -36,8 +38,8 @@ pub fn commands() -> Vec<Command> {
 		queue::pause(),
 		queue::unpause(),
 		queue::queue(),
-		queue::shuffle(),
-		queue::shufflenow(),
+		queue::qmix(),
+		queue::qmixnow(),
 		queue::r#loop(),
 		roll::roll(),
 		unicode::unicode(),
