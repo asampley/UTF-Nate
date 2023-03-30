@@ -99,3 +99,51 @@ pub async fn playnow(
 ) -> CommandResult {
 	play_type_command(ctx, &query, Some(0)).await
 }
+
+/// Generate audio using GPT based on a query
+///
+/// **Usage:** `play <prompt>`
+///
+/// **Examples:**
+/// - `gpt prompt to generate audio`
+#[poise::command(category = "ai", prefix_command, slash_command, guild_only)]
+pub async fn gpt(
+	ctx: Context<'_>,
+	#[description = "GPT prompt"]
+	#[rest]
+	query: String,
+) -> CommandResult {
+	play_type_command(ctx, &query, None).await
+}
+
+/// Generate audio using GPT and put it next in the queue.
+///
+/// **Usage:** `gptnext <prompt>`
+///
+/// **Examples:**
+/// - `gptnext prompt to generate audio`
+#[poise::command(category = "ai", prefix_command, slash_command, guild_only)]
+pub async fn gptnext(
+	ctx: Context<'_>,
+	#[description = "GPT prompt"]
+	#[rest]
+	query: String,
+) -> CommandResult {
+	play_type_command(ctx, &query, Some(1)).await
+}
+
+/// Play immediately, delaying the previously playing item
+///
+/// **Usage:** `gptnow <prompt>`
+///
+/// **Examples:**
+/// - `gptnow prompt to generate audio`
+#[poise::command(category = "ai", prefix_command, slash_command, guild_only)]
+pub async fn gptnow(
+	ctx: Context<'_>,
+	#[description = "GPT prompt"]
+	#[rest]
+	query: String,
+) -> CommandResult {
+	play_type_command(ctx, &query, Some(0)).await
+}
