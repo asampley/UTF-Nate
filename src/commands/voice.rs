@@ -68,7 +68,7 @@ pub async fn volume_get(ctx: Context<'_>) -> CommandResult {
 )]
 pub async fn volume_play(
 	ctx: Context<'_>,
-	#[description = "Volume between 0.0 and 1.0"] volume: Option<f32>,
+	#[description = "Volume between 0.0 and 128.0"] volume: Option<f32>,
 ) -> CommandResult {
 	run(
 		&ctx,

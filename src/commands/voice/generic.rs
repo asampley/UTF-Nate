@@ -16,6 +16,8 @@ use crate::data::VoiceGuilds;
 use crate::util::*;
 use crate::Pool;
 
+const VOLUME_SET_MAX: f32 = 128.0;
+
 #[derive(Debug)]
 pub enum VolumeMode {
 	ConfigAllStyles,
@@ -91,14 +93,14 @@ pub async fn volume(
 						error!("Unable to retrieve volume: {:?}", e);
 						"Unable to retrieve volume"
 					})?
-					.unwrap_or(0.5),
+					.unwrap_or(0.5) * VOLUME_SET_MAX,
 				Config::get_volume_clip(&pool, &guild_id)
 					.await
 					.map_err(|e| {
 						error!("Unable to retrieve volume: {:?}", e);
 						"Unable to retrieve volume"
 					})?
-					.unwrap_or(0.5)
+					.unwrap_or(0.5) * VOLUME_SET_MAX
 			)
 			.into())
 		}
@@ -114,7 +116,7 @@ pub async fn volume(
 							error!("Unable to retrieve volume: {:?}", e);
 							"Unable to retrieve volume"
 						})?
-						.unwrap_or(0.5),
+						.unwrap_or(0.5) * VOLUME_SET_MAX,
 				),
 				PlayStyle::Play => format!(
 					"Play volume: {}",
@@ -124,15 +126,17 @@ pub async fn volume(
 							error!("Unable to retrieve volume: {:?}", e);
 							"Unable to retrieve volume"
 						})?
-						.unwrap_or(0.5),
+						.unwrap_or(0.5) * VOLUME_SET_MAX,
 				),
 			}
 			.into())
 		}
-		VolumeMode::Config(_, Some(volume)) | VolumeMode::Current(Some(volume)) => {
-			if !(0.0..=1.0).contains(&volume) {
-				return Err("Volume must be between 0.0 and 1.0".into());
+		VolumeMode::Config(_, Some(volume_denorm)) | VolumeMode::Current(Some(volume_denorm)) => {
+			if !(0.0..=VOLUME_SET_MAX).contains(&volume_denorm) {
+				return Err(format!("Volume must be between 0.0 and {:.1}", VOLUME_SET_MAX).into());
 			}
+
+			let volume = volume_denorm / VOLUME_SET_MAX;
 
 			let style = if let VolumeMode::Config(style, _) = mode {
 				style
@@ -162,7 +166,7 @@ pub async fn volume(
 						}
 					}
 
-					Ok(format!("Play volume set to {}", volume).into())
+					Ok(format!("Play volume set to {}", volume_denorm).into())
 				}
 				PlayStyle::Clip => data_lock
 					.clone_expect::<VoiceGuilds>()
@@ -172,7 +176,7 @@ pub async fn volume(
 					.write()
 					.await
 					.set_volume(volume)
-					.map(|_| format!("Clip volume set to {}", volume).into())
+					.map(|_| format!("Clip volume set to {}", volume_denorm).into())
 					.map_err(|_| "Error setting volume".into()),
 			};
 
@@ -203,7 +207,7 @@ pub async fn volume(
 				.ok_or("No song currently playing")?
 				.get_info()
 				.await
-				.map(|info| info.volume)
+				.map(|info| info.volume * VOLUME_SET_MAX)
 				.map_err(|e| {
 					error!("Error getting volume: {:?}", e);
 					"Error getting volume"
