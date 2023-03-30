@@ -40,13 +40,7 @@ pub async fn summon(
 /// Remove the bot from the voice channel it is in
 ///
 /// **Usage:** `banish`
-#[poise::command(
-	category = "join",
-	prefix_command,
-	slash_command,
-	guild_only,
-	guild_cooldown = 300
-)]
+#[poise::command(category = "join", prefix_command, slash_command, guild_only)]
 pub async fn banish(ctx: Context<'_>) -> CommandResult {
 	run(&ctx, generic::banish(ctx.discord(), ctx.guild_id())).await
 }
