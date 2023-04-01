@@ -102,7 +102,7 @@ pub async fn playnow(
 
 /// Generate audio using GPT based on a query
 ///
-/// **Usage:** `play <prompt>`
+/// **Usage:** `gpt <prompt>`
 ///
 /// **Examples:**
 /// - `gpt prompt to generate audio`
