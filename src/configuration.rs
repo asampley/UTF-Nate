@@ -10,6 +10,8 @@
 use once_cell::sync::Lazy;
 
 use serde::{Deserialize, Serialize};
+
+use serenity::model::gateway::Activity;
 use serenity::model::id::{GuildId, UserId};
 
 use sqlx::PgExecutor as Executor;
@@ -47,6 +49,28 @@ impl fmt::Display for ConfigError {
 pub struct Config {
 	/// Prefixes that the bot recognizes as beginning a command.
 	pub prefixes: Vec<String>,
+	pub activity: Option<ActivityConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ActivityConfig {
+	Competing { name: String },
+	Listening { name: String },
+	Playing { name: String },
+	Streaming { name: String, url: String },
+	Watching { name: String },
+}
+
+impl From<&ActivityConfig> for Activity {
+	fn from(value: &ActivityConfig) -> Self {
+		match value {
+			ActivityConfig::Competing { name } => Activity::competing(name),
+			ActivityConfig::Listening { name } => Activity::listening(name),
+			ActivityConfig::Playing { name } => Activity::playing(name),
+			ActivityConfig::Streaming { name, url } => Activity::streaming(name, url),
+			ActivityConfig::Watching { name } => Activity::watching(name),
+		}
+	}
 }
 
 impl Config {

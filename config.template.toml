@@ -1,2 +1,8 @@
 # List of prefixes recognized by the bot
 prefixes = ["!", "?", "‽"]
+# Optional activity setting of the bot
+#activity = { Competing = { name = "\u2694" } }
+#activity = { Listening = { name = "\U0001F3A4" } }
+#activity = { Playing = { name = "\U0001F3AE" } }
+#activity = { Streaming = { name = "\U0001F4FA", url = "https://www.twitch.tv/" } }
+#activity = { Watching = { name = "\U0001F440" } }

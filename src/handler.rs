@@ -8,7 +8,7 @@ use tracing::{error, info};
 use serenity::async_trait;
 use serenity::client::Context as SerenityContext;
 use serenity::model::gateway::Ready;
-use serenity::model::prelude::Activity;
+use serenity::model::user::OnlineStatus;
 use serenity::model::voice::VoiceState;
 use serenity::prelude::EventHandler as SerenityEventHandler;
 
@@ -38,7 +38,11 @@ impl SerenityEventHandler for Handler {
 
 		info!("Bot info {:?}", ctx.cache.current_user_id());
 
-		ctx.set_activity(Activity::watching("you.")).await;
+		ctx.set_presence(
+			crate::CONFIG.activity.as_ref().map(Into::into),
+			OnlineStatus::Online,
+		)
+		.await;
 	}
 
 	async fn voice_state_update(
