@@ -5,11 +5,13 @@ use axum_extra::extract::CookieJar;
 
 use crate::commands::http::{extract_source, response_to_html, run};
 use crate::commands::BotState;
+use crate::util::GetExpect;
+use crate::AeadKey;
 
 use super::{LoopArgs, SkipArgs};
 
 pub async fn stop(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -28,7 +30,7 @@ pub async fn skip(
 	jar: CookieJar,
 	query: Option<Query<SkipArgs>>,
 ) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -43,7 +45,7 @@ pub async fn skip(
 }
 
 pub async fn pause(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -58,7 +60,7 @@ pub async fn pause(State(state): State<BotState>, jar: CookieJar) -> Html<String
 }
 
 pub async fn unpause(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -73,7 +75,7 @@ pub async fn unpause(State(state): State<BotState>, jar: CookieJar) -> Html<Stri
 }
 
 pub async fn queue(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -88,7 +90,7 @@ pub async fn queue(State(state): State<BotState>, jar: CookieJar) -> Html<String
 }
 
 pub async fn shuffle(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -103,7 +105,7 @@ pub async fn shuffle(State(state): State<BotState>, jar: CookieJar) -> Html<Stri
 }
 
 pub async fn shufflenow(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -122,7 +124,7 @@ pub async fn r#loop(
 	jar: CookieJar,
 	query: Option<Query<LoopArgs>>,
 ) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};

@@ -11,6 +11,8 @@ mod youtube;
 
 use clap::Parser;
 
+use ring::aead::LessSafeKey;
+
 use thiserror::Error;
 
 use tokio::task::JoinSet;
@@ -74,6 +76,13 @@ struct Pool;
 
 impl serenity::prelude::TypeMapKey for Pool {
 	type Value = PgPool;
+}
+
+/// Key for [`ring::aead::LessSafeKey`] for encryption purposes.
+struct AeadKey;
+
+impl serenity::prelude::TypeMapKey for AeadKey {
+	type Value = LessSafeKey;
 }
 
 #[derive(Debug, Parser)]
@@ -254,6 +263,9 @@ async fn main() {
 					..Default::default()
 				})
 				.client_settings(|client_builder| {
+					#[cfg(feature = "http-interface")]
+					let client_builder = client_builder.type_map_insert::<AeadKey>(commands::token::gen_key());
+
 					client_builder
 						.event_handler(Handler)
 						.type_map_insert::<VoiceUserCache>(Default::default())

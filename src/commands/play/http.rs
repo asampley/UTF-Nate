@@ -5,6 +5,8 @@ use axum_extra::extract::CookieJar;
 
 use crate::commands::http::{extract_source, response_to_html, run};
 use crate::commands::BotState;
+use crate::util::GetExpect;
+use crate::AeadKey;
 
 use super::{PlayArgs, PlayStyle};
 
@@ -13,7 +15,7 @@ pub async fn clip(
 	jar: CookieJar,
 	query: Option<Query<PlayArgs>>,
 ) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -32,7 +34,7 @@ pub async fn play(
 	jar: CookieJar,
 	query: Option<Query<PlayArgs>>,
 ) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -51,7 +53,7 @@ pub async fn playnext(
 	jar: CookieJar,
 	query: Option<Query<PlayArgs>>,
 ) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -70,7 +72,7 @@ pub async fn playnow(
 	jar: CookieJar,
 	query: Option<Query<PlayArgs>>,
 ) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};

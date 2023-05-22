@@ -4,6 +4,8 @@ use axum_extra::extract::cookie::CookieJar;
 
 use crate::commands::http::{extract_source, response_to_html, run};
 use crate::commands::BotState;
+use crate::util::GetExpect;
+use crate::AeadKey;
 
 use super::{IntroBotArgs, IntroOutroArgs, IntroOutroMode};
 
@@ -12,7 +14,7 @@ pub async fn intro(
 	jar: CookieJar,
 	query: Option<Query<IntroOutroArgs>>,
 ) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -31,7 +33,7 @@ pub async fn introbot(
 	jar: CookieJar,
 	query: Option<Query<IntroBotArgs>>,
 ) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};
@@ -50,7 +52,7 @@ pub async fn outro(
 	State(state): State<BotState>,
 	query: Option<Query<IntroOutroArgs>>,
 ) -> Html<String> {
-	let source = match extract_source(&jar) {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html(Err(e)).to_string()),
 		Ok(source) => source,
 	};

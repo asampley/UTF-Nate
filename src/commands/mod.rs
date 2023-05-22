@@ -115,12 +115,14 @@ pub mod http {
 
 	use once_cell::sync::Lazy;
 
+	use ring::aead::LessSafeKey;
 	use serde::{Deserialize, Serialize};
 
 	use serenity::model::prelude::{GuildId, UserId};
 
 	use std::collections::HashMap;
 
+	use crate::commands::token::Encrypted;
 	use crate::util::{Command, Response};
 
 	static FORMS: Lazy<HashMap<fn() -> Command, String>> = Lazy::new(|| {
@@ -159,8 +161,12 @@ pub mod http {
 		FORMS.get(&t).map(|s| &**s)
 	}
 
-	pub fn extract_source(jar: &CookieJar) -> Result<super::Source, Response> {
-		TryFrom::try_from(jar).map_err(|_| "Invalid token, please regenerate".into())
+	pub fn extract_source(jar: &CookieJar, key: &LessSafeKey) -> Result<super::Source, Response> {
+		TryInto::<Encrypted>::try_into(jar)
+			.map_err(|_| "Invalid token, please regenerate")?
+			.decrypt::<Token>(key)
+			.map_err(|_| "Invalid token, please regenerate".into())
+			.map(|v| (&v).into())
 	}
 
 	pub fn response_to_string(response: Result<Response, Response>) -> String {
