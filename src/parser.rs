@@ -3,6 +3,8 @@
 //! In order to work with [`poise`], [`std::str::FromStr`] is implemented on
 //! types that should be taken from arguments.
 
+use serde::{Deserialize, Serialize};
+
 use thiserror::Error;
 
 use std::ops::RangeInclusive;
@@ -17,7 +19,7 @@ use nom::{
 };
 
 /// Represents a selection of several ranges of values.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[repr(transparent)]
 pub struct Selection<T>(pub Vec<NumOrRange<T>>);
 
@@ -33,7 +35,7 @@ impl<T> From<Vec<NumOrRange<T>>> for Selection<T> {
 }
 
 /// Represents the two possibilities of either a scalar or range of values.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum NumOrRange<T> {
 	Num(T),
 	Range(RangeInclusive<T>),

@@ -1,0 +1,19 @@
+use crate::commands::{run, CustomData};
+use crate::util::*;
+
+use super::RollArgs;
+
+#[poise::command(
+	category = "roll",
+	prefix_command,
+	slash_command,
+	custom_data = "CustomData { help_md: super::roll_help }"
+)]
+pub async fn roll(
+	ctx: Context<'_>,
+	#[description = "Dice expression to roll and calculate"]
+	#[rest]
+	expression: String,
+) -> CommandResult {
+	run(&ctx, super::roll(&RollArgs { expression })).await
+}

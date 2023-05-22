@@ -23,15 +23,42 @@ tracing-subscriber = "0.3"
 triple_accel = "0.4"
 poise = "0.3"
 const_format = "0.2"
+ring = "0.16"
+hex = "0.4"
+serde_urlencoded = "0.7"
+markdown = { git = "https://github.com/wooorm/markdown-rs.git", tag = "1.0.0-alpha.9" }
 
 [features]
-default = ["yt-dlp"]
+default = ["http-interface", "yt-dlp"]
 yt-dlp = ["songbird/yt-dlp"]
 youtube-dlc = ["songbird/youtube-dlc"]
+http-interface = ["dep:axum", "dep:axum-extra", "dep:chrono", "dep:html", "dep:hyper"]
+
+[dependencies.axum]
+version = "0.6"
+optional = true
+
+[dependencies.axum-extra]
+version = "0.7"
+optional = true
+features = ["cookie"]
+
+[dependencies.chrono]
+version = "0.4"
+features = ["serde"]
+optional = true
 
 [dependencies.clap]
 version = "4.0"
 features = ["derive"]
+
+[dependencies.html]
+version = "0.5"
+optional = true
+
+[dependencies.hyper]
+version = "0.14"
+optional = true
 
 [dependencies.tracing]
 version = "0.1"
@@ -39,6 +66,10 @@ version = "0.1"
 [dependencies.serde]
 version = "1.0"
 features = ["derive"]
+
+[dependencies.serde_with]
+version = "3.0"
+features = ["base64"]
 
 [dependencies.serenity]
 version = "0.11"

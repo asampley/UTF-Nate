@@ -50,6 +50,7 @@ pub struct Config {
 	/// Prefixes that the bot recognizes as beginning a command.
 	pub prefixes: Vec<String>,
 	pub activity: Option<ActivityConfig>,
+	pub http: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

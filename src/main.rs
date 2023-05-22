@@ -11,6 +11,10 @@ mod youtube;
 
 use clap::Parser;
 
+use thiserror::Error;
+
+use tokio::task::JoinSet;
+
 use tracing::{error, info};
 use tracing_subscriber::filter::LevelFilter;
 
@@ -23,13 +27,12 @@ use serenity::prelude::RwLock;
 
 use songbird::serenity::SerenityInit;
 
-use sqlx::{Executor, PgPool};
-
 use configuration::Config;
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use interaction::reregister;
-use util::{check_msg, read_toml, Context, FrameworkError, Respond};
+use sqlx::{Executor, PgPool};
+use util::{check_msg, read_toml, Context, Framework, FrameworkError, Respond};
 
 use std::fmt::{Debug, Write};
 use std::path::Path;
@@ -95,6 +98,16 @@ struct Opt {
 	/// Do not check for clip collisions. Speeds up start by disabling.
 	#[arg(long)]
 	no_check_clips: bool,
+}
+
+#[derive(Debug, Error)]
+enum ProcessError {
+	#[error(transparent)]
+	Serenity(#[from] serenity::prelude::SerenityError),
+
+	#[cfg(feature = "http-interface")]
+	#[error(transparent)]
+	Hyper(#[from] hyper::Error),
 }
 
 #[tokio::main]
@@ -205,13 +218,25 @@ async fn main() {
 		}
 
 		if !OPT.no_bot {
+			let mut join_set = JoinSet::<Result<(), ProcessError>>::new();
+
 			info!("Config: {:#?}", *CONFIG);
 
 			// create a framework to process message commands
-			poise::Framework::builder()
+			let framework = Framework::builder()
 				.token(&keys.discord.token)
 				.intents(GATEWAY_INTENTS)
-				.user_data_setup(|_, _, _| Box::pin(async move { Ok(()) }))
+				.user_data_setup(|_, _, _| {
+					Box::pin(async move {
+						Ok(util::Data {
+							#[cfg(feature = "http-interface")]
+							forms: commands::COMMAND_CREATES
+								.iter()
+								.map(|c| (*c, commands::http::form(&c()).to_string()))
+								.collect(),
+						})
+					})
+				})
 				.options(poise::FrameworkOptions {
 					prefix_options: poise::PrefixFrameworkOptions {
 						prefix: Some(CONFIG.prefixes[0].clone()),
@@ -241,9 +266,65 @@ async fn main() {
 								.preallocated_tracks(5),
 						)
 				})
-				.run()
+				.build()
 				.await
 				.expect("Error starting bot");
+
+			#[cfg(feature = "http-interface")]
+			if let Some(addr) = &CONFIG.http {
+				use axum::routing::*;
+
+				let client = framework.client();
+				let state = commands::BotState {
+					data: client.data.clone(),
+					cache: client.cache_and_http.cache.clone(),
+				};
+
+				info!("Starting HTTP server");
+
+				let app = axum::Router::new()
+					.route("/cmd", get(commands::external::http::cmd))
+					.route("/cmdlist", get(commands::external::http::cmdlist))
+					.route("/summon", get(commands::join::http::summon))
+					.route("/banish", get(commands::join::http::banish))
+					.route("/intro", get(commands::herald::http::intro))
+					.route("/introbot", get(commands::herald::http::introbot))
+					.route("/outro", get(commands::herald::http::outro))
+					.route("/clip", get(commands::play::http::clip))
+					.route("/play", get(commands::play::http::play))
+					.route("/playnext", get(commands::play::http::playnext))
+					.route("/playnow", get(commands::play::http::playnow))
+					.route("/stop", get(commands::queue::http::stop))
+					.route("/skip", get(commands::queue::http::skip))
+					.route("/pause", get(commands::queue::http::pause))
+					.route("/unpause", get(commands::queue::http::unpause))
+					.route("/queue", get(commands::queue::http::queue))
+					.route("/shuffle", get(commands::queue::http::shuffle))
+					.route("/shufflenow", get(commands::queue::http::shufflenow))
+					.route("/loop", get(commands::queue::http::r#loop))
+					.route("/volume/get", get(commands::voice::http::volume_get))
+					.route("/volume/clip", get(commands::voice::http::volume_clip))
+					.route("/volume/play", get(commands::voice::http::volume_play))
+					.route("/volume/now", get(commands::voice::http::volume_now))
+					.route("/unicode", get(commands::unicode::http::unicode))
+					.route("/roll", get(commands::roll::http::roll))
+					.route("/token", get(commands::token::http::token))
+					.with_state(state);
+
+				let http_future =
+					hyper::Server::bind(&addr.parse().unwrap()).serve(app.into_make_service());
+
+				join_set.spawn(async move { http_future.await.map_err(Into::into) });
+			}
+
+			join_set.spawn(async move { framework.start().await.map_err(Into::into) });
+
+			while let Some(res) = join_set.join_next().await {
+				match res {
+					Ok(res) => res.expect("Failure in joined process"),
+					Err(e) => error!("Failed to join: {}", e),
+				}
+			}
 		}
 	}
 }

@@ -16,6 +16,12 @@ pub struct Response {
 	pub text: String,
 }
 
+impl std::fmt::Display for Response {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		std::fmt::Display::fmt(&self.text, f)
+	}
+}
+
 impl From<String> for Response {
 	fn from(text: String) -> Self {
 		Self { text }

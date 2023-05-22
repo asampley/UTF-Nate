@@ -7,7 +7,12 @@ if ! cargo fmt -- --check; then
 	exit 1
 fi
 
-if ! cargo clippy --all-targets -- -D warnings; then
-	echo "There are some clippy issues."
-	exit 1
-fi
+clippy() {
+	if ! cargo clippy --all-targets "$@" -- -D warnings; then
+		echo "There are some clippy issues."
+		exit 1
+	fi
+}
+
+clippy --no-default-features
+clippy --no-default-features --features http-interface
