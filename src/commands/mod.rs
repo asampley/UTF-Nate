@@ -147,11 +147,21 @@ pub mod http {
 		pub expiry: DateTime<Utc>,
 	}
 
-	impl From<&Token> for super::Source {
-		fn from(token: &Token) -> Self {
-			Self {
-				guild_id: token.guild_id,
-				user_id: token.user_id,
+	pub enum TokenError {
+		Expired,
+	}
+
+	impl TryFrom<&Token> for super::Source {
+		type Error = TokenError;
+
+		fn try_from(token: &Token) -> Result<Self, Self::Error> {
+			if token.expiry < Utc::now() {
+				Err(TokenError::Expired)
+			} else {
+				Ok(Self {
+					guild_id: token.guild_id,
+					user_id: token.user_id,
+				})
 			}
 		}
 	}
@@ -162,11 +172,14 @@ pub mod http {
 	}
 
 	pub fn extract_source(jar: &CookieJar, key: &LessSafeKey) -> Result<super::Source, Response> {
-		TryInto::<Encrypted>::try_into(jar)
+		let token: Token = TryInto::<Encrypted>::try_into(jar)
 			.map_err(|_| "Invalid token, please regenerate")?
 			.decrypt::<Token>(key)
-			.map_err(|_| "Invalid token, please regenerate".into())
-			.map(|v| (&v).into())
+			.map_err(|_| "Invalid token, please regenerate")?;
+
+		(&token)
+			.try_into()
+			.map_err(|_| "Token expired, please regenerate".into())
 	}
 
 	pub fn response_to_string(response: Result<Response, Response>) -> String {
