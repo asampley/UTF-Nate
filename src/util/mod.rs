@@ -19,16 +19,10 @@ use serenity::prelude::{TypeMap, TypeMapKey};
 
 use thiserror::Error;
 
-#[cfg(feature = "http-interface")]
-use std::collections::HashMap;
 use std::fmt;
 use std::path::{Component, Path};
 
-#[derive(Debug)]
-pub struct Data {
-	#[cfg(feature = "http-interface")]
-	pub forms: HashMap<fn() -> Command, String>,
-}
+pub type Data = ();
 pub type Command = poise::Command<Data, CommandError>;
 pub type CommandError = Box<dyn std::error::Error + Send + Sync>;
 pub type CommandResult = Result<(), CommandError>;

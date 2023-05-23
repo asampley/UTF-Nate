@@ -4,7 +4,7 @@ use axum::response::Html;
 use axum_extra::extract::CookieJar;
 
 use crate::audio::PlayStyle;
-use crate::commands::http::{extract_source, response_to_html, run};
+use crate::commands::http::{extract_source, response_to_html_string, run};
 use crate::commands::BotState;
 use crate::util::GetExpect;
 use crate::AeadKey;
@@ -13,7 +13,7 @@ use super::{VolumeMode, VolumeSetArgs};
 
 pub async fn volume_get(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html(Err(e)).to_string()),
+		Err(e) => return Html(response_to_html_string(Err(e))),
 		Ok(source) => source,
 	};
 
@@ -32,7 +32,7 @@ pub async fn volume_play(
 	query: Option<Query<VolumeSetArgs>>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html(Err(e)).to_string()),
+		Err(e) => return Html(response_to_html_string(Err(e))),
 		Ok(source) => source,
 	};
 
@@ -57,7 +57,7 @@ pub async fn volume_clip(
 	query: Option<Query<VolumeSetArgs>>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html(Err(e)).to_string()),
+		Err(e) => return Html(response_to_html_string(Err(e))),
 		Ok(source) => source,
 	};
 
@@ -82,7 +82,7 @@ pub async fn volume_now(
 	query: Option<Query<VolumeSetArgs>>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html(Err(e)).to_string()),
+		Err(e) => return Html(response_to_html_string(Err(e))),
 		Ok(source) => source,
 	};
 

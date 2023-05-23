@@ -128,7 +128,7 @@ pub mod http {
 	static FORMS: Lazy<HashMap<fn() -> Command, String>> = Lazy::new(|| {
 		super::COMMAND_CREATES
 			.iter()
-			.map(|c| (*c, form(&c()).to_string()))
+			.map(|c| (*c, form(&c())))
 			.collect()
 	});
 
@@ -176,10 +176,11 @@ pub mod http {
 		}
 	}
 
-	pub fn response_to_html(response: Result<Response, Response>) -> html::text_content::Paragraph {
+	pub fn response_to_html_string(response: Result<Response, Response>) -> String {
 		html::text_content::Paragraph::builder()
 			.text(markdown::to_html(&response_to_string(response)))
 			.build()
+			.to_string()
 	}
 
 	pub async fn run<F, I, O>(
@@ -194,7 +195,7 @@ pub mod http {
 		I: Serialize,
 	{
 		let response = match input {
-			Some(i) => Some(response_to_html(command(i).await)),
+			Some(i) => Some(command(i).await),
 			None => None,
 		};
 
@@ -205,7 +206,7 @@ pub mod http {
 		};
 
 		if let Some(r) = response {
-			html.push_str(&r.to_string());
+			html.push_str(&response_to_html_string(r));
 		}
 
 		html.push_str(&markdown::to_html(help_md));
@@ -213,7 +214,7 @@ pub mod http {
 		Html(html)
 	}
 
-	pub fn form(c: &Command) -> html::forms::Form {
+	pub fn form(c: &Command) -> String {
 		let mut form = html::forms::Form::builder();
 
 		for p in c.parameters.iter() {
@@ -223,6 +224,6 @@ pub mod http {
 
 		form.button(|e| e.type_("submit").text("Submit"));
 
-		form.build()
+		form.build().to_string()
 	}
 }

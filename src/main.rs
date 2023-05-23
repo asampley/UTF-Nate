@@ -1,3 +1,6 @@
+// required for html crate on release
+#![recursion_limit = "256"]
+
 mod audio;
 mod commands;
 mod configuration;
@@ -235,17 +238,7 @@ async fn main() {
 			let framework = Framework::builder()
 				.token(&keys.discord.token)
 				.intents(GATEWAY_INTENTS)
-				.user_data_setup(|_, _, _| {
-					Box::pin(async move {
-						Ok(util::Data {
-							#[cfg(feature = "http-interface")]
-							forms: commands::COMMAND_CREATES
-								.iter()
-								.map(|c| (*c, commands::http::form(&c()).to_string()))
-								.collect(),
-						})
-					})
-				})
+				.user_data_setup(|_, _, _| Box::pin(async move { Ok(()) }))
 				.options(poise::FrameworkOptions {
 					prefix_options: poise::PrefixFrameworkOptions {
 						prefix: Some(CONFIG.prefixes[0].clone()),
