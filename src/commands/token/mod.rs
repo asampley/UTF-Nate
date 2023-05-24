@@ -14,7 +14,7 @@ use serde_with::serde_as;
 use crate::commands::http::Token;
 use crate::commands::{BotState, Source};
 use crate::util::{GetExpect, Response};
-use crate::AeadKey;
+use crate::{AeadKey, CONFIG};
 
 #[cfg(feature = "http-interface")]
 pub mod http;
@@ -102,7 +102,15 @@ pub async fn token(state: &BotState, source: &Source) -> Result<Response, Respon
 	let encrypted = Encrypted::encrypt(&token, state.data.read().await.get_expect::<AeadKey>())
 		.map_err(|_| "Internal error with encrypting")?;
 
-	Ok(serde_urlencoded::to_string(encrypted)
-		.map_err(|_| "Internal error with url serialization")?
-		.into())
+	let url = format!(
+		"http://{}:{}/token/{}",
+		public_ip::addr()
+			.await
+			.ok_or("Unable to find public address")?,
+		CONFIG.http.ok_or("Http interface not set up")?.port(),
+		serde_urlencoded::to_string(encrypted)
+			.map_err(|_| "Internal error with url serialization")?,
+	);
+
+	Ok(url.into())
 }

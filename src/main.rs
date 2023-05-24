@@ -316,8 +316,7 @@ async fn main() {
 					.route("/token", get(commands::token::http::token))
 					.with_state(state);
 
-				let http_future =
-					hyper::Server::bind(&addr.parse().unwrap()).serve(app.into_make_service());
+				let http_future = hyper::Server::bind(addr).serve(app.into_make_service());
 
 				join_set.spawn(async move { http_future.await.map_err(Into::into) });
 			}

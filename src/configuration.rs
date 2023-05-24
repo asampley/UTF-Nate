@@ -21,6 +21,7 @@ use thiserror::Error;
 
 use std::fmt;
 use std::fs::read_to_string;
+use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
 use crate::RESOURCE_PATH;
@@ -50,7 +51,7 @@ pub struct Config {
 	/// Prefixes that the bot recognizes as beginning a command.
 	pub prefixes: Vec<String>,
 	pub activity: Option<ActivityConfig>,
-	pub http: Option<String>,
+	pub http: Option<SocketAddr>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
