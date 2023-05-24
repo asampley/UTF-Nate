@@ -6,8 +6,11 @@ use axum_extra::extract::CookieJar;
 use crate::commands::token::Encrypted;
 
 pub async fn token(Query(encrypted): Query<Encrypted>, jar: CookieJar) -> impl IntoResponse {
-	jar.add(Cookie::new(
-		"token",
-		serde_urlencoded::to_string(encrypted).unwrap(),
-	))
+	(
+		jar.add(Cookie::new(
+			"token",
+			serde_urlencoded::to_string(encrypted).unwrap(),
+		)),
+		"Your token has been set.",
+	)
 }

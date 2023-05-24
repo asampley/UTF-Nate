@@ -103,7 +103,7 @@ pub async fn token(state: &BotState, source: &Source) -> Result<Response, Respon
 		.map_err(|_| "Internal error with encrypting")?;
 
 	let url = format!(
-		"http://{}:{}/token/{}",
+		"http://{}:{}/token?{}",
 		public_ip::addr()
 			.await
 			.ok_or("Unable to find public address")?,
