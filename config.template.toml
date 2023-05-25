@@ -9,4 +9,5 @@ prefixes = ["!", "?", "‽"]
 #activity = { Watching = { name = "\U0001F440" } }
 
 # Optional http bind address for a web interface
+# 0.0.0.0 can be used to just bind to the current ip
 #http = "0.0.0.0:8080"

@@ -2,6 +2,8 @@ use axum_extra::extract::CookieJar;
 
 use chrono::{Months, Utc};
 
+use tracing::error;
+
 use ring::aead::{Aad, LessSafeKey, UnboundKey, AES_256_GCM};
 use ring::rand::{SecureRandom, SystemRandom};
 
@@ -64,16 +66,21 @@ impl TryFrom<&CookieJar> for Encrypted {
 }
 
 impl Encrypted {
-	pub fn encrypt<T: Serialize>(t: T, key: &LessSafeKey) -> serde_json::Result<Self> {
+	pub fn encrypt<T: Serialize>(
+		t: T,
+		key: &LessSafeKey,
+	) -> Result<Self, ring::error::Unspecified> {
 		let mut nonce_bytes = [0; ring::aead::NONCE_LEN];
 		SystemRandom::new().fill(&mut nonce_bytes).unwrap();
 
 		let nonce = ring::aead::Nonce::assume_unique_for_key(nonce_bytes);
 
-		let mut data = serde_json::to_vec(&t)?;
+		let mut data = serde_json::to_vec(&t).map_err(|e| {
+			error!("Error encrypting data: {:?}", e);
+			ring::error::Unspecified
+		})?;
 
-		key.seal_in_place_append_tag(nonce, Aad::empty(), &mut data)
-			.unwrap();
+		key.seal_in_place_append_tag(nonce, Aad::empty(), &mut data)?;
 
 		Ok(Self {
 			nonce: Nonce(nonce_bytes),
@@ -81,13 +88,18 @@ impl Encrypted {
 		})
 	}
 
-	pub fn decrypt<T: DeserializeOwned>(mut self, key: &LessSafeKey) -> serde_json::Result<T> {
-		key.open_in_place(self.nonce.into(), Aad::empty(), &mut self.data)
-			.unwrap();
+	pub fn decrypt<T: DeserializeOwned>(
+		mut self,
+		key: &LessSafeKey,
+	) -> Result<T, ring::error::Unspecified> {
+		key.open_in_place(self.nonce.into(), Aad::empty(), &mut self.data)?;
 
 		let object = &self.data[..self.data.len() - ALGO.tag_len()];
 
-		serde_json::from_reader(object)
+		serde_json::from_reader(object).map_err(|e| {
+			error!("Error decrypting data: {:?}", e);
+			ring::error::Unspecified
+		})
 	}
 }
 
