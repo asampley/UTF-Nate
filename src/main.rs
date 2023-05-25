@@ -5,7 +5,11 @@ mod audio;
 mod commands;
 mod configuration;
 mod data;
+#[cfg(feature = "http-interface")]
+mod encrypt;
 mod handler;
+#[cfg(feature = "http-interface")]
+mod http;
 mod interaction;
 mod parser;
 mod spotify;
@@ -257,7 +261,7 @@ async fn main() {
 				})
 				.client_settings(|client_builder| {
 					#[cfg(feature = "http-interface")]
-					let client_builder = client_builder.type_map_insert::<AeadKey>(commands::token::gen_key());
+					let client_builder = client_builder.type_map_insert::<AeadKey>(encrypt::gen_key());
 
 					client_builder
 						.event_handler(Handler)
