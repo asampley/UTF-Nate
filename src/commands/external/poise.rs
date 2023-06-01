@@ -12,7 +12,7 @@ use super::{CmdArgs, CmdlistArgs};
 pub async fn cmd(
 	ctx: Context<'_>,
 	#[description = "Command to run"] command: String,
-	#[description = "Arguments to pass on to the command"] args: String,
+	#[description = "Arguments to pass on to the command"] args: Option<String>,
 ) -> CommandResult {
 	run(&ctx, super::cmd(&CmdArgs { command, args })).await
 }

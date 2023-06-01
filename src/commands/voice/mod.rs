@@ -8,7 +8,6 @@ use songbird::error::TrackError;
 use songbird::SongbirdKey;
 
 use std::fs::read_dir;
-use std::path::Path;
 
 use crate::audio::{PlayStyle, CLIP_PATH};
 use crate::commands::{BotState, Source};
@@ -59,16 +58,7 @@ pub enum VolumeMode {
 
 #[tracing::instrument(level = "info", ret)]
 pub async fn list(path: Option<&str>) -> Result<Response, Response> {
-	let dir = CLIP_PATH.join(Path::new(match path {
-		None => "",
-		Some(path) => path,
-	}));
-
-	let dir = dir.canonicalize().map_err(|_| "Invalid directory")?;
-
-	if !sandboxed_exists(&CLIP_PATH, &dir) {
-		return Err("Invalid directory".into());
-	}
+	let dir = sandboxed_join(&CLIP_PATH, path.unwrap_or("")).ok_or("Invalid directory")?;
 
 	match read_dir(dir) {
 		Err(reason) => {
@@ -187,18 +177,21 @@ pub async fn volume(
 						.queue()
 						.current_queue()
 					{
-						handle
-							.set_volume(volume)
-							.err()
-							.filter(|e| e == &TrackError::Finished)
-							.ok_or("Error setting volume")?;
+						handle.set_volume(volume).or_else(|e| match e {
+							TrackError::Finished => Ok(()),
+							_ => Err("Error setting volume"),
+						})?;
 
 						if let VolumeMode::Current(_) = &mode {
 							break;
 						}
 					}
 
-					Ok(format!("Play volume set to {}", volume).into())
+					if let VolumeMode::Current(_) = &mode {
+						Ok(format!("Play volume set to {} for current audio", volume).into())
+					} else {
+						Ok(format!("Play volume set to {}", volume).into())
+					}
 				}
 				PlayStyle::Clip => data_lock
 					.clone_expect::<VoiceGuilds>()

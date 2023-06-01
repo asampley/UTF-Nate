@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 use std::fs::read_dir;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process;
 use std::process::Stdio;
 
@@ -31,7 +31,7 @@ pub const fn cmdlist_help() -> &'static str {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CmdArgs {
 	command: String,
-	args: String,
+	args: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -41,14 +41,10 @@ pub struct CmdlistArgs {
 
 #[tracing::instrument(level = "info", ret)]
 pub async fn cmd(CmdArgs { command, args }: &CmdArgs) -> Result<Response, Response> {
-	let command = CMD_PATH.join(command);
-
-	if !sandboxed_exists(&CMD_PATH, &command) {
-		return Err("Invalid command".into());
-	}
+	let command = sandboxed_join(&CMD_PATH, command).ok_or("Invalid command")?;
 
 	let output = process::Command::new(&command)
-		.args(serenity::utils::parse_quotes(args))
+		.args(args.iter().flat_map(serenity::utils::parse_quotes))
 		.stdin(Stdio::null())
 		.output();
 
@@ -76,16 +72,8 @@ pub async fn cmd(CmdArgs { command, args }: &CmdArgs) -> Result<Response, Respon
 
 #[tracing::instrument(level = "info", ret)]
 pub async fn cmdlist(CmdlistArgs { path }: &CmdlistArgs) -> Result<Response, Response> {
-	let dir = CMD_PATH.join(Path::new(match path {
-		None => "",
-		Some(path) => path,
-	}));
-
-	let dir = dir.canonicalize().map_err(|_| "Invalid directory")?;
-
-	if !sandboxed_exists(&CMD_PATH, &dir) {
-		return Err("Invalid directory".into());
-	}
+	let dir =
+		sandboxed_join(&CMD_PATH, path.as_deref().unwrap_or("")).ok_or("Invalid directory")?;
 
 	match read_dir(dir) {
 		Err(reason) => {

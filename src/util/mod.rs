@@ -2,7 +2,7 @@
 //!
 //! This includes some functions to make sure files that are accessed are only
 //! contained within a folder to prevent people from going up directories
-//! ([`sandboxed_exists`]), and some functions to help responding to commands.
+//! ([`sandboxed_join`]), and some functions to help responding to commands.
 
 mod ord_key;
 mod respond;
@@ -20,7 +20,7 @@ use serenity::prelude::{TypeMap, TypeMapKey};
 use thiserror::Error;
 
 use std::fmt;
-use std::path::{Component, Path};
+use std::path::{Component, Path, PathBuf};
 
 pub type Data = ();
 pub type Command = poise::Command<Data, CommandError>;
@@ -53,11 +53,12 @@ pub enum TomlFileError {
 
 /// Confirm that a path relative to the `sandbox` does not move up outside of
 /// the sandbox. It additionally checks that the path exists.
-pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
+pub fn sandboxed_join(sandbox: &Path, path: impl AsRef<Path>) -> Option<PathBuf> {
 	match sandbox.canonicalize() {
 		Ok(sandbox) => {
 			// check for any illegal components
 			let illegal_components = path
+				.as_ref()
 				.components()
 				// normal or current dir okay
 				.map(|c| !matches!(c, Component::Normal(_) | Component::CurDir))
@@ -66,17 +67,20 @@ pub fn sandboxed_exists(sandbox: &Path, path: &Path) -> bool {
 			// return false if any components are illegal
 			// prevents scanning the directory structure
 			if illegal_components {
-				return false;
+				return None;
 			}
 
-			// return false if the canonicalized path does not have the sandbox as a parent
-			// prevents accessing files outside of the parent
-			match path.canonicalize() {
-				Ok(path) => path.ancestors().any(|d| d == sandbox) && path.exists(),
-				Err(_) => false,
+			// because we've checked above for no backtracking or root, we can join and check
+			// existence
+			let joined = sandbox.join(path);
+
+			if joined.exists() {
+				Some(joined)
+			} else {
+				None
 			}
 		}
-		Err(_) => false,
+		Err(_) => None,
 	}
 }
 

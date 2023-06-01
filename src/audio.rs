@@ -530,7 +530,7 @@ pub fn get_clip(loc: &OsStr) -> Option<OsString> {
 		return Some(loc.to_os_string());
 	}
 
-	let mut play_path = CLIP_PATH.join(loc);
+	let mut play_path = Path::new(loc).to_path_buf();
 
 	for ext in &["mp3", "wav"] {
 		play_path.set_extension(ext);
@@ -545,5 +545,5 @@ pub fn get_clip(loc: &OsStr) -> Option<OsString> {
 
 /// Verify that the clip exists within the clip path directory.
 pub fn valid_clip(path: &Path) -> bool {
-	sandboxed_exists(&CLIP_PATH, path)
+	sandboxed_join(&CLIP_PATH, path).is_some()
 }
