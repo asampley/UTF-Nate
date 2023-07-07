@@ -166,7 +166,10 @@ impl songbird::EventHandler for TrackEventHandler {
 	async fn act(&self, ctx: &songbird::EventContext<'_>) -> Option<songbird::Event> {
 		if let songbird::EventContext::Track(track_events) = ctx {
 			for (state, handle) in track_events.iter() {
+				debug!("Received track event: {:?}", (state, handle));
+
 				if state.playing.is_done() {
+					debug!("Sending event to clean {}", handle.uuid());
 					self.0.unbounded_send(handle.uuid()).unwrap();
 				}
 			}

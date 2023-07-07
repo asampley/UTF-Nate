@@ -393,6 +393,7 @@ where
 }
 
 /// Results from searching for a clip.
+#[derive(Debug)]
 pub enum FindClip {
 	/// A single best matching clip was found.
 	One(OsString),
@@ -462,6 +463,7 @@ pub fn warn_exact_name_finds_different_clip() {
 /// As specified by [`triple_accel::levenshtein::levenshtein_search`], half the
 /// bytes of the search have to be found in the clip, or else it is possible
 /// for [`FindClip::None`] to be returned.
+#[tracing::instrument(level = "info", ret)]
 pub fn find_clip(loc: &OsStr) -> FindClip {
 	if URL.is_match(&loc.to_string_lossy()) {
 		return FindClip::One(loc.to_owned());
@@ -536,7 +538,7 @@ pub fn get_clip(loc: &OsStr) -> Option<OsString> {
 		play_path.set_extension(ext);
 
 		if valid_clip(&play_path) {
-			return Some(play_path.into());
+			return Some(CLIP_PATH.join(play_path).into());
 		}
 	}
 
