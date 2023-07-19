@@ -292,31 +292,181 @@ async fn main() {
 				info!("Starting HTTP server");
 
 				let app = axum::Router::new()
-					.route("/cmd", get(commands::external::http::cmd))
-					.route("/cmdlist", get(commands::external::http::cmdlist))
-					.route("/summon", get(commands::join::http::summon))
-					.route("/banish", get(commands::join::http::banish))
-					.route("/intro", get(commands::herald::http::intro))
-					.route("/introbot", get(commands::herald::http::introbot))
-					.route("/outro", get(commands::herald::http::outro))
-					.route("/clip", get(commands::play::http::clip))
-					.route("/play", get(commands::play::http::play))
-					.route("/playnext", get(commands::play::http::playnext))
-					.route("/playnow", get(commands::play::http::playnow))
-					.route("/stop", get(commands::queue::http::stop))
-					.route("/skip", get(commands::queue::http::skip))
-					.route("/pause", get(commands::queue::http::pause))
-					.route("/unpause", get(commands::queue::http::unpause))
-					.route("/queue", get(commands::queue::http::queue))
-					.route("/shuffle", get(commands::queue::http::shuffle))
-					.route("/shufflenow", get(commands::queue::http::shufflenow))
-					.route("/loop", get(commands::queue::http::r#loop))
-					.route("/volume/get", get(commands::voice::http::volume_get))
-					.route("/volume/clip", get(commands::voice::http::volume_clip))
-					.route("/volume/play", get(commands::voice::http::volume_play))
-					.route("/volume/now", get(commands::voice::http::volume_now))
-					.route("/unicode", get(commands::unicode::http::unicode))
-					.route("/roll", get(commands::roll::http::roll))
+					.route(
+						"/cmd",
+						get(|| async {
+							commands::http::form_endpoint(commands::external::poise::cmd)
+						}),
+					)
+					.route("/run/cmd", get(commands::external::http::cmd))
+					.route(
+						"/cmdlist",
+						get(|| async {
+							commands::http::form_endpoint(commands::external::poise::cmdlist)
+						}),
+					)
+					.route("/run/cmdlist", get(commands::external::http::cmdlist))
+					.route(
+						"/summon",
+						get(|| async {
+							commands::http::form_endpoint(commands::join::poise::summon)
+						}),
+					)
+					.route("/run/summon", get(commands::join::http::summon))
+					.route(
+						"/banish",
+						get(|| async {
+							commands::http::form_endpoint(commands::join::poise::banish)
+						}),
+					)
+					.route("/run/banish", get(commands::join::http::banish))
+					.route(
+						"/intro",
+						get(|| async {
+							commands::http::form_endpoint(commands::herald::poise::intro)
+						}),
+					)
+					.route("/run/intro", get(commands::herald::http::intro))
+					.route(
+						"/introbot",
+						get(|| async {
+							commands::http::form_endpoint(commands::herald::poise::introbot)
+						}),
+					)
+					.route("/run/introbot", get(commands::herald::http::introbot))
+					.route(
+						"/outro",
+						get(|| async {
+							commands::http::form_endpoint(commands::herald::poise::outro)
+						}),
+					)
+					.route("/run/outro", get(commands::herald::http::outro))
+					.route(
+						"/clip",
+						get(|| async {
+							commands::http::form_endpoint(commands::play::poise::clip)
+						}),
+					)
+					.route("/run/clip", get(commands::play::http::clip))
+					.route(
+						"/play",
+						get(|| async {
+							commands::http::form_endpoint(commands::play::poise::play)
+						}),
+					)
+					.route("/run/play", get(commands::play::http::play))
+					.route(
+						"/playnext",
+						get(|| async {
+							commands::http::form_endpoint(commands::play::poise::playnext)
+						}),
+					)
+					.route("/run/playnext", get(commands::play::http::playnext))
+					.route(
+						"/playnow",
+						get(|| async {
+							commands::http::form_endpoint(commands::play::poise::playnow)
+						}),
+					)
+					.route("/run/playnow", get(commands::play::http::playnow))
+					.route(
+						"/stop",
+						get(|| async {
+							commands::http::form_endpoint(commands::queue::poise::stop)
+						}),
+					)
+					.route("/run/stop", get(commands::queue::http::stop))
+					.route(
+						"/skip",
+						get(|| async {
+							commands::http::form_endpoint(commands::queue::poise::skip)
+						}),
+					)
+					.route("/run/skip", get(commands::queue::http::skip))
+					.route(
+						"/pause",
+						get(|| async {
+							commands::http::form_endpoint(commands::queue::poise::pause)
+						}),
+					)
+					.route("/run/pause", get(commands::queue::http::pause))
+					.route(
+						"/unpause",
+						get(|| async {
+							commands::http::form_endpoint(commands::queue::poise::unpause)
+						}),
+					)
+					.route("/run/unpause", get(commands::queue::http::unpause))
+					.route(
+						"/queue",
+						get(|| async {
+							commands::http::form_endpoint(commands::queue::poise::queue)
+						}),
+					)
+					.route("/run/queue", get(commands::queue::http::queue))
+					.route(
+						"/shuffle",
+						get(|| async {
+							commands::http::form_endpoint(commands::queue::poise::shuffle)
+						}),
+					)
+					.route("/run/shuffle", get(commands::queue::http::shuffle))
+					.route(
+						"/shufflenow",
+						get(|| async {
+							commands::http::form_endpoint(commands::queue::poise::shufflenow)
+						}),
+					)
+					.route("/run/shufflenow", get(commands::queue::http::shufflenow))
+					.route(
+						"/loop",
+						get(|| async {
+							commands::http::form_endpoint(commands::queue::poise::r#loop)
+						}),
+					)
+					.route("/run/loop", get(commands::queue::http::r#loop))
+					.route(
+						"/volume/get",
+						get(|| async {
+							commands::http::form_endpoint(commands::voice::poise::volume_get)
+						}),
+					)
+					.route("/run/volume/get", get(commands::voice::http::volume_get))
+					.route(
+						"/volume/clip",
+						get(|| async {
+							commands::http::form_endpoint(commands::voice::poise::volume_clip)
+						}),
+					)
+					.route("/run/volume/clip", get(commands::voice::http::volume_clip))
+					.route(
+						"/volume/play",
+						get(|| async {
+							commands::http::form_endpoint(commands::voice::poise::volume_play)
+						}),
+					)
+					.route("/run/volume/play", get(commands::voice::http::volume_play))
+					.route(
+						"/volume/now",
+						get(|| async {
+							commands::http::form_endpoint(commands::voice::poise::volume_now)
+						}),
+					)
+					.route("/run/volume/now", get(commands::voice::http::volume_now))
+					.route(
+						"/unicode",
+						get(|| async {
+							commands::http::form_endpoint(commands::unicode::poise::unicode)
+						}),
+					)
+					.route("/run/unicode", get(commands::unicode::http::unicode))
+					.route(
+						"/roll",
+						get(|| async {
+							commands::http::form_endpoint(commands::roll::poise::roll)
+						}),
+					)
+					.route("/run/roll", get(commands::roll::http::roll))
 					.route("/token", get(commands::token::http::token))
 					.with_state(state);
 

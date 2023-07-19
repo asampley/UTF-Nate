@@ -54,6 +54,6 @@ pub async fn unicode(args: &UnicodeArgs) -> Result<Response, Response> {
 	Ok(chars.into_iter().collect::<String>().into())
 }
 
-pub fn unicode_help() -> &'static str {
+pub const fn unicode_help() -> &'static str {
 	include_str!("unicode.md")
 }

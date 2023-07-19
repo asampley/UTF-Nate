@@ -1,3 +1,5 @@
+use askama::Template;
+
 use axum::response::Html;
 
 use axum_extra::extract::CookieJar;
@@ -15,10 +17,23 @@ use crate::encrypt::Encrypted;
 use crate::http::Token;
 use crate::util::{Command, Response};
 
+#[derive(Template)]
+#[template(path = "command_form.html")]
+struct CommandFormTemplate<'a> {
+	command: &'a Command,
+	help: &'a str,
+}
+
+#[derive(Template)]
+#[template(path = "response.html")]
+struct ResponseTemplate<'a> {
+	response: &'a str,
+}
+
 static FORMS: Lazy<HashMap<fn() -> Command, String>> = Lazy::new(|| {
 	super::COMMAND_CREATES
 		.iter()
-		.map(|c| (*c, form(&c())))
+		.map(|c| (c.create, form(&(c.create)(), c.help)))
 		.collect()
 });
 
@@ -65,52 +80,31 @@ pub fn response_to_string(response: Result<Response, Response>) -> String {
 }
 
 pub fn response_to_html_string(response: Result<Response, Response>) -> String {
-	html::text_content::Paragraph::builder()
-		.text(markdown::to_html(&response_to_string(response)))
-		.build()
-		.to_string()
+	ResponseTemplate {
+		response: &markdown::to_html(&response_to_string(response)),
+	}
+	.render()
+	.unwrap()
 }
 
-pub async fn run<F, I, O>(
-	command: F,
-	poise: fn() -> Command,
-	help_md: &str,
-	input: Option<I>,
-) -> Html<String>
+pub async fn run<F, I, O>(command: F, input: I) -> Html<String>
 where
 	F: Fn(I) -> O,
 	O: Future<Output = Result<Response, Response>>,
 	I: Serialize,
 {
-	let response = match input {
-		Some(i) => Some(command(i).await),
-		None => None,
-	};
-
-	let mut html = String::new();
-
-	if let Some(f) = get_form(poise) {
-		html.push_str(f)
-	};
-
-	if let Some(r) = response {
-		html.push_str(&response_to_html_string(r));
-	}
-
-	html.push_str(&markdown::to_html(help_md));
-
-	Html(html)
+	Html(response_to_html_string(command(input).await))
 }
 
-pub fn form(c: &Command) -> String {
-	let mut form = html::forms::Form::builder();
-
-	for p in c.parameters.iter() {
-		form.label(|e| e.for_(p.name.clone()).text(p.name.clone()))
-			.input(|e| e.type_("text").name(p.name.clone()));
+pub fn form(command: &Command, help_md: &str) -> String {
+	CommandFormTemplate {
+		command,
+		help: &markdown::to_html(help_md),
 	}
+	.render()
+	.unwrap()
+}
 
-	form.button(|e| e.type_("submit").text("Submit"));
-
-	form.build().to_string()
+pub fn form_endpoint(command: fn() -> Command) -> Html<String> {
+	Html(get_form(command).unwrap().to_string())
 }

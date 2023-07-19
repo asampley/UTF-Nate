@@ -1,0 +1,14 @@
+<head>
+	<script src="https://unpkg.com/htmx.org@1.9.3" integrity="sha384-lVb3Rd/Ca0AxaoZg5sACe8FJKF0tnUgR2Kd7ehUOG5GCcROv5uBIZsOqovBAcWua" crossorigin="anonymous"></script>
+</head>
+<body>
+	<form hx-get="/run/{{ command.name }}" hx-target="#response">
+		{% for p in command.parameters %}
+		<label for="{{ p.name }}">{{ p.name }}</label>
+		<input type="text" name="{{ p.name }}"/>
+		{% endfor %}
+		<button type="submit">Submit</button>
+		<div id="response"></div>
+	</form>
+	{{ help|safe }}
+</body>

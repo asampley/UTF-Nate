@@ -19,9 +19,7 @@ pub async fn volume_get(State(state): State<BotState>, jar: CookieJar) -> Html<S
 
 	run(
 		|_| super::volume(&state, &source, VolumeMode::ConfigAllStyles),
-		super::poise::volume_get,
-		super::volume_get_help(),
-		Some(()),
+		(),
 	)
 	.await
 }
@@ -29,7 +27,7 @@ pub async fn volume_get(State(state): State<BotState>, jar: CookieJar) -> Html<S
 pub async fn volume_play(
 	State(state): State<BotState>,
 	jar: CookieJar,
-	query: Option<Query<VolumeSetArgs>>,
+	Query(args): Query<VolumeSetArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
@@ -44,9 +42,7 @@ pub async fn volume_play(
 				VolumeMode::Config(PlayStyle::Play, a.volume),
 			)
 		},
-		super::poise::volume_play,
-		super::volume_play_help(),
-		query.map(|q| q.0).as_ref(),
+		&args,
 	)
 	.await
 }
@@ -54,7 +50,7 @@ pub async fn volume_play(
 pub async fn volume_clip(
 	State(state): State<BotState>,
 	jar: CookieJar,
-	query: Option<Query<VolumeSetArgs>>,
+	Query(args): Query<VolumeSetArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
@@ -69,9 +65,7 @@ pub async fn volume_clip(
 				VolumeMode::Config(PlayStyle::Clip, a.volume),
 			)
 		},
-		super::poise::volume_clip,
-		super::volume_clip_help(),
-		query.map(|q| q.0).as_ref(),
+		&args,
 	)
 	.await
 }
@@ -79,7 +73,7 @@ pub async fn volume_clip(
 pub async fn volume_now(
 	State(state): State<BotState>,
 	jar: CookieJar,
-	query: Option<Query<VolumeSetArgs>>,
+	Query(args): Query<VolumeSetArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
@@ -88,9 +82,7 @@ pub async fn volume_now(
 
 	run(
 		|a| super::volume(&state, &source, VolumeMode::Current(a.volume)),
-		super::poise::volume_clip,
-		super::volume_clip_help(),
-		query.map(|q| q.0).as_ref(),
+		&args,
 	)
 	.await
 }

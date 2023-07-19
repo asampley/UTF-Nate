@@ -16,32 +16,20 @@ pub async fn stop(State(state): State<BotState>, jar: CookieJar) -> Html<String>
 		Ok(source) => source,
 	};
 
-	run(
-		|_| super::stop(&state, &source),
-		super::poise::stop,
-		super::stop_help(),
-		Some(()),
-	)
-	.await
+	run(|_| super::stop(&state, &source), ()).await
 }
 
 pub async fn skip(
 	State(state): State<BotState>,
 	jar: CookieJar,
-	query: Option<Query<SkipArgs>>,
+	Query(args): Query<SkipArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| super::skip(&state, &source, a),
-		super::poise::skip,
-		super::skip_help(),
-		query.map(|q| q.0).as_ref(),
-	)
-	.await
+	run(|a| super::skip(&state, &source, a), &args).await
 }
 
 pub async fn pause(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
@@ -50,13 +38,7 @@ pub async fn pause(State(state): State<BotState>, jar: CookieJar) -> Html<String
 		Ok(source) => source,
 	};
 
-	run(
-		|_| super::pause(&state, &source),
-		super::poise::pause,
-		super::pause_help(),
-		Some(()),
-	)
-	.await
+	run(|_| super::pause(&state, &source), ()).await
 }
 
 pub async fn unpause(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
@@ -65,13 +47,7 @@ pub async fn unpause(State(state): State<BotState>, jar: CookieJar) -> Html<Stri
 		Ok(source) => source,
 	};
 
-	run(
-		|_| super::unpause(&state, &source),
-		super::poise::unpause,
-		super::unpause_help(),
-		Some(()),
-	)
-	.await
+	run(|_| super::unpause(&state, &source), ()).await
 }
 
 pub async fn queue(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
@@ -80,13 +56,7 @@ pub async fn queue(State(state): State<BotState>, jar: CookieJar) -> Html<String
 		Ok(source) => source,
 	};
 
-	run(
-		|_| super::queue(&state, &source),
-		super::poise::queue,
-		super::queue_help(),
-		Some(()),
-	)
-	.await
+	run(|_| super::queue(&state, &source), ()).await
 }
 
 pub async fn shuffle(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
@@ -95,13 +65,7 @@ pub async fn shuffle(State(state): State<BotState>, jar: CookieJar) -> Html<Stri
 		Ok(source) => source,
 	};
 
-	run(
-		|_| super::shuffle(&state, &source, 1),
-		super::poise::shuffle,
-		super::shuffle_help(),
-		Some(()),
-	)
-	.await
+	run(|_| super::shuffle(&state, &source, 1), ()).await
 }
 
 pub async fn shufflenow(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
@@ -110,30 +74,18 @@ pub async fn shufflenow(State(state): State<BotState>, jar: CookieJar) -> Html<S
 		Ok(source) => source,
 	};
 
-	run(
-		|_| super::shuffle(&state, &source, 0),
-		super::poise::shufflenow,
-		super::shufflenow_help(),
-		Some(()),
-	)
-	.await
+	run(|_| super::shuffle(&state, &source, 0), ()).await
 }
 
 pub async fn r#loop(
 	State(state): State<BotState>,
 	jar: CookieJar,
-	query: Option<Query<LoopArgs>>,
+	Query(args): Query<LoopArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| super::r#loop(&state, &source, a),
-		super::poise::r#loop,
-		super::loop_help(),
-		query.map(|q| q.0).as_ref(),
-	)
-	.await
+	run(|a| super::r#loop(&state, &source, a), &args).await
 }

@@ -12,7 +12,7 @@ use super::{IntroBotArgs, IntroOutroArgs, IntroOutroMode};
 pub async fn intro(
 	State(state): State<BotState>,
 	jar: CookieJar,
-	query: Option<Query<IntroOutroArgs>>,
+	Query(args): Query<IntroOutroArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
@@ -21,9 +21,7 @@ pub async fn intro(
 
 	run(
 		|a| super::intro_outro(&state, &source, IntroOutroMode::Intro, a),
-		super::poise::intro,
-		super::intro_help(),
-		query.map(|q| q.0).as_ref(),
+		&args,
 	)
 	.await
 }
@@ -31,26 +29,20 @@ pub async fn intro(
 pub async fn introbot(
 	State(state): State<BotState>,
 	jar: CookieJar,
-	query: Option<Query<IntroBotArgs>>,
+	Query(args): Query<IntroBotArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| super::introbot(&state, &source, a),
-		super::poise::introbot,
-		super::introbot_help(),
-		query.map(|q| q.0).as_ref(),
-	)
-	.await
+	run(|a| super::introbot(&state, &source, a), &args).await
 }
 
 pub async fn outro(
 	jar: CookieJar,
 	State(state): State<BotState>,
-	query: Option<Query<IntroOutroArgs>>,
+	Query(args): Query<IntroOutroArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
@@ -59,9 +51,7 @@ pub async fn outro(
 
 	run(
 		|a| super::intro_outro(&state, &source, IntroOutroMode::Outro, a),
-		super::poise::outro,
-		super::outro_help(),
-		query.map(|q| q.0).as_ref(),
+		&args,
 	)
 	.await
 }

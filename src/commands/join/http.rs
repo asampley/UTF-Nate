@@ -14,13 +14,7 @@ pub async fn summon(State(state): State<BotState>, jar: CookieJar) -> Html<Strin
 		Ok(source) => source,
 	};
 
-	run(
-		|_| super::summon(&state, &source),
-		super::poise::summon,
-		super::summon_help(),
-		Some(()),
-	)
-	.await
+	run(|_| super::summon(&state, &source), ()).await
 }
 
 pub async fn banish(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
@@ -29,11 +23,5 @@ pub async fn banish(State(state): State<BotState>, jar: CookieJar) -> Html<Strin
 		Ok(source) => source,
 	};
 
-	run(
-		|_| super::banish(&state, &source),
-		super::poise::banish,
-		super::banish_help(),
-		Some(()),
-	)
-	.await
+	run(|_| super::banish(&state, &source), ()).await
 }

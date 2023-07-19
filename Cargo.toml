@@ -32,7 +32,7 @@ markdown = { git = "https://github.com/wooorm/markdown-rs.git", tag = "1.0.0-alp
 default = ["http-interface", "yt-dlp"]
 yt-dlp = ["songbird/yt-dlp"]
 youtube-dlc = ["songbird/youtube-dlc"]
-http-interface = ["dep:axum", "dep:axum-extra", "dep:chrono", "dep:html", "dep:hyper", "dep:public-ip"]
+http-interface = ["dep:axum", "dep:axum-extra", "dep:chrono", "dep:askama", "dep:hyper", "dep:public-ip"]
 
 [dependencies.axum]
 version = "0.6"
@@ -52,8 +52,8 @@ optional = true
 version = "4.0"
 features = ["derive"]
 
-[dependencies.html]
-version = "0.5"
+[dependencies.askama]
+version = "0.12"
 optional = true
 
 [dependencies.hyper]

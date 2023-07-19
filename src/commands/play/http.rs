@@ -13,7 +13,7 @@ use super::{PlayArgs, PlayStyle};
 pub async fn clip(
 	State(state): State<BotState>,
 	jar: CookieJar,
-	query: Option<Query<PlayArgs>>,
+	Query(args): Query<PlayArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
@@ -22,9 +22,7 @@ pub async fn clip(
 
 	run(
 		|a| super::play(&state, &source, PlayStyle::Clip, None, a),
-		super::poise::clip,
-		super::clip_help(),
-		query.map(|q| q.0).as_ref(),
+		&args,
 	)
 	.await
 }
@@ -32,7 +30,7 @@ pub async fn clip(
 pub async fn play(
 	State(state): State<BotState>,
 	jar: CookieJar,
-	query: Option<Query<PlayArgs>>,
+	Query(args): Query<PlayArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
@@ -41,9 +39,7 @@ pub async fn play(
 
 	run(
 		|a| super::play(&state, &source, PlayStyle::Play, None, a),
-		super::poise::play,
-		super::play_help(),
-		query.map(|q| q.0).as_ref(),
+		&args,
 	)
 	.await
 }
@@ -51,7 +47,7 @@ pub async fn play(
 pub async fn playnext(
 	State(state): State<BotState>,
 	jar: CookieJar,
-	query: Option<Query<PlayArgs>>,
+	Query(args): Query<PlayArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
@@ -60,9 +56,7 @@ pub async fn playnext(
 
 	run(
 		|a| super::play(&state, &source, PlayStyle::Play, Some(1), a),
-		super::poise::playnext,
-		super::playnext_help(),
-		query.map(|q| q.0).as_ref(),
+		&args,
 	)
 	.await
 }
@@ -70,7 +64,7 @@ pub async fn playnext(
 pub async fn playnow(
 	State(state): State<BotState>,
 	jar: CookieJar,
-	query: Option<Query<PlayArgs>>,
+	Query(args): Query<PlayArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
 		Err(e) => return Html(response_to_html_string(Err(e))),
@@ -79,9 +73,7 @@ pub async fn playnow(
 
 	run(
 		|a| super::play(&state, &source, PlayStyle::Play, Some(0), a),
-		super::poise::playnow,
-		super::playnow_help(),
-		query.map(|q| q.0).as_ref(),
+		&args,
 	)
 	.await
 }
