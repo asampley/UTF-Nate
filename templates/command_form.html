@@ -1,5 +1,5 @@
 <head>
-	<script src="https://unpkg.com/htmx.org@1.9.3" integrity="sha384-lVb3Rd/Ca0AxaoZg5sACe8FJKF0tnUgR2Kd7ehUOG5GCcROv5uBIZsOqovBAcWua" crossorigin="anonymous"></script>
+	{% include "head.html" %}
 </head>
 <body>
 	<form hx-get="/run/{{ command.name }}" hx-target="#response">
@@ -8,7 +8,7 @@
 		<input type="text" name="{{ p.name }}"/>
 		{% endfor %}
 		<button type="submit">Submit</button>
-		<div id="response"></div>
 	</form>
+	<div id="response"></div>
 	{{ help|safe }}
 </body>

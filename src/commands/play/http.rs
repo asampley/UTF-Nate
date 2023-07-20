@@ -3,7 +3,7 @@ use axum::response::Html;
 
 use axum_extra::extract::CookieJar;
 
-use crate::commands::http::{extract_source, response_to_html_string, run};
+use crate::commands::http::{extract_source, render_response};
 use crate::commands::BotState;
 use crate::util::GetExpect;
 use crate::AeadKey;
@@ -16,15 +16,11 @@ pub async fn clip(
 	Query(args): Query<PlayArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html_string(Err(e))),
+		Err(e) => return render_response(Err(e)),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| super::play(&state, &source, PlayStyle::Clip, None, a),
-		&args,
-	)
-	.await
+	render_response(super::play(&state, &source, PlayStyle::Clip, None, &args).await)
 }
 
 pub async fn play(
@@ -33,15 +29,11 @@ pub async fn play(
 	Query(args): Query<PlayArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html_string(Err(e))),
+		Err(e) => return render_response(Err(e)),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| super::play(&state, &source, PlayStyle::Play, None, a),
-		&args,
-	)
-	.await
+	render_response(super::play(&state, &source, PlayStyle::Play, None, &args).await)
 }
 
 pub async fn playnext(
@@ -50,15 +42,11 @@ pub async fn playnext(
 	Query(args): Query<PlayArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html_string(Err(e))),
+		Err(e) => return render_response(Err(e)),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| super::play(&state, &source, PlayStyle::Play, Some(1), a),
-		&args,
-	)
-	.await
+	render_response(super::play(&state, &source, PlayStyle::Play, Some(1), &args).await)
 }
 
 pub async fn playnow(
@@ -67,13 +55,9 @@ pub async fn playnow(
 	Query(args): Query<PlayArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html_string(Err(e))),
+		Err(e) => return render_response(Err(e)),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| super::play(&state, &source, PlayStyle::Play, Some(0), a),
-		&args,
-	)
-	.await
+	render_response(super::play(&state, &source, PlayStyle::Play, Some(0), &args).await)
 }

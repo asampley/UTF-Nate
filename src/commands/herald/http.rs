@@ -2,7 +2,7 @@ use axum::extract::{Query, State};
 use axum::response::Html;
 use axum_extra::extract::cookie::CookieJar;
 
-use crate::commands::http::{extract_source, response_to_html_string, run};
+use crate::commands::http::{extract_source, render_response};
 use crate::commands::BotState;
 use crate::util::GetExpect;
 use crate::AeadKey;
@@ -15,15 +15,11 @@ pub async fn intro(
 	Query(args): Query<IntroOutroArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html_string(Err(e))),
+		Err(e) => return render_response(Err(e)),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| super::intro_outro(&state, &source, IntroOutroMode::Intro, a),
-		&args,
-	)
-	.await
+	render_response(super::intro_outro(&state, &source, IntroOutroMode::Intro, &args).await)
 }
 
 pub async fn introbot(
@@ -32,11 +28,11 @@ pub async fn introbot(
 	Query(args): Query<IntroBotArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html_string(Err(e))),
+		Err(e) => return render_response(Err(e)),
 		Ok(source) => source,
 	};
 
-	run(|a| super::introbot(&state, &source, a), &args).await
+	render_response(super::introbot(&state, &source, &args).await)
 }
 
 pub async fn outro(
@@ -45,13 +41,9 @@ pub async fn outro(
 	Query(args): Query<IntroOutroArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html_string(Err(e))),
+		Err(e) => return render_response(Err(e)),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| super::intro_outro(&state, &source, IntroOutroMode::Outro, a),
-		&args,
-	)
-	.await
+	render_response(super::intro_outro(&state, &source, IntroOutroMode::Outro, &args).await)
 }

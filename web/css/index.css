@@ -1,0 +1,56 @@
+body {
+	--bg: #313338;
+	--bg-input: #383a40;
+	--text: #dbdee1;
+	--button: #b5bac1;
+
+	background-color: var(--bg);
+	color: var(--text);
+
+	font-size: 16px;
+}
+
+form label,
+form input {
+	display: block;
+}
+
+form input {
+	margin-bottom: 1em;
+}
+
+input {
+	background-color: var(--bg-input);
+	color: var(--text);
+
+	padding: 1em 0.5em;
+	border: 0;
+	border-radius: 0.5em;
+}
+
+button {
+	background-color: var(--button);
+	color: var(--bg);
+
+	padding: 0.5em 0.5em;
+	border: 0;
+	border-radius: 0.5em;
+}
+
+.response {
+	display: inline-block;
+
+	background-color: #2b2d31;
+
+	padding: 0 1em;
+}
+
+.success {
+	border-left: 0.25em solid #7fff7f;
+	border-radius: 0.25em;
+}
+
+.failure {
+	border-left: 0.25em solid #ff7f7f;
+	border-radius: 0.25em;
+}

@@ -4,12 +4,10 @@ use axum::response::Html;
 
 use axum_extra::extract::CookieJar;
 
-use futures::Future;
-
+use hyper::StatusCode;
 use once_cell::sync::Lazy;
 
 use ring::aead::LessSafeKey;
-use serde::Serialize;
 
 use std::collections::HashMap;
 
@@ -27,13 +25,14 @@ struct CommandFormTemplate<'a> {
 #[derive(Template)]
 #[template(path = "response.html")]
 struct ResponseTemplate<'a> {
+	success: bool,
 	response: &'a str,
 }
 
 static FORMS: Lazy<HashMap<fn() -> Command, String>> = Lazy::new(|| {
 	super::COMMAND_CREATES
 		.iter()
-		.map(|c| (c.create, form(&(c.create)(), c.help)))
+		.map(|c| (c.create, render_form(&(c.create)(), c.help)))
 		.collect()
 });
 
@@ -63,40 +62,30 @@ pub fn get_form(t: fn() -> Command) -> Option<&'static str> {
 
 pub fn extract_source(jar: &CookieJar, key: &LessSafeKey) -> Result<super::Source, Response> {
 	let token: Token = TryInto::<Encrypted>::try_into(jar)
-		.map_err(|_| "Invalid token, please regenerate")?
+		.map_err(|_| "Invalid token, please regenerate using the `/token` slash command")?
 		.decrypt::<Token>(key)
-		.map_err(|_| "Invalid token, please regenerate")?;
+		.map_err(|_| "Invalid token, please regenerate using the `/token` slash command")?;
 
 	(&token)
 		.try_into()
-		.map_err(|_| "Token expired, please regenerate".into())
+		.map_err(|_| "Token expired, please regenerate using the `/token` slash command".into())
 }
 
-pub fn response_to_string(response: Result<Response, Response>) -> String {
-	match response {
-		Ok(o) => format!("\u{2705} {}", o),
-		Err(e) => format!("\u{274c} {}", e),
-	}
+pub fn response_string(response: Result<Response, Response>) -> String {
+	response.unwrap_or_else(|e| e).text
 }
 
-pub fn response_to_html_string(response: Result<Response, Response>) -> String {
+pub fn render_response(response: Result<Response, Response>) -> Html<String> {
 	ResponseTemplate {
-		response: &markdown::to_html(&response_to_string(response)),
+		success: response.is_ok(),
+		response: &markdown::to_html(&response_string(response)),
 	}
 	.render()
 	.unwrap()
+	.into()
 }
 
-pub async fn run<F, I, O>(command: F, input: I) -> Html<String>
-where
-	F: Fn(I) -> O,
-	O: Future<Output = Result<Response, Response>>,
-	I: Serialize,
-{
-	Html(response_to_html_string(command(input).await))
-}
-
-pub fn form(command: &Command, help_md: &str) -> String {
+fn render_form(command: &Command, help_md: &str) -> String {
 	CommandFormTemplate {
 		command,
 		help: &markdown::to_html(help_md),
@@ -105,6 +94,6 @@ pub fn form(command: &Command, help_md: &str) -> String {
 	.unwrap()
 }
 
-pub fn form_endpoint(command: fn() -> Command) -> Html<String> {
-	Html(get_form(command).unwrap().to_string())
+pub fn form_endpoint(command: fn() -> Command) -> Result<Html<&'static str>, StatusCode> {
+	get_form(command).map(Html).ok_or(StatusCode::NOT_FOUND)
 }

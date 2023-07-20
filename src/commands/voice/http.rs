@@ -4,7 +4,7 @@ use axum::response::Html;
 use axum_extra::extract::CookieJar;
 
 use crate::audio::PlayStyle;
-use crate::commands::http::{extract_source, response_to_html_string, run};
+use crate::commands::http::{extract_source, render_response};
 use crate::commands::BotState;
 use crate::util::GetExpect;
 use crate::AeadKey;
@@ -13,15 +13,11 @@ use super::{VolumeMode, VolumeSetArgs};
 
 pub async fn volume_get(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html_string(Err(e))),
+		Err(e) => return render_response(Err(e)),
 		Ok(source) => source,
 	};
 
-	run(
-		|_| super::volume(&state, &source, VolumeMode::ConfigAllStyles),
-		(),
-	)
-	.await
+	render_response(super::volume(&state, &source, VolumeMode::ConfigAllStyles).await)
 }
 
 pub async fn volume_play(
@@ -30,21 +26,18 @@ pub async fn volume_play(
 	Query(args): Query<VolumeSetArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html_string(Err(e))),
+		Err(e) => return render_response(Err(e)),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| {
-			super::volume(
-				&state,
-				&source,
-				VolumeMode::Config(PlayStyle::Play, a.volume),
-			)
-		},
-		&args,
+	render_response(
+		super::volume(
+			&state,
+			&source,
+			VolumeMode::Config(PlayStyle::Play, args.volume),
+		)
+		.await,
 	)
-	.await
 }
 
 pub async fn volume_clip(
@@ -53,21 +46,18 @@ pub async fn volume_clip(
 	Query(args): Query<VolumeSetArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html_string(Err(e))),
+		Err(e) => return render_response(Err(e)),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| {
-			super::volume(
-				&state,
-				&source,
-				VolumeMode::Config(PlayStyle::Clip, a.volume),
-			)
-		},
-		&args,
+	render_response(
+		super::volume(
+			&state,
+			&source,
+			VolumeMode::Config(PlayStyle::Clip, args.volume),
+		)
+		.await,
 	)
-	.await
 }
 
 pub async fn volume_now(
@@ -76,13 +66,9 @@ pub async fn volume_now(
 	Query(args): Query<VolumeSetArgs>,
 ) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
-		Err(e) => return Html(response_to_html_string(Err(e))),
+		Err(e) => return render_response(Err(e)),
 		Ok(source) => source,
 	};
 
-	run(
-		|a| super::volume(&state, &source, VolumeMode::Current(a.volume)),
-		&args,
-	)
-	.await
+	render_response(super::volume(&state, &source, VolumeMode::Current(args.volume)).await)
 }
