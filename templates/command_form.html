@@ -16,6 +16,7 @@
 	<form
 		hx-get="/run/{{ command.name }}"
 		hx-target="#response"
+		hx-indicator="#indicator"
 		hx-on::after-request="form_after_request(event)"
 	>
 		{% for p in command.parameters %}
@@ -24,6 +25,7 @@
 		{% endfor %}
 		<button type="submit">Submit</button>
 	</form>
+	<img id="indicator" class="indicator" src="/img/loading.svg"/>
 	<div id="response"></div>
 	<div id="replay" class="hide">
 		<p id="replay">

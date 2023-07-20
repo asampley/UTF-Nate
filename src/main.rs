@@ -297,6 +297,15 @@ async fn main() {
 						get(|| async { include_str!("../web/css/index.css") }),
 					)
 					.route(
+						"/img/loading.svg",
+						get(|| async {
+							(
+								[(axum::http::header::CONTENT_TYPE, "image/svg+xml")],
+								include_str!("../web/img/loading.svg"),
+							)
+						}),
+					)
+					.route(
 						"/cmd",
 						get(|| async { form_endpoint(commands::external::poise::cmd) }),
 					)

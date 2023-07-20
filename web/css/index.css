@@ -66,3 +66,12 @@ button {
 .hide {
 	display: none;
 }
+
+.indicator {
+	display: none;
+}
+
+.htmx-request .indicator,
+.htmx-request.indicator {
+	display: inline;
+}
