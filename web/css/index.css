@@ -10,6 +10,14 @@ body {
 	font-size: 16px;
 }
 
+a {
+	color: #00a8fc;
+}
+
+a:visited {
+	color: #9b59b6;
+}
+
 form label,
 form input {
 	display: block;
@@ -53,4 +61,8 @@ button {
 .failure {
 	border-left: 0.25em solid #ff7f7f;
 	border-radius: 0.25em;
+}
+
+.hide {
+	display: none;
 }

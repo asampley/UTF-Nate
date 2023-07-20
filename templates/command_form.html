@@ -1,8 +1,23 @@
 <head>
 	{% include "head.html" %}
+	<script>
+		function form_after_request(event) {
+			const replay = document.getElementById("replay");
+			const link = document.getElementById("replay-link");
+
+			link.href = event.detail.xhr.responseURL;
+			link.innerHTML = link.href;
+
+			replay.classList.remove("hide");
+		}
+	</script>
 </head>
 <body>
-	<form hx-get="/run/{{ command.name }}" hx-target="#response">
+	<form
+		hx-get="/run/{{ command.name }}"
+		hx-target="#response"
+		hx-on::after-request="form_after_request(event)"
+	>
 		{% for p in command.parameters %}
 		<label for="{{ p.name }}">{{ p.name }}</label>
 		<input type="text" name="{{ p.name }}"/>
@@ -10,5 +25,13 @@
 		<button type="submit">Submit</button>
 	</form>
 	<div id="response"></div>
+	<div id="replay" class="hide">
+		<p id="replay">
+			Copy this link to replay the same command at any time
+		</p>
+		<p>
+			<a id="replay-link"></a>
+		</p>
+	</div>
 	{{ help|safe }}
 </body>
