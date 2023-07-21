@@ -5,34 +5,37 @@ authors = ["sampley <sampley@ualberta.ca>"]
 edition = "2021"
 
 [dependencies]
-serde_json = "1.0"
-itertools = "0.10"
-futures = "0.3"
-uuid = "0.8"
-regex = "1.5"
-once_cell = "1.8"
-walkdir = "2.3"
-dashmap = "5.2"
-fxhash = "0.2"
-rand = "0.8"
 caith = "4.2"
+const_format = "0.2"
+dashmap = "5.5"
+futures = "0.3"
+fxhash = "0.2"
+hex = "0.4"
+itertools = "0.11"
 nom = "7.1"
-toml = "0.5"
+once_cell = "1.18"
+rand = "0.8"
+regex = "1.9"
+ring = "0.16"
+serde_json = "1.0"
+serde_urlencoded = "0.7"
 thiserror = "1.0"
+toml = "0.7"
+tracing = "0.1.37"
 tracing-subscriber = "0.3"
 triple_accel = "0.4"
-poise = "0.3"
-const_format = "0.2"
-ring = "0.16"
-hex = "0.4"
-serde_urlencoded = "0.7"
-markdown = { git = "https://github.com/wooorm/markdown-rs.git", tag = "1.0.0-alpha.9" }
+uuid = "0.8"
+walkdir = "2.3"
 
 [features]
 default = ["http-interface", "yt-dlp"]
 yt-dlp = ["songbird/yt-dlp"]
 youtube-dlc = ["songbird/youtube-dlc"]
 http-interface = ["dep:axum", "dep:axum-extra", "dep:chrono", "dep:askama", "dep:hyper", "dep:public-ip"]
+
+[dependencies.askama]
+version = "0.12"
+optional = true
 
 [dependencies.axum]
 version = "0.6"
@@ -49,50 +52,51 @@ features = ["serde"]
 optional = true
 
 [dependencies.clap]
-version = "4.0"
+version = "4.3"
 features = ["derive"]
 
-[dependencies.askama]
-version = "0.12"
+[dependencies.hyper]
+version = "0.14.27"
 optional = true
 
-[dependencies.hyper]
-version = "0.14"
-optional = true
+[dependencies.markdown]
+git = "https://github.com/wooorm/markdown-rs.git"
+tag = "1.0.0-alpha.9"
+
+[dependencies.poise]
+version = "0.5.5"
+features = ["cache"]
 
 [dependencies.public-ip]
-version = "0.2"
+version = "0.2.2"
 optional = true
 
-[dependencies.tracing]
-version = "0.1"
+[dependencies.reqwest]
+version = "0.11.18"
+features = ["json"]
 
 [dependencies.serde]
 version = "1.0"
 features = ["derive"]
 
 [dependencies.serde_with]
-version = "3.0"
+version = "3.1"
 features = ["base64"]
 
 [dependencies.serenity]
-version = "0.11"
+version = "0.11.6"
 default-features = false
 features = ["builder", "cache", "client", "gateway", "http", "model", "utils", "rustls_backend", "unstable_discord_api", "voice"]
-
-[dependencies.tokio]
-version = "1.0"
-features = ["macros", "rt-multi-thread"]
 
 [dependencies.songbird]
 version = "0.3.2"
 features = ["driver", "builtin-queue"]
 
-[dependencies.reqwest]
-version = "0.11"
-features = ["json"]
-
 [dependencies.sqlx]
-version = "0.5"
+version = "0.7.1"
 default-features = false
 features = ["runtime-tokio-native-tls", "postgres"]
+
+[dependencies.tokio]
+version = "1.29"
+features = ["macros", "rt-multi-thread"]

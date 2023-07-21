@@ -239,7 +239,7 @@ async fn main() {
 			let framework = Framework::builder()
 				.token(&keys.discord.token)
 				.intents(GATEWAY_INTENTS)
-				.user_data_setup(|_, _, _| Box::pin(async move { Ok(()) }))
+				.setup(|_, _, _| Box::pin(async move { Ok(()) }))
 				.options(poise::FrameworkOptions {
 					prefix_options: poise::PrefixFrameworkOptions {
 						prefix: Some(CONFIG.prefixes[0].clone()),
@@ -390,9 +390,11 @@ fn load_config() -> Config {
 ///
 /// See [`poise::FrameworkOptions::pre_command`] for more information.
 async fn before_hook(ctx: Context<'_>) {
-	let guild_name = ctx
-		.guild_id()
-		.map(|gid| ctx.discord().cache.guild_field(gid, |g| g.name.clone()));
+	let guild_name = ctx.guild_id().map(|gid| {
+		ctx.serenity_context()
+			.cache
+			.guild_field(gid, |g| g.name.clone())
+	});
 
 	info!(
 		"User {} ({}) in guild {:?} ({:?}) running {}",
@@ -410,9 +412,11 @@ async fn before_hook(ctx: Context<'_>) {
 ///
 /// See [`poise::FrameworkOptions::post_command`] for more information.
 async fn after_hook(ctx: Context<'_>) {
-	let guild_name = ctx
-		.guild_id()
-		.map(|gid| ctx.discord().cache.guild_field(gid, |g| g.name.clone()));
+	let guild_name = ctx.guild_id().map(|gid| {
+		ctx.serenity_context()
+			.cache
+			.guild_field(gid, |g| g.name.clone())
+	});
 
 	info!(
 		"User {} ({}) in guild {:?} ({:?}) completed {}",

@@ -89,8 +89,8 @@ pub struct BotState {
 impl From<Context<'_>> for BotState {
 	fn from(ctx: Context<'_>) -> Self {
 		Self {
-			data: ctx.discord().data.clone(),
-			cache: ctx.discord().cache.clone(),
+			data: ctx.serenity_context().data.clone(),
+			cache: ctx.serenity_context().cache.clone(),
 		}
 	}
 }
