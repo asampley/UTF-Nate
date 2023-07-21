@@ -7,7 +7,7 @@ use super::{CmdArgs, CmdlistArgs};
 	category = "external",
 	prefix_command,
 	slash_command,
-	custom_data = "CustomData { help_md: super::cmd_help }"
+	custom_data = "CustomData::new(super::cmd_help)"
 )]
 pub async fn cmd(
 	ctx: Context<'_>,
@@ -21,7 +21,7 @@ pub async fn cmd(
 	category = "external",
 	prefix_command,
 	slash_command,
-	custom_data = "CustomData { help_md: super::cmdlist_help }"
+	custom_data = "CustomData::new(super::cmdlist_help)"
 )]
 pub async fn cmdlist(
 	ctx: Context<'_>,

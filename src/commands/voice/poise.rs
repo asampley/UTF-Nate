@@ -10,7 +10,7 @@ use super::VolumeMode;
 	slash_command,
 	guild_only,
 	subcommands("volume_get", "volume_play", "volume_clip", "volume_now"),
-	custom_data = "CustomData { help_md: super::volume_help }"
+	custom_data = "CustomData::new(super::volume_help)"
 )]
 pub async fn volume(ctx: Context<'_>) -> CommandResult {
 	run(
@@ -26,7 +26,7 @@ pub async fn volume(ctx: Context<'_>) -> CommandResult {
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::volume_get_help }"
+	custom_data = "CustomData::new(super::volume_get_help)"
 )]
 pub async fn volume_get(ctx: Context<'_>) -> CommandResult {
 	run(
@@ -42,7 +42,7 @@ pub async fn volume_get(ctx: Context<'_>) -> CommandResult {
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::volume_play_help }"
+	custom_data = "CustomData::new(super::volume_play_help)"
 )]
 pub async fn volume_play(
 	ctx: Context<'_>,
@@ -65,7 +65,7 @@ pub async fn volume_play(
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::volume_clip_help }"
+	custom_data = "CustomData::new(super::volume_clip_help)"
 )]
 pub async fn volume_clip(
 	ctx: Context<'_>,
@@ -88,7 +88,7 @@ pub async fn volume_clip(
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::volume_now_help }"
+	custom_data = "CustomData::new(super::volume_now_help)"
 )]
 pub async fn volume_now(
 	ctx: Context<'_>,
@@ -105,7 +105,7 @@ pub async fn volume_now(
 	category = "voice",
 	prefix_command,
 	slash_command,
-	custom_data = "CustomData { help_md: super::list_help }"
+	custom_data = "CustomData::new(super::list_help)"
 )]
 pub async fn list(
 	ctx: Context<'_>,

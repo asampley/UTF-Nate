@@ -8,7 +8,7 @@ use super::{IntroBotArgs, IntroOutroArgs};
 	category = "herald",
 	prefix_command,
 	slash_command,
-	custom_data = "CustomData { help_md: super::intro_help }"
+	custom_data = "CustomData::new(super::intro_help)"
 )]
 pub async fn intro(
 	ctx: Context<'_>,
@@ -28,7 +28,7 @@ pub async fn intro(
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::introbot_help }"
+	custom_data = "CustomData::new(super::introbot_help)"
 )]
 pub async fn introbot(
 	ctx: Context<'_>,
@@ -47,7 +47,7 @@ pub async fn introbot(
 	category = "herald",
 	prefix_command,
 	slash_command,
-	custom_data = "CustomData { help_md: super::outro_help }"
+	custom_data = "CustomData::new(super::outro_help)"
 )]
 pub async fn outro(
 	ctx: Context<'_>,

@@ -11,7 +11,7 @@ use super::{LoopArgs, SkipArgs};
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::stop_help }"
+	custom_data = "CustomData::new(super::stop_help)"
 )]
 pub async fn stop(ctx: Context<'_>) -> CommandResult {
 	run(&ctx, super::stop(&ctx.into(), &(&ctx).into())).await
@@ -22,7 +22,7 @@ pub async fn stop(ctx: Context<'_>) -> CommandResult {
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::skip_help }"
+	custom_data = "CustomData::new(super::skip_help)"
 )]
 pub async fn skip(
 	ctx: Context<'_>,
@@ -48,7 +48,7 @@ pub async fn skip(
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::pause_help }"
+	custom_data = "CustomData::new(super::pause_help)"
 )]
 pub async fn pause(ctx: Context<'_>) -> CommandResult {
 	run(&ctx, super::pause(&ctx.into(), &(&ctx).into())).await
@@ -59,7 +59,7 @@ pub async fn pause(ctx: Context<'_>) -> CommandResult {
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::unpause_help }"
+	custom_data = "CustomData::new(super::unpause_help)"
 )]
 pub async fn unpause(ctx: Context<'_>) -> CommandResult {
 	run(&ctx, super::unpause(&ctx.into(), &(&ctx).into())).await
@@ -70,7 +70,7 @@ pub async fn unpause(ctx: Context<'_>) -> CommandResult {
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::queue_help }"
+	custom_data = "CustomData::new(super::queue_help)"
 )]
 pub async fn queue(ctx: Context<'_>) -> CommandResult {
 	run(&ctx, super::queue(&ctx.into(), &(&ctx).into())).await
@@ -89,7 +89,7 @@ async fn shuffle_type_command(ctx: Context<'_>, starting_from: usize) -> Command
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::shuffle_help }"
+	custom_data = "CustomData::new(super::shuffle_help)"
 )]
 pub async fn shuffle(ctx: Context<'_>) -> CommandResult {
 	shuffle_type_command(ctx, 1).await
@@ -100,7 +100,7 @@ pub async fn shuffle(ctx: Context<'_>) -> CommandResult {
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::shufflenow_help }"
+	custom_data = "CustomData::new(super::shufflenow_help)"
 )]
 pub async fn shufflenow(ctx: Context<'_>) -> CommandResult {
 	shuffle_type_command(ctx, 0).await
@@ -112,7 +112,7 @@ pub async fn shufflenow(ctx: Context<'_>) -> CommandResult {
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::loop_help }"
+	custom_data = "CustomData::new(super::loop_help)"
 )]
 pub async fn r#loop(
 	ctx: Context<'_>,

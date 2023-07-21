@@ -7,7 +7,7 @@ use super::UnicodeArgs;
 	category = "unicode",
 	prefix_command,
 	slash_command,
-	custom_data = "CustomData { help_md: super::unicode_help }"
+	custom_data = "CustomData::new(super::unicode_help)"
 )]
 pub async fn unicode(
 	ctx: Context<'_>,

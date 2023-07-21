@@ -7,7 +7,7 @@ use super::RollArgs;
 	category = "roll",
 	prefix_command,
 	slash_command,
-	custom_data = "CustomData { help_md: super::roll_help }"
+	custom_data = "CustomData::new(super::roll_help)"
 )]
 pub async fn roll(
 	ctx: Context<'_>,

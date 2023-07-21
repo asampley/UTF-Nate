@@ -9,7 +9,7 @@ use super::PlayArgs;
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::clip_help }"
+	custom_data = "CustomData::new(super::clip_help)"
 )]
 pub async fn clip(
 	ctx: Context<'_>,
@@ -53,7 +53,7 @@ async fn play_type_command(
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::play_help }"
+	custom_data = "CustomData::new(super::play_help)"
 )]
 pub async fn play(
 	ctx: Context<'_>,
@@ -69,7 +69,7 @@ pub async fn play(
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::playnext_help }"
+	custom_data = "CustomData::new(super::playnext_help)"
 )]
 pub async fn playnext(
 	ctx: Context<'_>,
@@ -85,7 +85,7 @@ pub async fn playnext(
 	prefix_command,
 	slash_command,
 	guild_only,
-	custom_data = "CustomData { help_md: super::playnow_help }"
+	custom_data = "CustomData::new(super::playnow_help)"
 )]
 pub async fn playnow(
 	ctx: Context<'_>,

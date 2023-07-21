@@ -1,6 +1,10 @@
 use askama::Template;
 
+use axum::body::HttpBody;
+use axum::handler::Handler;
 use axum::response::Html;
+use axum::routing::get;
+use axum::Router;
 
 use axum_extra::extract::CookieJar;
 
@@ -11,6 +15,7 @@ use ring::aead::LessSafeKey;
 
 use std::collections::HashMap;
 
+use crate::commands::CustomData;
 use crate::encrypt::Encrypted;
 use crate::http::Token;
 use crate::util::{Command, Response};
@@ -29,10 +34,46 @@ struct ResponseTemplate<'a> {
 	response: &'a str,
 }
 
+pub trait FormRouter<S, B> {
+	fn form_route<T>(self, create: fn() -> Command, http_call: impl Handler<T, S, B>) -> Self
+	where
+		T: 'static;
+}
+
+impl<S, B> FormRouter<S, B> for Router<S, B>
+where
+	S: Clone + Send + Sync + 'static,
+	B: Send + HttpBody + 'static,
+{
+	fn form_route<T>(self, create: fn() -> Command, http_call: impl Handler<T, S, B>) -> Self
+	where
+		T: 'static,
+	{
+		let command = create();
+
+		self.route(
+			&String::from_iter(["/", &command.name]),
+			get(move || async move { form_endpoint(create) }),
+		)
+		.route(
+			&String::from_iter(["/", &command.name, "/run"]),
+			get(http_call),
+		)
+	}
+}
+
 static FORMS: Lazy<HashMap<fn() -> Command, String>> = Lazy::new(|| {
 	super::COMMAND_CREATES
 		.iter()
-		.map(|c| (c.create, render_form(&(c.create)(), c.help)))
+		.filter_map(|create| {
+			let command = create();
+
+			if let Some(data) = command.custom_data.downcast_ref::<CustomData>() {
+				Some((*create, render_form(&command, (data.help_md)())))
+			} else {
+				None
+			}
+		})
 		.collect()
 });
 

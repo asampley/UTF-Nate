@@ -26,8 +26,43 @@ use std::sync::Arc;
 
 use crate::util::{Command, CommandResult, Context, Respond, Response};
 
+pub static COMMAND_CREATES: &[fn() -> Command] = &[
+	external::poise::cmd,
+	external::poise::cmdlist,
+	help::poise::help,
+	herald::poise::intro,
+	herald::poise::introbot,
+	herald::poise::outro,
+	join::poise::summon,
+	join::poise::banish,
+	play::poise::clip,
+	play::poise::play,
+	play::poise::playnext,
+	play::poise::playnow,
+	queue::poise::stop,
+	queue::poise::skip,
+	queue::poise::pause,
+	queue::poise::unpause,
+	queue::poise::queue,
+	queue::poise::shuffle,
+	queue::poise::shufflenow,
+	queue::poise::r#loop,
+	roll::poise::roll,
+	#[cfg(feature = "http-interface")]
+	token::poise::token,
+	unicode::poise::unicode,
+	voice::poise::volume,
+	voice::poise::list,
+];
+
 pub struct CustomData {
-	help_md: fn() -> &'static str,
+	pub help_md: fn() -> &'static str,
+}
+
+impl CustomData {
+	pub fn new(help_md: fn() -> &'static str) -> Self {
+		Self { help_md }
+	}
 }
 
 #[derive(Debug)]
@@ -60,49 +95,9 @@ impl From<Context<'_>> for BotState {
 	}
 }
 
-pub struct CommandInfo {
-	pub create: fn() -> Command,
-	pub help: &'static str,
-}
-
-impl CommandInfo {
-	const fn new(create: fn() -> Command, help: &'static str) -> Self {
-		CommandInfo { create, help }
-	}
-}
-
-pub static COMMAND_CREATES: &[CommandInfo] = &[
-	CommandInfo::new(external::poise::cmd, external::cmd_help()),
-	CommandInfo::new(external::poise::cmdlist, external::cmdlist_help()),
-	CommandInfo::new(help::poise::help, help::help_help()),
-	CommandInfo::new(herald::poise::intro, herald::intro_help()),
-	CommandInfo::new(herald::poise::introbot, herald::introbot_help()),
-	CommandInfo::new(herald::poise::outro, herald::outro_help()),
-	CommandInfo::new(join::poise::summon, join::summon_help()),
-	CommandInfo::new(join::poise::banish, join::banish_help()),
-	CommandInfo::new(play::poise::clip, play::clip_help()),
-	CommandInfo::new(play::poise::play, play::play_help()),
-	CommandInfo::new(play::poise::playnext, play::playnext_help()),
-	CommandInfo::new(play::poise::playnow, play::playnow_help()),
-	CommandInfo::new(queue::poise::stop, queue::stop_help()),
-	CommandInfo::new(queue::poise::skip, queue::skip_help()),
-	CommandInfo::new(queue::poise::pause, queue::pause_help()),
-	CommandInfo::new(queue::poise::unpause, queue::unpause_help()),
-	CommandInfo::new(queue::poise::queue, queue::queue_help()),
-	CommandInfo::new(queue::poise::shuffle, queue::shuffle_help()),
-	CommandInfo::new(queue::poise::shufflenow, queue::shufflenow_help()),
-	CommandInfo::new(queue::poise::r#loop, queue::loop_help()),
-	CommandInfo::new(roll::poise::roll, roll::roll_help()),
-	#[cfg(feature = "http-interface")]
-	CommandInfo::new(token::poise::token, token::token_help()),
-	CommandInfo::new(unicode::poise::unicode, unicode::unicode_help()),
-	CommandInfo::new(voice::poise::volume, voice::volume_help()),
-	CommandInfo::new(voice::poise::list, voice::list_help()),
-];
-
 /// Create a vector containing all the commands.
 pub fn commands() -> Vec<Command> {
-	COMMAND_CREATES.iter().map(|c| (c.create)()).collect()
+	COMMAND_CREATES.iter().map(|c| c()).collect()
 }
 
 /// Await a command `f`, and then reply to the initiating message with the

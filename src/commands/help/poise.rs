@@ -5,7 +5,7 @@ use crate::util::{CommandResult, Context};
 	category = "help",
 	prefix_command,
 	slash_command,
-	custom_data = "CustomData { help_md: super::help_help }"
+	custom_data = "CustomData::new(super::help_help)"
 )]
 pub async fn help(
 	ctx: Context<'_>,

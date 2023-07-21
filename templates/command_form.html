@@ -14,7 +14,7 @@
 </head>
 <body>
 	<form
-		hx-get="/run/{{ command.name }}"
+		hx-get="/{{ command.name }}/run"
 		hx-target="#response"
 		hx-indicator="#indicator"
 		hx-on::after-request="form_after_request(event)"
