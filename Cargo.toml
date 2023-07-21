@@ -29,9 +29,9 @@ walkdir = "2.3"
 
 [features]
 default = ["http-interface", "yt-dlp"]
-yt-dlp = ["songbird/yt-dlp"]
-youtube-dlc = ["songbird/youtube-dlc"]
 http-interface = ["dep:axum", "dep:axum-extra", "dep:chrono", "dep:askama", "dep:hyper", "dep:public-ip"]
+youtube-dlc = ["songbird/youtube-dlc"]
+yt-dlp = ["songbird/yt-dlp"]
 
 [dependencies.askama]
 version = "0.12"
@@ -93,7 +93,7 @@ version = "0.3.2"
 features = ["driver", "builtin-queue"]
 
 [dependencies.sqlx]
-version = "0.7.1"
+version = "0.6"
 default-features = false
 features = ["runtime-tokio-native-tls", "postgres"]
 
