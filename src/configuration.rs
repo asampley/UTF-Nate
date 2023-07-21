@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use serenity::model::gateway::Activity;
 use serenity::model::id::{GuildId, UserId};
 
-use sqlx::PgExecutor as Executor;
+use sqlx::AnyExecutor as Executor;
 use sqlx::{Decode, Encode, Type};
 
 use thiserror::Error;
@@ -22,12 +22,12 @@ use thiserror::Error;
 use std::fmt;
 use std::fs::read_to_string;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::RESOURCE_PATH;
 
 /// Path to shared directory for database scripts.
-static DB_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("database/"));
+pub static DB_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("database/"));
 
 /// Configuration for an error that can come from trying to get or set config
 /// values.
@@ -76,21 +76,21 @@ impl From<&ActivityConfig> for Activity {
 }
 
 impl Config {
+	fn read_query(name: &str) -> Result<String, ConfigError> {
+		read_to_string(DB_PATH.join(name)).map_err(Into::into)
+	}
+
 	/// Generic implementation to get a single value by using an id.
 	///
 	/// `id` is bound into the first variable passed into the database script
 	/// at `file_name`.
-	async fn get_by_id<'e, E, I, T>(
-		executor: E,
-		file_name: &Path,
-		id: I,
-	) -> Result<Option<T>, ConfigError>
+	async fn get_by_id<'e, E, I, T>(executor: E, sql: &str, id: I) -> Result<Option<T>, ConfigError>
 	where
 		E: Executor<'e>,
-		for<'a> I: Encode<'a, E::Database> + Type<E::Database> + Send,
-		for<'a> T: Decode<'a, E::Database> + Type<E::Database> + Send + Unpin,
+		I: for<'a> Encode<'a, E::Database> + Type<E::Database> + Send,
+		T: for<'a> Decode<'a, E::Database> + Type<E::Database> + Send + Unpin,
 	{
-		Ok(sqlx::query_scalar(&read_to_string(file_name)?)
+		Ok(sqlx::query_scalar(sql)
 			.bind(id)
 			.fetch_optional(executor)
 			.await?)
@@ -100,18 +100,18 @@ impl Config {
 	///
 	/// `id` is bound into the first variable passed into the database script
 	/// at `file_name`. `value` is bound to the second variable.
-	async fn set_by_id<'e, E, I, T>(
+	async fn set_by_id<'e, 'q, E, I, T>(
 		executor: E,
-		file_name: &Path,
+		sql: &'q str,
 		id: I,
 		value: T,
 	) -> Result<(), ConfigError>
 	where
 		E: Executor<'e>,
-		for<'a> I: Encode<'a, E::Database> + Type<E::Database> + Send,
-		for<'a> T: Encode<'a, E::Database> + Type<E::Database> + Send,
+		I: Encode<'q, E::Database> + Type<E::Database> + Send + 'q,
+		T: Encode<'q, E::Database> + Type<E::Database> + Send + 'q,
 	{
-		let res = sqlx::query(&read_to_string(file_name)?)
+		let res = sqlx::query(sql)
 			.bind(id)
 			.bind(value)
 			.execute(executor)
@@ -130,9 +130,9 @@ impl Config {
 		user_id: &UserId,
 		intro: &str,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(
+		Self::set_by_id(
 			executor,
-			&DB_PATH.join("set-intro.sql"),
+			&Self::read_query("set-intro.sql")?,
 			user_id.0 as i64,
 			intro,
 		)
@@ -145,7 +145,12 @@ impl Config {
 		executor: E,
 		user_id: &UserId,
 	) -> Result<Option<String>, ConfigError> {
-		Config::get_by_id(executor, &DB_PATH.join("get-intro.sql"), user_id.0 as i64).await
+		Self::get_by_id(
+			executor,
+			&Self::read_query("get-intro.sql")?,
+			user_id.0 as i64,
+		)
+		.await
 	}
 
 	/// Set the outro for a user. This should be the exact file name of the
@@ -155,9 +160,9 @@ impl Config {
 		user_id: &UserId,
 		outro: &str,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(
+		Self::set_by_id(
 			executor,
-			&DB_PATH.join("set-outro.sql"),
+			&Self::read_query("set-outro.sql")?,
 			user_id.0 as i64,
 			outro,
 		)
@@ -170,7 +175,12 @@ impl Config {
 		executor: E,
 		user_id: &UserId,
 	) -> Result<Option<String>, ConfigError> {
-		Config::get_by_id(executor, &DB_PATH.join("get-outro.sql"), user_id.0 as i64).await
+		Self::get_by_id(
+			executor,
+			&Self::read_query("get-outro.sql")?,
+			user_id.0 as i64,
+		)
+		.await
 	}
 
 	/// Set the intro for a the bot. This should be the exact file name of the
@@ -180,9 +190,9 @@ impl Config {
 		guild_id: &GuildId,
 		intro: &str,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(
+		Self::set_by_id(
 			executor,
-			&DB_PATH.join("set-bot-intro.sql"),
+			&Self::read_query("set-bot-intro.sql")?,
 			guild_id.0 as i64,
 			intro,
 		)
@@ -195,9 +205,9 @@ impl Config {
 		executor: E,
 		guild_id: &GuildId,
 	) -> Result<Option<String>, ConfigError> {
-		Config::get_by_id(
+		Self::get_by_id(
 			executor,
-			&DB_PATH.join("get-bot-intro.sql"),
+			&Self::read_query("get-bot-intro.sql")?,
 			guild_id.0 as i64,
 		)
 		.await
@@ -213,9 +223,9 @@ impl Config {
 		guild_id: &GuildId,
 		volume: f32,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(
+		Self::set_by_id(
 			executor,
-			&DB_PATH.join("set-volume-play.sql"),
+			&Self::read_query("set-volume-play.sql")?,
 			guild_id.0 as i64,
 			volume,
 		)
@@ -231,9 +241,9 @@ impl Config {
 		executor: E,
 		guild_id: &GuildId,
 	) -> Result<Option<f32>, ConfigError> {
-		Config::get_by_id(
+		Self::get_by_id(
 			executor,
-			&DB_PATH.join("get-volume-play.sql"),
+			&Self::read_query("get-volume-play.sql")?,
 			guild_id.0 as i64,
 		)
 		.await
@@ -249,9 +259,9 @@ impl Config {
 		guild_id: &GuildId,
 		volume: f32,
 	) -> Result<(), ConfigError> {
-		Config::set_by_id(
+		Self::set_by_id(
 			executor,
-			&DB_PATH.join("set-volume-clip.sql"),
+			&Self::read_query("set-volume-clip.sql")?,
 			guild_id.0 as i64,
 			volume,
 		)
@@ -267,9 +277,9 @@ impl Config {
 		executor: E,
 		guild_id: &GuildId,
 	) -> Result<Option<f32>, ConfigError> {
-		Config::get_by_id(
+		Self::get_by_id(
 			executor,
-			&DB_PATH.join("get-volume-clip.sql"),
+			&Self::read_query("get-volume-clip.sql")?,
 			guild_id.0 as i64,
 		)
 		.await

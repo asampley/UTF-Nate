@@ -5,8 +5,13 @@ application_id = 999999999999999999
 token = "xxxxxxxxxxxxxxxxxxxxxxxx.xxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [database]
-# Database Connection String
+# Database Connection String (postgres or sqlite supported)
+# postgres database which is spun up separately
 connect_string = "postgresql://utf_nate:password@localhost/utf_nate"
+# sqlite file for single instance, but no external setup required
+#connect_string = "sqlite://utf-nate.db"
+# sqlite in memory, which gets wiped on restart
+#connect_string = "sqlite::memory:"
 
 # Optional youtube API, required for play commands
 # [youtube]

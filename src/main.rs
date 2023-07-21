@@ -33,11 +33,12 @@ use serenity::prelude::RwLock;
 
 use songbird::serenity::SerenityInit;
 
-use configuration::Config;
+use sqlx::{AnyPool, Executor};
+
+use configuration::{Config, DB_PATH};
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use interaction::reregister;
-use sqlx::{Executor, PgPool};
 use util::{check_msg, read_toml, Context, Framework, FrameworkError, Respond};
 
 use std::fmt::{Debug, Write};
@@ -79,7 +80,7 @@ const GATEWAY_INTENTS: GatewayIntents = GatewayIntents::GUILD_MESSAGES
 struct Pool;
 
 impl serenity::prelude::TypeMapKey for Pool {
-	type Value = PgPool;
+	type Value = AnyPool;
 }
 
 /// Key for [`ring::aead::LessSafeKey`] for encryption purposes.
@@ -186,7 +187,7 @@ async fn main() {
 
 	if OPT.init_database || !OPT.no_bot {
 		// initialize database connection
-		let db_pool = match PgPool::connect(&keys.database.connect_string).await {
+		let db_pool = match AnyPool::connect(&keys.database.connect_string).await {
 			Ok(p) => p,
 			Err(e) => {
 				error!("Failed to connect to database: {e}");
@@ -195,7 +196,7 @@ async fn main() {
 		};
 
 		if OPT.init_database {
-			let create_tables = match std::fs::read_to_string("database/create-tables.sql") {
+			let create_tables = match std::fs::read_to_string(DB_PATH.join("create-tables.sql")) {
 				Ok(t) => t,
 				Err(e) => {
 					error!("Failed to read create tables file: {e}");
