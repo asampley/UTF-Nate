@@ -27,7 +27,7 @@ walkdir = "2.3"
 
 [features]
 default = ["http-interface", "yt-dlp"]
-http-interface = ["dep:axum", "dep:axum-extra", "dep:chrono", "dep:askama", "dep:hyper", "dep:public-ip"]
+http-interface = ["dep:askama", "dep:axum", "dep:axum-extra", "dep:chrono", "dep:hyper", "dep:public-ip", "dep:tower-http"]
 youtube-dlc = ["songbird/youtube-dlc"]
 yt-dlp = ["songbird/yt-dlp"]
 
@@ -98,3 +98,8 @@ features = ["any", "runtime-tokio-native-tls", "postgres", "sqlite"]
 [dependencies.tokio]
 version = "1.29"
 features = ["macros", "rt-multi-thread"]
+
+[dependencies.tower-http]
+version = "0.4.3"
+features = ["fs"]
+optional = true

@@ -273,6 +273,8 @@ async fn main() {
 			if let Some(addr) = &CONFIG.http {
 				use axum::routing::*;
 
+				use tower_http::services::ServeDir;
+
 				use crate::commands::http::form_endpoint;
 				use crate::commands::http::FormRouter;
 				use crate::commands::*;
@@ -286,19 +288,6 @@ async fn main() {
 				info!("Starting HTTP server");
 
 				let app = axum::Router::new()
-					.route(
-						"/css/index.css",
-						get(|| async { include_str!("../web/css/index.css") }),
-					)
-					.route(
-						"/img/loading.svg",
-						get(|| async {
-							(
-								[(axum::http::header::CONTENT_TYPE, "image/svg+xml")],
-								include_str!("../web/img/loading.svg"),
-							)
-						}),
-					)
 					.form_route(external::poise::cmd, external::http::cmd)
 					.form_route(external::poise::cmdlist, external::http::cmdlist)
 					.form_route(join::poise::summon, join::http::summon)
@@ -341,6 +330,7 @@ async fn main() {
 					.form_route(unicode::poise::unicode, unicode::http::unicode)
 					.form_route(roll::poise::roll, roll::http::roll)
 					.route("/token", get(token::http::token))
+					.fallback_service(ServeDir::new("resources/web"))
 					.with_state(state);
 
 				let http_future = hyper::Server::bind(addr).serve(app.into_make_service());
