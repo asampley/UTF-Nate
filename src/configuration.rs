@@ -123,6 +123,14 @@ impl Config {
 		}
 	}
 
+	pub async fn setup_db<'e, E: Executor<'e>>(executor: E) -> Result<(), ConfigError> {
+		sqlx::query(&Self::read_query("create-tables.sql")?)
+			.execute(executor)
+			.await?;
+
+		Ok(())
+	}
+
 	/// Set the intro for a user. This should be the exact file name of the
 	/// intro. This can later be retrieved using [`Self::get_intro`].
 	pub async fn set_intro<'e, E: Executor<'e>>(
@@ -283,5 +291,154 @@ impl Config {
 			guild_id.0 as i64,
 		)
 		.await
+	}
+}
+
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	/// Get a memory sqlite database for testing
+	async fn pool() -> sqlx::AnyPool {
+		let pool = sqlx::AnyPool::connect("sqlite::memory:").await.unwrap();
+
+		Config::setup_db(&pool).await.unwrap();
+
+		pool
+	}
+
+	const ERROR_GET: &str = "Error while getting";
+	const ERROR_SET: &str = "Error while setting";
+
+	#[tokio::test]
+	async fn get_intro_unset() {
+		let db = pool().await;
+
+		let get = Config::get_intro(&db, &UserId(0)).await.expect(ERROR_GET);
+
+		assert_eq!(get, None)
+	}
+
+	#[tokio::test]
+	async fn get_outro_unset() {
+		let db = pool().await;
+
+		let get = Config::get_outro(&db, &UserId(0)).await.expect(ERROR_GET);
+
+		assert_eq!(get, None)
+	}
+
+	#[tokio::test]
+	async fn get_bot_intro_unset() {
+		let db = pool().await;
+
+		let get = Config::get_bot_intro(&db, &GuildId(0))
+			.await
+			.expect(ERROR_GET);
+
+		assert_eq!(get, None)
+	}
+
+	#[tokio::test]
+	async fn get_volume_clip_unset() {
+		let db = pool().await;
+
+		let get = Config::get_volume_clip(&db, &GuildId(0))
+			.await
+			.expect(ERROR_GET);
+
+		assert_eq!(get, None)
+	}
+
+	#[tokio::test]
+	async fn get_volume_play_unset() {
+		let db = pool().await;
+
+		let get = Config::get_volume_play(&db, &GuildId(0))
+			.await
+			.expect(ERROR_GET);
+
+		assert_eq!(get, None)
+	}
+
+	#[tokio::test]
+	async fn set_get_intro() {
+		let db = pool().await;
+
+		let set = "test";
+
+		Config::set_intro(&db, &UserId(0), set)
+			.await
+			.expect(ERROR_SET);
+
+		let get = Config::get_intro(&db, &UserId(0)).await.expect(ERROR_GET);
+
+		assert_eq!(get.as_deref(), Some(set));
+	}
+
+	#[tokio::test]
+	async fn set_get_outro() {
+		let db = pool().await;
+
+		let set = "test";
+
+		Config::set_outro(&db, &UserId(0), set)
+			.await
+			.expect(ERROR_SET);
+
+		let get = Config::get_outro(&db, &UserId(0)).await.expect(ERROR_GET);
+
+		assert_eq!(get.as_deref(), Some(set));
+	}
+
+	#[tokio::test]
+	async fn set_get_bot_intro() {
+		let db = pool().await;
+
+		let set = "test";
+
+		Config::set_bot_intro(&db, &GuildId(0), set)
+			.await
+			.expect(ERROR_SET);
+
+		let get = Config::get_bot_intro(&db, &GuildId(0))
+			.await
+			.expect(ERROR_GET);
+
+		assert_eq!(get.as_deref(), Some(set));
+	}
+
+	#[tokio::test]
+	async fn set_get_volume_clip() {
+		let db = pool().await;
+
+		let set = 0.1234;
+
+		Config::set_volume_clip(&db, &GuildId(0), set)
+			.await
+			.expect(ERROR_SET);
+
+		let get = Config::get_volume_clip(&db, &GuildId(0))
+			.await
+			.expect(ERROR_GET);
+
+		assert_eq!(get, Some(set));
+	}
+
+	#[tokio::test]
+	async fn set_get_volume_play() {
+		let db = pool().await;
+
+		let set = 0.1234;
+
+		Config::set_volume_play(&db, &GuildId(0), set)
+			.await
+			.expect(ERROR_SET);
+
+		let get = Config::get_volume_play(&db, &GuildId(0))
+			.await
+			.expect(ERROR_GET);
+
+		assert_eq!(get, Some(set));
 	}
 }

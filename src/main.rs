@@ -33,9 +33,9 @@ use serenity::prelude::RwLock;
 
 use songbird::serenity::SerenityInit;
 
-use sqlx::{AnyPool, Executor};
+use sqlx::AnyPool;
 
-use configuration::{Config, DB_PATH};
+use configuration::Config;
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use interaction::reregister;
@@ -196,14 +196,6 @@ async fn main() {
 		};
 
 		if OPT.init_database {
-			let create_tables = match std::fs::read_to_string(DB_PATH.join("create-tables.sql")) {
-				Ok(t) => t,
-				Err(e) => {
-					error!("Failed to read create tables file: {e}");
-					return;
-				}
-			};
-
 			let mut trans = match db_pool.begin().await {
 				Ok(t) => t,
 				Err(e) => {
@@ -212,7 +204,7 @@ async fn main() {
 				}
 			};
 
-			match trans.execute(create_tables.as_str()).await {
+			match Config::setup_db(&mut trans).await {
 				Ok(_) => (),
 				Err(e) => {
 					error!("Error creating tables: {e}");
