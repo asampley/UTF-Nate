@@ -2,17 +2,14 @@
 	{% include "head.html" %}
 	<script>
 		function form_after_request(event) {
-			const replay = document.getElementById("replay");
 			const link = document.getElementById("replay-link");
 
 			link.href = event.detail.xhr.responseURL;
 			link.innerHTML = link.href;
-
-			replay.classList.remove("hide");
 		}
 	</script>
 </head>
-<body>
+<body hx-ext="loading-states">
 	<form
 		hx-get="/{{ command.name }}/run"
 		hx-target="#response"
@@ -23,11 +20,11 @@
 		<label for="{{ p.name }}">{{ p.name }}</label>
 		<input type="text" name="{{ p.name }}"/>
 		{% endfor %}
-		<button type="submit">Submit</button>
+		<button type="submit" data-loading-disable>Submit</button>
 	</form>
 	<img id="indicator" class="indicator" src="/img/loading.svg"/>
-	<div id="response"></div>
-	<div id="replay" class="hide">
+	<div id="response" data-loading-class="hide"></div>
+	<div id="replay" class="hide" data-loading-class="hide">
 		<p id="replay">
 			Copy this link to replay the same command at any time
 		</p>
