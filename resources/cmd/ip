@@ -1,15 +1,13 @@
 #!/bin/sh
-ipv4=$(dig -4 TXT +short o-o.myaddr.l.google.com @ns1.google.com 2>&1 | tr -d '"')
-ipv4code=$?
-ipv6=$(dig -6 TXT +short o-o.myaddr.l.google.com @ns1.google.com 2>&1 | tr -d '"')
-ipv6code=$?
+ipv4=$(host -4 -W 2 myip.opendns.com resolver1.opendns.com 2>&1 | grep "myip.opendns.com" | sed 's/^.*address //')
+ipv6=$(host -6 -W 2 myip.opendns.com resolver1.opendns.com 2>&1 | grep "myip.opendns.com" | sed 's/^.*address //')
 
-if [ "$ipv4code" -eq 0 ]; then
+if [ "$ipv4" ]; then
 	echo "IPv4: \`$ipv4\`"
 fi
-if [ "$ipv6code" -eq 0 ]; then
+if [ "$ipv6" ]; then
 	echo "IPv6: \`$ipv6\`"
 fi
-if [ \( "$ipv4code" -ne 0 \) -o \( "$ipv6code" -ne 0 \) ]; then
+if [ ! \( "$ipv4" -o "$ipv6" \) ]; then
 	echo "Unable to find a public IP"
 fi
