@@ -9,6 +9,6 @@ case "${mode}" in
 		;;
 	*)
 		echo "Mode must be one of the following: start, restart, stop"
-		exit 1
+		exit
 		;;
 esac
