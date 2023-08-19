@@ -1,0 +1,18 @@
+#!/bin/sh
+set -euf
+
+mode="${1:-}"
+steamid=896660
+
+case "${mode}" in
+	start | restart | stop)
+		resources/cmd-template/service.sh valheim "${mode}"
+		;;
+	update)
+		resources/cmd-template/steamcmd_update.sh "${steamid}"
+		;;
+	*)
+		echo "Mode must be one of the following: start, restart, stop, update"
+		exit 1
+		;;
+esac

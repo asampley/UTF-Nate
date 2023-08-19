@@ -1,2 +1,0 @@
-#!/bin/sh
-resources/cmd-template/steamcmd_update.sh 896660 "${HOME}/valheim"

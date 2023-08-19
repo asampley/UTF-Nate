@@ -1,0 +1,14 @@
+#!/bin/sh
+set -euf
+
+mode="${1:-}"
+
+case "${mode}" in
+	start | restart | stop)
+		resources/cmd-template/service.sh factorio "${mode}"
+		;;
+	*)
+		echo "Mode must be one of the following: start, restart, stop"
+		exit 1
+		;;
+esac

@@ -1,2 +1,0 @@
-#!/bin/sh
-resources/cmd-template/service.sh factorio start

@@ -13,6 +13,14 @@ case "${mode}" in
 			exit
 		fi
 		;;
+	restart)
+		success="Restarted ${service}"
+
+		if ! systemctl is-active "${service}" > /dev/null 2>&1; then
+			echo "${service} is not running"
+			exit
+		fi
+		;;
 	stop)
 		success="Stopped ${service}"
 

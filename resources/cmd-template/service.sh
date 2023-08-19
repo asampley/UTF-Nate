@@ -1,8 +1,8 @@
 #!/bin/sh
 set -euf
 
-service=$1
-mode=$2
+service="$1"
+mode="$2"
 
 case "${mode}" in
 	start)
@@ -12,6 +12,16 @@ case "${mode}" in
 			echo "${service} already running"
 			exit
 		fi
+		;;
+	restart)
+		success="Restarted ${service}"
+
+		if ! service "${service}" status > /dev/null 2>&1; then
+			echo "${service} is not running"
+			exit
+		fi
+
+		mode="--full-restart"
 		;;
 	stop)
 		success="Stopped ${service}"
