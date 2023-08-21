@@ -20,8 +20,6 @@ case "${mode}" in
 			echo "${service} is not running"
 			exit
 		fi
-
-		mode="--full-restart"
 		;;
 	stop)
 		success="Stopped ${service}"
