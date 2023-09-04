@@ -276,12 +276,32 @@ pub async fn queue(
 			})
 			.filter_map(|i| current_queue.get(i).map(|t| (i, t)))
 			.map(|(i, track)| {
+				use std::fmt::Write;
+
+				let mut listing = format!("{i}:");
+
 				let meta = track.metadata();
 				let title = meta.title.as_deref().unwrap_or("Unknown");
+
 				match &meta.source_url {
-					Some(url) => format!("{}: [{}]({})", i, title, url),
-					None => format!("{}: {}", i, title),
+					Some(url) => write!(listing, " [{title}]({url})").unwrap(),
+					None => write!(listing, " {title}").unwrap(),
 				}
+
+				if let Some(duration) = meta.duration {
+					let total_seconds = duration.as_secs();
+					let s = total_seconds % 60;
+					let m = (total_seconds / 60) % 60;
+					let h = total_seconds / 3600;
+
+					if h > 0 {
+						write!(listing, " ({h}:{m:>02}:{s:>02})").unwrap();
+					} else {
+						write!(listing, " ({m}:{s:>02})").unwrap();
+					}
+				};
+
+				listing
 			})
 			.join("\n");
 
