@@ -63,6 +63,26 @@ pub struct LoopArgs {
 	pub count: LoopArg,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct QueueArgs {
+	#[serde(default = "QueueArgs::default_selection")]
+	pub selection: Selection<usize>,
+}
+
+impl QueueArgs {
+	fn default_selection() -> Selection<usize> {
+		Selection(vec![NumOrRange::Range(0..=10)])
+	}
+}
+
+impl Default for QueueArgs {
+	fn default() -> Self {
+		Self {
+			selection: Self::default_selection(),
+		}
+	}
+}
+
 #[tracing::instrument(level = "info", ret, skip(state))]
 pub async fn stop(state: &BotState, source: &Source) -> Result<Response, Response> {
 	let guild_id = source
@@ -222,7 +242,11 @@ pub async fn unpause(state: &BotState, source: &Source) -> Result<Response, Resp
 }
 
 #[tracing::instrument(level = "info", ret, skip(state))]
-pub async fn queue(state: &BotState, source: &Source) -> Result<Response, Response> {
+pub async fn queue(
+	state: &BotState,
+	source: &Source,
+	args: QueueArgs,
+) -> Result<Response, Response> {
 	let guild_id = source
 		.guild_id
 		.ok_or("This command is only available in guilds")?;
@@ -242,25 +266,26 @@ pub async fn queue(state: &BotState, source: &Source) -> Result<Response, Respon
 	Ok(if len == 0 {
 		"Nothing queued".to_owned()
 	} else {
-		let queue = current_queue
-			.into_iter()
-			.take(10)
-			.enumerate()
-			.map(|(i, t)| {
-				let m = t.metadata();
-				let t = m.title.as_deref().unwrap_or("Unknown");
-				match &m.source_url {
-					Some(u) => format!("{}: [{}]({})", i, t, u),
-					None => format!("{}: {}", i, t),
+		let queue = args
+			.selection
+			.0
+			.iter()
+			.flat_map(|v| match v {
+				NumOrRange::Num(n) => *n..=*n,
+				NumOrRange::Range(r) => r.clone(),
+			})
+			.filter_map(|i| current_queue.get(i).map(|t| (i, t)))
+			.map(|(i, track)| {
+				let meta = track.metadata();
+				let title = meta.title.as_deref().unwrap_or("Unknown");
+				match &meta.source_url {
+					Some(url) => format!("{}: [{}]({})", i, title, url),
+					None => format!("{}: {}", i, title),
 				}
 			})
 			.join("\n");
 
-		if len <= 10 {
-			format!("Current queue:\n{}", queue)
-		} else {
-			format!("Current queue:\n{}\n... and {} more", queue, len - 10)
-		}
+		format!("Current queue ({} total):\n{}\n", len, queue)
 	}
 	.into())
 }

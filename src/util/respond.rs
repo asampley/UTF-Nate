@@ -38,7 +38,14 @@ impl From<&str> for Response {
 
 impl Response {
 	fn embed_color<'a>(&self, color: Color, create: &'a mut CreateEmbed) -> &'a mut CreateEmbed {
-		create.color(color).description(&self.text)
+		// TODO see if this constant is defined somewhere
+		if self.text.len() <= 4096 {
+			create.color(color).description(&self.text)
+		} else {
+			create
+				.color(ERR_COLOR)
+				.description("The response was too long and cannot be displayed")
+		}
 	}
 
 	fn embed_err<'a>(&self, create: &'a mut CreateEmbed) -> &'a mut CreateEmbed {

@@ -34,6 +34,12 @@ impl<T> From<Vec<NumOrRange<T>>> for Selection<T> {
 	}
 }
 
+impl<T> FromIterator<NumOrRange<T>> for Selection<T> {
+	fn from_iter<I: IntoIterator<Item = NumOrRange<T>>>(iter: I) -> Self {
+		Self(iter.into_iter().collect())
+	}
+}
+
 /// Represents the two possibilities of either a scalar or range of values.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum NumOrRange<T> {

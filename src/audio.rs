@@ -229,7 +229,7 @@ where
 						.map(|(_, value)| value)
 						.next()
 						.ok_or_else(|| {
-							debug!("Missing \"list\" in query parameters: {}", url);
+							debug!("Missing \"v\" in query parameters: {}", url);
 							AudioError::UnsupportedUrl
 						})?
 				} else {

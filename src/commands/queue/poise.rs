@@ -1,3 +1,4 @@
+use crate::commands::queue::QueueArgs;
 use crate::commands::{run, CustomData};
 use crate::parser::Selection;
 use crate::util::*;
@@ -72,8 +73,23 @@ pub async fn unpause(ctx: Context<'_>) -> CommandResult {
 	guild_only,
 	custom_data = "CustomData::new(super::queue_help)"
 )]
-pub async fn queue(ctx: Context<'_>) -> CommandResult {
-	run(&ctx, super::queue(&ctx.into(), &(&ctx).into())).await
+pub async fn queue(
+	ctx: Context<'_>,
+	#[description = "Range or index of songs to skip, separated by commas"] selection: Option<
+		Selection<usize>,
+	>,
+) -> CommandResult {
+	run(
+		&ctx,
+		super::queue(
+			&ctx.into(),
+			&(&ctx).into(),
+			QueueArgs {
+				selection: selection.unwrap_or_else(QueueArgs::default_selection),
+			},
+		),
+	)
+	.await
 }
 
 async fn shuffle_type_command(ctx: Context<'_>, starting_from: usize) -> CommandResult {

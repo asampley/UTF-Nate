@@ -419,10 +419,10 @@ async fn after_hook(ctx: Context<'_>) {
 ///
 /// See [`poise::FrameworkOptions::on_error`] for more information.
 async fn on_error(err: FrameworkError<'_>) {
-	use poise::FrameworkError::*;
+	use poise::FrameworkError as E;
 
 	match &err {
-		GuildOnly { ctx } | DmOnly { ctx } | NsfwOnly { ctx } => {
+		E::GuildOnly { ctx } | E::DmOnly { ctx } | E::NsfwOnly { ctx } => {
 			check_msg(
 				ctx.respond_err(
 					&format!(
@@ -430,9 +430,9 @@ async fn on_error(err: FrameworkError<'_>) {
 						ctx.prefix(),
 						ctx.command().qualified_name,
 						match &err {
-							GuildOnly { .. } => "guilds",
-							DmOnly { .. } => "dms",
-							NsfwOnly { .. } => "nsfw channels",
+							E::GuildOnly { .. } => "guilds",
+							E::DmOnly { .. } => "dms",
+							E::NsfwOnly { .. } => "nsfw channels",
 							_ => unreachable!(),
 						}
 					)
@@ -441,7 +441,7 @@ async fn on_error(err: FrameworkError<'_>) {
 				.await,
 			);
 		}
-		ArgumentParse { error, ctx, input } => {
+		E::ArgumentParse { error, ctx, input } => {
 			let mut response = match input {
 				Some(input) => format!("Could not parse {:?}. ", input),
 				None => String::new(),
