@@ -16,6 +16,7 @@ use crate::audio::{AudioError, PlayStyle};
 use crate::commands::{BotState, Source};
 use crate::configuration::Config;
 use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
+use crate::util::write_duration;
 use crate::util::{GetExpect, Response};
 use crate::Pool;
 
@@ -124,19 +125,29 @@ pub async fn play(
 				.await
 				{
 					Ok(info) => {
+						use std::fmt::Write;
+
 						let title = info.title.as_deref().unwrap_or(&args.search);
 
-						Ok(format!(
-							"Queuing {} {}",
-							match info.count {
-								1 => "".to_string(),
-								count => format!("{} clips from", count),
-							},
-							match info.url {
-								Some(url) => format!("[{}]({})", title, url),
-								None => title.to_string(),
-							}
-						))
+						let mut response = String::from("Queuing");
+
+						if info.count != 1 {
+							write!(response, " {} clips from", info.count).unwrap();
+						}
+
+						match info.url {
+							Some(url) => write!(response, " [{}]({})", title, url),
+							None => write!(response, " {}", title),
+						}
+						.unwrap();
+
+						if let Some(duration) = info.duration {
+							response.push_str(" (");
+							write_duration(&mut response, duration).unwrap();
+							response.push(')');
+						}
+
+						Ok(response)
 					}
 					Err(e) => Err(e),
 				}

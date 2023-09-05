@@ -130,6 +130,9 @@ pub struct SourceInfo {
 
 	/// The number of actual sources, if a playlist.
 	pub count: usize,
+
+	/// duration of all sources added up
+	pub duration: Option<std::time::Duration>,
 }
 
 /// Creates audio sources for [`songbird`], and as each audio source is created
@@ -206,11 +209,7 @@ where
 							AudioError::YoutubePlaylist
 						})?;
 
-				let info = SourceInfo {
-					title: Some(playlist.snippet.title),
-					url: Some(loc.to_string()),
-					count: playlist_items.len(),
-				};
+				let count = playlist_items.len();
 
 				let videos = youtube::videos(
 					&youtube_api,
@@ -223,6 +222,16 @@ where
 					error!("Error in youtube data api for videos: {:?}", e);
 					AudioError::YoutubePlaylist
 				})?;
+
+				let info = SourceInfo {
+					title: Some(playlist.snippet.title),
+					url: Some(loc.to_string()),
+					count,
+					duration: videos
+						.iter()
+						.map(|video| video.content_details.duration.to_std())
+						.try_fold(std::time::Duration::ZERO, |acc, opt| opt.map(|x| acc + x)),
+				};
 
 				tokio::spawn(async move {
 					for item in videos {
@@ -272,6 +281,7 @@ where
 					title: Some(video.snippet.title),
 					url: Some(loc.to_string()),
 					count: 1,
+					duration: video.content_details.duration.to_std(),
 				})
 			}
 		} else if SPOTIFY_HOST.is_match(host) {
@@ -307,6 +317,7 @@ where
 						title: Some(track.name),
 						url: Some(loc.to_string()),
 						count: 1,
+						duration: None,
 					})
 				}
 				"playlist" => {
@@ -325,6 +336,7 @@ where
 						title: Some(playlist.name.clone()),
 						url: Some(loc.to_string()),
 						count: playlist.tracks.items.len(),
+						duration: None,
 					};
 
 					tokio::spawn(async move {
@@ -354,6 +366,7 @@ where
 						title: Some(album.name.clone()),
 						url: Some(loc.to_string()),
 						count: album.tracks.items.len(),
+						duration: None,
 					};
 
 					tokio::spawn(async move {
@@ -372,13 +385,16 @@ where
 		} else {
 			match songbird::ffmpeg(loc).await {
 				Ok(source) => {
-					f(source).await;
-
-					Ok(SourceInfo {
+					let info = SourceInfo {
 						title: None,
 						url: Some(loc.to_string()),
 						count: 1,
-					})
+						duration: source.metadata.duration,
+					};
+
+					f(source).await;
+
+					Ok(info)
 				}
 				Err(e) => {
 					error!("Error creating input: {:?}", e);
@@ -400,6 +416,7 @@ where
 			title: None,
 			url: None,
 			count: 1,
+			duration: None,
 		})
 	}
 }
