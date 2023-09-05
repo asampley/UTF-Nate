@@ -1362,6 +1362,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "iso8601-duration"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a26adff60a5d3ca10dc271ad37a34ff376595d2a1e5f21d02564929ca888c511"
+dependencies = [
+ "nom",
+ "serde",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3285,6 +3295,7 @@ dependencies = [
  "futures",
  "fxhash",
  "hyper",
+ "iso8601-duration",
  "itertools 0.11.0",
  "markdown",
  "nom",

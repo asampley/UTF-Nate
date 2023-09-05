@@ -15,7 +15,7 @@ use tracing::{error, info};
 use crate::commands::{BotState, Source};
 use crate::data::VoiceGuilds;
 use crate::parser::{NumOrRange, Selection};
-use crate::util::{GetExpect, Response};
+use crate::util::{write_duration, GetExpect, Response};
 
 #[cfg(feature = "http-interface")]
 pub mod http;
@@ -289,16 +289,9 @@ pub async fn queue(
 				}
 
 				if let Some(duration) = meta.duration {
-					let total_seconds = duration.as_secs();
-					let s = total_seconds % 60;
-					let m = (total_seconds / 60) % 60;
-					let h = total_seconds / 3600;
-
-					if h > 0 {
-						write!(listing, " ({h}:{m:>02}:{s:>02})").unwrap();
-					} else {
-						write!(listing, " ({m}:{s:>02})").unwrap();
-					}
+					listing.push_str(" (");
+					write_duration(&mut listing, duration).unwrap();
+					listing.push(')');
 				};
 
 				listing

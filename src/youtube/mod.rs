@@ -5,6 +5,7 @@
 //! [YouTube API]: https://developers.google.com/youtube/v3/docs
 pub mod api;
 
+use itertools::Itertools;
 use tracing::{error, info};
 
 use reqwest::Client;
@@ -51,6 +52,32 @@ impl YtdlLazy {
 
 	pub async fn into_restartable(self) -> songbird::input::error::Result<Restartable> {
 		Restartable::new(self, true).await
+	}
+}
+
+impl From<Video> for YtdlLazy {
+	fn from(item: Video) -> Self {
+		let url = format!("https://youtu.be/{}", item.id);
+		let tn = item.snippet.thumbnails;
+
+		Self::new(
+			url.clone(),
+			Metadata {
+				channel: Some(item.snippet.channel_title),
+				source_url: Some(url),
+				title: Some(item.snippet.title),
+				duration: item.content_details.duration.to_std(),
+				thumbnail: tn
+					.default
+					.or(tn.medium)
+					.or(tn.high)
+					.or(tn.standard)
+					.or(tn.maxres)
+					.map(|t| t.url),
+
+				..Default::default()
+			},
+		)
 	}
 }
 
@@ -135,13 +162,16 @@ impl Restart for YtdlSearchLazy {
 	}
 }
 
-pub async fn collect_all<T, Q>(url: &str, query: &Q) -> reqwest::Result<Vec<T>>
+pub async fn collect_paged<T, Q>(url: &str, query: &Q) -> reqwest::Result<Vec<T>>
 where
 	for<'a> T: Deserialize<'a>,
 	Q: Serialize + ?Sized,
 {
 	let mut collect = Vec::new();
-	let mut response = Client::new()
+
+	let client = Client::new();
+
+	let mut response = client
 		.get(url)
 		.query(query)
 		.send()
@@ -152,10 +182,40 @@ where
 	collect.append(&mut response.items);
 
 	while let Some(next) = response.next_page_token {
-		response = Client::new()
+		response = client
 			.get(url)
 			.query(query)
 			.query(&[("pageToken", next)])
+			.send()
+			.await?
+			.json::<ListResponse<T>>()
+			.await?;
+
+		collect.append(&mut response.items);
+	}
+
+	Ok(collect)
+}
+
+pub async fn collect_batch<T, Q, A>(
+	url: &str,
+	query_base: &Q,
+	queries: impl Iterator<Item = A>,
+) -> reqwest::Result<Vec<T>>
+where
+	for<'a> T: Deserialize<'a>,
+	Q: Serialize + ?Sized,
+	A: Serialize,
+{
+	let mut collect = Vec::new();
+
+	let client = Client::new();
+
+	for query in queries {
+		let mut response = client
+			.get(url)
+			.query(query_base)
+			.query(&query)
 			.send()
 			.await?
 			.json::<ListResponse<T>>()
@@ -196,7 +256,7 @@ pub async fn playlist_items(
 		("maxResults", "50"),
 	];
 
-	collect_all(url, query).await
+	collect_paged(url, query).await
 }
 
 pub async fn video(api: &YoutubeApi, video_id: &str) -> reqwest::Result<Option<Video>> {
@@ -214,4 +274,31 @@ pub async fn video(api: &YoutubeApi, video_id: &str) -> reqwest::Result<Option<V
 		.items
 		.drain(..)
 		.next())
+}
+
+pub async fn videos(
+	api: &YoutubeApi,
+	video_ids: impl IntoIterator<Item = impl std::fmt::Display>,
+) -> reqwest::Result<Vec<Video>> {
+	let url = "https://youtube.googleapis.com/youtube/v3/videos";
+	let query_base = &[
+		("key", api.key.as_ref()),
+		("part", "contentDetails,snippet"),
+	];
+
+	let mut video_ids = video_ids.into_iter();
+
+	collect_batch(
+		url,
+		query_base,
+		std::iter::from_fn(|| {
+			let ids = video_ids.by_ref().take(50).join(",");
+			if ids.is_empty() {
+				None
+			} else {
+				Some([("id", ids)])
+			}
+		}),
+	)
+	.await
 }

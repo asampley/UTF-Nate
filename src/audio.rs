@@ -212,8 +212,20 @@ where
 					count: playlist_items.len(),
 				};
 
+				let videos = youtube::videos(
+					&youtube_api,
+					playlist_items
+						.into_iter()
+						.map(|item| item.content_details.video_id),
+				)
+				.await
+				.map_err(|e| {
+					error!("Error in youtube data api for videos: {:?}", e);
+					AudioError::YoutubePlaylist
+				})?;
+
 				tokio::spawn(async move {
-					for item in playlist_items {
+					for item in videos {
 						match YtdlLazy::from(item).into_input().await {
 							Ok(input) => f(input).await,
 							Err(e) => error!("Error creating input: {:?}", e),

@@ -21,6 +21,7 @@ use thiserror::Error;
 
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
+use std::time::Duration;
 
 pub type Data = ();
 pub type Command = poise::Command<Data, CommandError>;
@@ -130,4 +131,18 @@ where
 	P: AsRef<Path>,
 {
 	Ok(toml::from_str(&std::fs::read_to_string(path.as_ref())?)?)
+}
+
+/// Format a duration as minutes and seconds, as well as hours if applicable
+pub fn write_duration(write: &mut impl std::fmt::Write, duration: Duration) -> std::fmt::Result {
+	let total_seconds = duration.as_secs();
+	let s = total_seconds % 60;
+	let m = (total_seconds / 60) % 60;
+	let h = total_seconds / 3600;
+
+	if h > 0 {
+		write!(write, "{h}:{m:>02}:{s:>02}")
+	} else {
+		write!(write, "{m}:{s:>02}")
+	}
 }

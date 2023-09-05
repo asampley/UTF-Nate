@@ -57,6 +57,10 @@ features = ["derive"]
 version = "0.14.27"
 optional = true
 
+[dependencies.iso8601-duration]
+version = "0.2.0"
+features = ["serde"]
+
 [dependencies.markdown]
 git = "https://github.com/wooorm/markdown-rs.git"
 tag = "1.0.0-alpha.9"

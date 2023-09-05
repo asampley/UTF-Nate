@@ -83,7 +83,7 @@ pub struct VideoSnippet {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VideoContentDetails {
-	pub duration: String,
+	pub duration: iso8601_duration::Duration,
 }
 
 #[derive(Debug, Deserialize)]
