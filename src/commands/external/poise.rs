@@ -14,7 +14,7 @@ pub async fn cmd(
 	#[description = "Command to run"] command: String,
 	#[description = "Arguments to pass on to the command"] args: Option<String>,
 ) -> CommandResult {
-	run(&ctx, super::cmd(&CmdArgs { command, args })).await
+	run(&ctx, super::cmd(CmdArgs { command, args })).await
 }
 
 #[poise::command(

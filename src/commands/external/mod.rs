@@ -40,34 +40,41 @@ pub struct CmdlistArgs {
 }
 
 #[tracing::instrument(level = "info", ret)]
-pub async fn cmd(CmdArgs { command, args }: &CmdArgs) -> Result<Response, Response> {
+pub async fn cmd(CmdArgs { command, args }: CmdArgs) -> Result<Response, Response> {
 	let command = sandboxed_join(&CMD_PATH, command).ok_or("Invalid command")?;
 
-	let output = process::Command::new(&command)
-		.args(args.iter().flat_map(serenity::utils::parse_quotes))
-		.stdin(Stdio::null())
-		.output();
+	tokio::task::spawn_blocking(move || {
+		let output = process::Command::new(&command)
+			.args(args.iter().flat_map(serenity::utils::parse_quotes))
+			.stdin(Stdio::null())
+			.output();
 
-	match output {
-		Ok(output) => {
-			let stdout = String::from_utf8_lossy(&output.stdout);
-			let stderr = String::from_utf8_lossy(&output.stderr);
+		match output {
+			Ok(output) => {
+				let stdout = String::from_utf8_lossy(&output.stdout);
+				let stderr = String::from_utf8_lossy(&output.stderr);
 
-			info!("Stdout of command: {}", stdout);
-			info!("Stderr of command: {}", stderr);
+				info!("Stdout of command: {}", stdout);
+				info!("Stderr of command: {}", stderr);
 
-			if output.status.success() {
-				Ok(stdout.as_ref().into())
-			} else {
-				Err("Error executing command. Please check logs".into())
+				if output.status.success() {
+					Ok(stdout.as_ref().into())
+				} else {
+					Err("Error executing command. Please check logs".into())
+				}
+			}
+			Err(reason) => {
+				error!("Error executing command {:?}: {:?}", command, reason);
+
+				Err("Error executing command".into())
 			}
 		}
-		Err(reason) => {
-			error!("Error executing command {:?}: {:?}", command, reason);
-
-			Err("Error executing command".into())
-		}
-	}
+	})
+	.await
+	.unwrap_or_else(|e| {
+		error!("Failed to join blocking task: {e:?}");
+		Err("Error executing command".into())
+	})
 }
 
 #[tracing::instrument(level = "info", ret)]
