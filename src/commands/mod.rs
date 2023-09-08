@@ -106,6 +106,13 @@ pub async fn run<F>(ctx: &Context<'_>, f: F) -> CommandResult
 where
 	F: Future<Output = Result<Response, Response>>,
 {
+	let _typing_lock = match ctx {
+		Context::Application(context) if context.command.ephemeral => {
+			ctx.defer_ephemeral().await.map(|_| None)
+		}
+		_ => ctx.defer_or_broadcast().await,
+	}?;
+
 	ctx.respond(f.await.as_ref()).await?;
 
 	Ok(())

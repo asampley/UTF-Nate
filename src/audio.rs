@@ -308,10 +308,14 @@ where
 						AudioError::Spotify
 					})?;
 
-					match YtdlSearchLazy::from(&track).into_input().await {
-						Ok(input) => f(input).await,
-						Err(e) => error!("Error creating input: {:?}", e),
-					}
+					let lazy = YtdlSearchLazy::from(&track);
+
+					tokio::spawn(async move {
+						match lazy.into_input().await {
+							Ok(input) => f(input).await,
+							Err(e) => error!("Error creating input: {:?}", e),
+						}
+					});
 
 					Ok(SourceInfo {
 						title: Some(track.name),
@@ -405,19 +409,27 @@ where
 	} else {
 		let loc_string = loc.to_string();
 
-		tokio::spawn(async move {
-			match Restartable::ytdl_search(loc_string, true).await {
-				Ok(restartable) => f(restartable.into()).await,
-				Err(e) => error!("Error creating input: {:?}", e),
-			}
-		});
+		match Restartable::ytdl_search(loc_string, true).await {
+			Ok(restartable) => {
+				let input: Input = restartable.into();
 
-		Ok(SourceInfo {
-			title: None,
-			url: None,
-			count: 1,
-			duration: None,
-		})
+				let info = SourceInfo {
+					title: input.metadata.title.clone(),
+					url: input.metadata.source_url.clone(),
+					count: 1,
+					duration: input.metadata.duration,
+				};
+
+				tokio::spawn(async move { f(input).await });
+
+				Ok(info)
+			}
+			Err(e) => {
+				error!("Error creating input: {:?}", e);
+
+				Err(e.into())
+			}
+		}
 	}
 }
 
@@ -577,4 +589,61 @@ pub fn get_clip(loc: &OsStr) -> Option<OsString> {
 /// Verify that the clip exists within the clip path directory.
 pub fn valid_clip(path: &Path) -> bool {
 	sandboxed_join(&CLIP_PATH, path).is_some()
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	use std::time::Duration;
+
+	const URLS: &[&str] = &[
+		// youtube single video
+		"https://www.youtube.com/watch?v=k2mFvwDTTt0",
+		// youtube playlist
+		"https://www.youtube.com/playlist?list=PLucOLpdAYaKW1IYuo84R4qIskTfj-ECDp",
+		// spotify single track
+		"https://open.spotify.com/track/009bpReJuXgCv8G2MkJ5Y1",
+		// spotify album
+		"https://open.spotify.com/album/0G2RxSCixG5Nl6jpjwiw2g",
+		// spotify playlist
+		"https://open.spotify.com/playlist/2O18dCV9uoGTyxN5HLJkTo",
+	];
+
+	/// Test to make sure response is not blocked by long callback
+	#[tokio::test]
+	async fn play_sources_long_callback() {
+		let threshold = Duration::from_millis(2000);
+
+		let callback = move |_| async move { tokio::time::sleep(threshold).await };
+
+		let keys: ArcRw<_> = std::sync::Arc::new(read_toml::<Keys, _>("keys.toml").unwrap().into());
+
+		let mut join_set = tokio::task::JoinSet::new();
+
+		for url in URLS {
+			let k = keys.clone();
+
+			join_set.spawn(async move {
+				tokio::time::timeout(threshold, async move {
+					play_sources(k, url, true, callback).await.unwrap();
+				})
+				.await
+				.unwrap_or_else(|_| {
+					panic!("play_sources took too long responding with a long callback ({url})")
+				});
+			});
+		}
+
+		let mut okay = true;
+
+		while let Some(join) = join_set.join_next().await {
+			if let Err(e) = join {
+				println!("Error joining: {e}");
+				okay = false;
+			}
+		}
+
+		assert!(okay);
+	}
 }
