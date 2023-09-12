@@ -52,6 +52,21 @@ pub struct Config {
 	pub prefixes: Vec<String>,
 	pub activity: Option<ActivityConfig>,
 	pub http: Option<SocketAddr>,
+	#[serde(default)]
+	pub youtube: YoutubeConfig,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct YoutubeConfig {
+	pub concurrent_request_buffer: usize,
+}
+
+impl Default for YoutubeConfig {
+	fn default() -> Self {
+		Self {
+			concurrent_request_buffer: 25,
+		}
+	}
 }
 
 #[derive(Debug, Serialize, Deserialize)]

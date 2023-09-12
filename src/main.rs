@@ -1,3 +1,5 @@
+#![feature(try_blocks)]
+
 mod audio;
 mod commands;
 mod configuration;

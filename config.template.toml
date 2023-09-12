@@ -11,3 +11,8 @@ prefixes = ["!", "?", "‽"]
 # Optional http bind address for a web interface
 # 0.0.0.0 can be used to just bind to the current ip
 #http = "0.0.0.0:8080"
+
+# Control how many requests to send concurrently while fetching a playlist
+# This applies to a single request, separate requests are always concurrent
+# youtube = { concurrent_request_buffer = 25 }
+

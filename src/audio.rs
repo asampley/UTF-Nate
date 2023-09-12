@@ -8,7 +8,7 @@
 //! Clip searches are done using levenshtein distance in order to fuzzily
 //! match making it easier to use without knowing exact clip names.
 
-use futures::Future;
+use futures::{Future, TryStreamExt};
 
 use itertools::Itertools;
 
@@ -35,7 +35,7 @@ use crate::data::{ArcRw, Keys};
 use crate::spotify;
 use crate::util::*;
 use crate::youtube::{self, YtdlLazy, YtdlSearchLazy};
-use crate::RESOURCE_PATH;
+use crate::{CONFIG, RESOURCE_PATH};
 
 /// Path to shared directory for clips.
 pub static CLIP_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("clips/"));
@@ -201,22 +201,26 @@ where
 						AudioError::NotFound
 					})?;
 
-				let playlist_items =
-					youtube::playlist_items(&youtube_api, &id)
-						.await
-						.map_err(|e| {
-							error!("Error in youtube data api for playlist items: {:?}", e);
-							AudioError::YoutubePlaylist
-						})?;
+				let playlist_items = youtube::playlist_items(&youtube_api, &id)
+					.try_concat()
+					.await
+					.map_err(|e| {
+						error!("Error in youtube data api for playlist items: {:?}", e);
+						AudioError::YoutubePlaylist
+					})?;
 
 				let count = playlist_items.len();
 
 				let videos = youtube::videos(
 					&youtube_api,
-					playlist_items
-						.into_iter()
-						.map(|item| item.content_details.video_id),
+					futures::stream::iter(
+						playlist_items
+							.into_iter()
+							.map(|item| item.content_details.video_id),
+					),
+					CONFIG.youtube.concurrent_request_buffer,
 				)
+				.try_concat()
 				.await
 				.map_err(|e| {
 					error!("Error in youtube data api for videos: {:?}", e);

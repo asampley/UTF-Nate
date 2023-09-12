@@ -68,11 +68,10 @@ static FORMS: Lazy<HashMap<fn() -> Command, String>> = Lazy::new(|| {
 		.filter_map(|create| {
 			let command = create();
 
-			if let Some(data) = command.custom_data.downcast_ref::<CustomData>() {
-				Some((*create, render_form(&command, (data.help_md)())))
-			} else {
-				None
-			}
+			command
+				.custom_data
+				.downcast_ref::<CustomData>()
+				.map(|data| (*create, render_form(&command, (data.help_md)())))
 		})
 		.collect()
 });

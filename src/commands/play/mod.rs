@@ -189,6 +189,54 @@ pub async fn play(
 	}
 }
 
+async fn queue_input(
+	call: Arc<Mutex<Call>>,
+	input: Input,
+	volume: f32,
+	play_index: Option<usize>,
+) -> bool {
+	let (mut track, _handle) = create_player(input);
+	track.set_volume(volume);
+
+	let mut lock = call.lock().await;
+
+	lock.enqueue(track);
+
+	if let Some(index) = play_index {
+		if index < lock.queue().len() {
+			lock.queue().modify_queue(|q| {
+				let v = q.pop_back().unwrap();
+
+				if index == 0 {
+					q.front().map(|f| f.handle().pause());
+					let _ = v.handle().play();
+				}
+
+				q.insert(index, v);
+			})
+		}
+	}
+
+	true
+}
+
+async fn immediate_input(
+	call: Arc<Mutex<Call>>,
+	voice_guild_arc: ArcRw<VoiceGuild>,
+	input: Input,
+	volume: f32,
+) -> bool {
+	let (mut track, handle) = create_player(input);
+	track.set_volume(volume);
+
+	call.lock().await.play(track);
+	voice_guild_arc
+		.write()
+		.await
+		.add_audio(handle, volume)
+		.is_ok()
+}
+
 async fn play_input(
 	play_style: PlayStyle,
 	call: Arc<Mutex<Call>>,
@@ -197,38 +245,8 @@ async fn play_input(
 	volume: f32,
 	play_index: Option<usize>,
 ) -> bool {
-	let (mut track, handle) = create_player(input);
-	track.set_volume(volume);
-
 	match play_style {
-		PlayStyle::Clip => {
-			call.lock().await.play(track);
-			voice_guild_arc
-				.write()
-				.await
-				.add_audio(handle, volume)
-				.is_ok()
-		}
-		PlayStyle::Play => {
-			let mut lock = call.lock().await;
-			lock.enqueue(track);
-
-			if let Some(index) = play_index {
-				if index < lock.queue().len() {
-					lock.queue().modify_queue(|q| {
-						let v = q.pop_back().unwrap();
-
-						if index == 0 {
-							q.front().map(|f| f.handle().pause());
-							let _ = v.handle().play();
-						}
-
-						q.insert(index, v);
-					})
-				}
-			}
-
-			true
-		}
+		PlayStyle::Clip => immediate_input(call, voice_guild_arc, input, volume).await,
+		PlayStyle::Play => queue_input(call, input, volume, play_index).await,
 	}
 }

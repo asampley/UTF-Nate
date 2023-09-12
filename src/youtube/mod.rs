@@ -5,6 +5,7 @@
 //! [YouTube API]: https://developers.google.com/youtube/v3/docs
 pub mod api;
 
+use futures::{Stream, StreamExt};
 use itertools::Itertools;
 use tracing::{error, info};
 
@@ -162,69 +163,35 @@ impl Restart for YtdlSearchLazy {
 	}
 }
 
-pub async fn collect_paged<T, Q>(url: &str, query: &Q) -> reqwest::Result<Vec<T>>
+pub fn stream_paged<'a, T, Q>(
+	url: &'static str,
+	query: Q,
+) -> impl Stream<Item = reqwest::Result<Vec<T>>> + 'a
 where
-	for<'a> T: Deserialize<'a>,
-	Q: Serialize + ?Sized,
+	for<'de> T: Deserialize<'de>,
+	Q: Serialize + Copy + 'a,
 {
-	let mut collect = Vec::new();
+	futures::stream::unfold(Some(None), move |page_token| async move {
+		if page_token.is_none() {
+			None
+		} else {
+			let response: Result<_, _> = try {
+				Client::new()
+					.get(url)
+					.query(&query)
+					.query(&page_token.map(|next| [("pageToken", next)]))
+					.send()
+					.await?
+					.json::<ListResponse<T>>()
+					.await?
+			};
 
-	let client = Client::new();
-
-	let mut response = client
-		.get(url)
-		.query(query)
-		.send()
-		.await?
-		.json::<ListResponse<T>>()
-		.await?;
-
-	collect.append(&mut response.items);
-
-	while let Some(next) = response.next_page_token {
-		response = client
-			.get(url)
-			.query(query)
-			.query(&[("pageToken", next)])
-			.send()
-			.await?
-			.json::<ListResponse<T>>()
-			.await?;
-
-		collect.append(&mut response.items);
-	}
-
-	Ok(collect)
-}
-
-pub async fn collect_batch<T, Q, A>(
-	url: &str,
-	query_base: &Q,
-	queries: impl Iterator<Item = A>,
-) -> reqwest::Result<Vec<T>>
-where
-	for<'a> T: Deserialize<'a>,
-	Q: Serialize + ?Sized,
-	A: Serialize,
-{
-	let mut collect = Vec::new();
-
-	let client = Client::new();
-
-	for query in queries {
-		let mut response = client
-			.get(url)
-			.query(query_base)
-			.query(&query)
-			.send()
-			.await?
-			.json::<ListResponse<T>>()
-			.await?;
-
-		collect.append(&mut response.items);
-	}
-
-	Ok(collect)
+			match response {
+				Err(e) => Some((Err(e), None)),
+				Ok(v) => Some((Ok(v.items), v.next_page_token.map(Some))),
+			}
+		}
+	})
 }
 
 pub async fn playlist(api: &YoutubeApi, playlist_id: &str) -> reqwest::Result<Option<Playlist>> {
@@ -244,19 +211,19 @@ pub async fn playlist(api: &YoutubeApi, playlist_id: &str) -> reqwest::Result<Op
 		.next())
 }
 
-pub async fn playlist_items(
-	api: &YoutubeApi,
-	playlist_id: &str,
-) -> reqwest::Result<Vec<PlaylistItem>> {
+pub fn playlist_items<'a>(
+	api: &'a YoutubeApi,
+	playlist_id: &'a str,
+) -> impl Stream<Item = reqwest::Result<Vec<PlaylistItem>>> + 'a {
 	let url = "https://youtube.googleapis.com/youtube/v3/playlistItems";
-	let query = &[
+	let query = [
 		("key", api.key.as_ref()),
 		("part", "contentDetails,snippet"),
 		("playlistId", playlist_id),
 		("maxResults", "50"),
 	];
 
-	collect_paged(url, query).await
+	stream_paged(url, query)
 }
 
 pub async fn video(api: &YoutubeApi, video_id: &str) -> reqwest::Result<Option<Video>> {
@@ -276,29 +243,29 @@ pub async fn video(api: &YoutubeApi, video_id: &str) -> reqwest::Result<Option<V
 		.next())
 }
 
-pub async fn videos(
-	api: &YoutubeApi,
-	video_ids: impl IntoIterator<Item = impl std::fmt::Display>,
-) -> reqwest::Result<Vec<Video>> {
+pub fn videos<'a>(
+	api: &'a YoutubeApi,
+	video_ids: impl Stream<Item = impl std::fmt::Display + 'a> + 'a,
+	buffered: usize,
+) -> impl Stream<Item = reqwest::Result<Vec<Video>>> + 'a {
 	let url = "https://youtube.googleapis.com/youtube/v3/videos";
-	let query_base = &[
+	let query_base = [
 		("key", api.key.as_ref()),
 		("part", "contentDetails,snippet"),
 	];
 
-	let mut video_ids = video_ids.into_iter();
-
-	collect_batch(
-		url,
-		query_base,
-		std::iter::from_fn(|| {
-			let ids = video_ids.by_ref().take(50).join(",");
-			if ids.is_empty() {
-				None
-			} else {
-				Some([("id", ids)])
-			}
-		}),
-	)
-	.await
+	video_ids
+		.chunks(50)
+		.map(move |ids| async move {
+			Client::new()
+				.get(url)
+				.query(&query_base)
+				.query(&[("id", &ids.into_iter().join(","))])
+				.send()
+				.await?
+				.json::<ListResponse<Video>>()
+				.await
+				.map(|list| list.items)
+		})
+		.buffered(buffered)
 }
