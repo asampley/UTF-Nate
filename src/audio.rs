@@ -35,7 +35,7 @@ use crate::data::{ArcRw, Keys};
 use crate::spotify;
 use crate::util::*;
 use crate::youtube::{self, YtdlLazy, YtdlSearchLazy};
-use crate::{CONFIG, RESOURCE_PATH};
+use crate::RESOURCE_PATH;
 
 /// Path to shared directory for clips.
 pub static CLIP_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("clips/"));
@@ -201,7 +201,16 @@ where
 						AudioError::NotFound
 					})?;
 
-				let playlist_items = youtube::playlist_items(&youtube_api, &id)
+				let videos = youtube::playlist_items(&youtube_api, &id)
+					.map_ok(|items| {
+						youtube::videos(
+							&youtube_api,
+							items.into_iter().map(|item| item.content_details.video_id),
+						)
+					})
+					// concurrently hit videos api after paged playlist items
+					// no gains were seen after 3 concurrent, 4 is just in case
+					.try_buffered(4)
 					.try_concat()
 					.await
 					.map_err(|e| {
@@ -209,23 +218,7 @@ where
 						AudioError::YoutubePlaylist
 					})?;
 
-				let count = playlist_items.len();
-
-				let videos = youtube::videos(
-					&youtube_api,
-					futures::stream::iter(
-						playlist_items
-							.into_iter()
-							.map(|item| item.content_details.video_id),
-					),
-					CONFIG.youtube.concurrent_request_buffer,
-				)
-				.try_concat()
-				.await
-				.map_err(|e| {
-					error!("Error in youtube data api for videos: {:?}", e);
-					AudioError::YoutubePlaylist
-				})?;
+				let count = videos.len();
 
 				let info = SourceInfo {
 					title: Some(playlist.snippet.title),

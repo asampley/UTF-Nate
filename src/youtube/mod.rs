@@ -5,7 +5,7 @@
 //! [YouTube API]: https://developers.google.com/youtube/v3/docs
 pub mod api;
 
-use futures::{Stream, StreamExt};
+use futures::Stream;
 use itertools::Itertools;
 use tracing::{error, info};
 
@@ -243,29 +243,26 @@ pub async fn video(api: &YoutubeApi, video_id: &str) -> reqwest::Result<Option<V
 		.next())
 }
 
-pub fn videos<'a>(
-	api: &'a YoutubeApi,
-	video_ids: impl Stream<Item = impl std::fmt::Display + 'a> + 'a,
-	buffered: usize,
-) -> impl Stream<Item = reqwest::Result<Vec<Video>>> + 'a {
+/// See <https://youtube.googleapis.com/youtube/v3/videos> for limitations
+///
+/// For example, if `video_ids` is longer than 50, this will fail
+pub async fn videos(
+	api: &YoutubeApi,
+	video_ids: impl IntoIterator<Item = impl std::fmt::Display>,
+) -> reqwest::Result<Vec<Video>> {
 	let url = "https://youtube.googleapis.com/youtube/v3/videos";
 	let query_base = [
 		("key", api.key.as_ref()),
 		("part", "contentDetails,snippet"),
 	];
 
-	video_ids
-		.chunks(50)
-		.map(move |ids| async move {
-			Client::new()
-				.get(url)
-				.query(&query_base)
-				.query(&[("id", &ids.into_iter().join(","))])
-				.send()
-				.await?
-				.json::<ListResponse<Video>>()
-				.await
-				.map(|list| list.items)
-		})
-		.buffered(buffered)
+	Client::new()
+		.get(url)
+		.query(&query_base)
+		.query(&[("id", &video_ids.into_iter().join(","))])
+		.send()
+		.await?
+		.json::<ListResponse<Video>>()
+		.await
+		.map(|list| list.items)
 }
