@@ -41,9 +41,9 @@ use configuration::Config;
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use interaction::reregister;
-use util::{check_msg, read_toml, Context, Framework, FrameworkError, Respond};
+use util::{read_toml, Framework};
 
-use std::fmt::{Debug, Write};
+use std::fmt::Debug;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -246,9 +246,9 @@ async fn main() {
 						..Default::default()
 					},
 					commands,
-					pre_command: |ctx| Box::pin(before_hook(ctx)),
-					post_command: |ctx| Box::pin(after_hook(ctx)),
-					on_error: |err| Box::pin(on_error(err)),
+					pre_command: |ctx| Box::pin(handler::before_hook(ctx)),
+					post_command: |ctx| Box::pin(handler::after_hook(ctx)),
+					on_error: |err| Box::pin(handler::on_error(err)),
 					..Default::default()
 				})
 				.client_settings(|client_builder| {
@@ -366,117 +366,5 @@ fn load_config() -> Config {
 			info!("Creating default config");
 			Config::default()
 		}
-	}
-}
-
-/// Log every execution of a command, before it is executed.
-///
-/// Information is logged with [`info!()`].
-///
-/// See [`poise::FrameworkOptions::pre_command`] for more information.
-async fn before_hook(ctx: Context<'_>) {
-	let guild_name = ctx.guild_id().map(|gid| {
-		ctx.serenity_context()
-			.cache
-			.guild_field(gid, |g| g.name.clone())
-	});
-
-	info!(
-		"User {} ({}) in guild {:?} ({:?}) running {}",
-		ctx.author().name,
-		ctx.author().id,
-		guild_name,
-		ctx.guild_id(),
-		ctx.invoked_command_name()
-	);
-}
-
-/// Log every execution of a command, after it is executed.
-///
-/// Information is logged with [`info!()`].
-///
-/// See [`poise::FrameworkOptions::post_command`] for more information.
-async fn after_hook(ctx: Context<'_>) {
-	let guild_name = ctx.guild_id().map(|gid| {
-		ctx.serenity_context()
-			.cache
-			.guild_field(gid, |g| g.name.clone())
-	});
-
-	info!(
-		"User {} ({}) in guild {:?} ({:?}) completed {}",
-		ctx.author().name,
-		ctx.author().id,
-		guild_name,
-		ctx.guild_id(),
-		ctx.invoked_command_name()
-	);
-}
-
-/// Respond to the command, and depending on the nature of the error, log it.
-///
-/// Some errors are an issue only with the usage of the command, and should just
-/// have a response. Other errors which are an issue with the bot should be
-/// logged.
-///
-/// See [`poise::FrameworkOptions::on_error`] for more information.
-async fn on_error(err: FrameworkError<'_>) {
-	use poise::FrameworkError as E;
-
-	match &err {
-		E::GuildOnly { ctx } | E::DmOnly { ctx } | E::NsfwOnly { ctx } => {
-			check_msg(
-				ctx.respond_err(
-					&format!(
-						"`{}{}` is only available in {}",
-						ctx.prefix(),
-						ctx.command().qualified_name,
-						match &err {
-							E::GuildOnly { .. } => "guilds",
-							E::DmOnly { .. } => "dms",
-							E::NsfwOnly { .. } => "nsfw channels",
-							_ => unreachable!(),
-						}
-					)
-					.into(),
-				)
-				.await,
-			);
-		}
-		E::ArgumentParse { error, ctx, input } => {
-			let mut response = match input {
-				Some(input) => format!("Could not parse {:?}. ", input),
-				None => String::new(),
-			};
-
-			if error.is::<poise::TooManyArguments>() {
-				write!(response, "Too many arguments supplied.").unwrap()
-			} else if error.is::<poise::TooFewArguments>() {
-				write!(response, "Too few arguments supplied.").unwrap()
-			} else if error.is::<core::num::ParseFloatError>() {
-				write!(response, "Expected a float like 0.25.").unwrap()
-			} else if error.is::<commands::queue::ParseLoopArgError>()
-				|| error.is::<parser::ParseSelectionError>()
-			{
-				let mut msg = format!("{}.", error);
-				msg[..1].make_ascii_uppercase();
-				write!(response, "{}", msg).unwrap()
-			} else {
-				error!("Unhandled argument parse error: {:?}", error);
-
-				write!(response, "Could not parse arguments for command.").unwrap()
-			}
-
-			write!(
-				response,
-				"\n\nUse `{}help {}` for more info",
-				ctx.prefix(),
-				ctx.command().qualified_name
-			)
-			.unwrap();
-
-			check_msg(ctx.respond_err(&response.into()).await);
-		}
-		_ => error!("Unhandled error: {:?}", err),
 	}
 }

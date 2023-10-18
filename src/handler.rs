@@ -14,6 +14,8 @@ use serenity::prelude::EventHandler as SerenityEventHandler;
 
 use songbird::SongbirdKey;
 
+use std::fmt::Write;
+
 use crate::Pool;
 
 use crate::audio::clip_source;
@@ -174,5 +176,117 @@ impl SerenityEventHandler for Handler {
 				}
 			}
 		}
+	}
+}
+
+/// Log every execution of a command, before it is executed.
+///
+/// Information is logged with [`info!()`].
+///
+/// See [`poise::FrameworkOptions::pre_command`] for more information.
+pub async fn before_hook(ctx: Context<'_>) {
+	let guild_name = ctx.guild_id().map(|gid| {
+		ctx.serenity_context()
+			.cache
+			.guild_field(gid, |g| g.name.clone())
+	});
+
+	info!(
+		"User {} ({}) in guild {:?} ({:?}) running {}",
+		ctx.author().name,
+		ctx.author().id,
+		guild_name,
+		ctx.guild_id(),
+		ctx.invoked_command_name()
+	);
+}
+
+/// Log every execution of a command, after it is executed.
+///
+/// Information is logged with [`info!()`].
+///
+/// See [`poise::FrameworkOptions::post_command`] for more information.
+pub async fn after_hook(ctx: Context<'_>) {
+	let guild_name = ctx.guild_id().map(|gid| {
+		ctx.serenity_context()
+			.cache
+			.guild_field(gid, |g| g.name.clone())
+	});
+
+	info!(
+		"User {} ({}) in guild {:?} ({:?}) completed {}",
+		ctx.author().name,
+		ctx.author().id,
+		guild_name,
+		ctx.guild_id(),
+		ctx.invoked_command_name()
+	);
+}
+
+/// Respond to the command, and depending on the nature of the error, log it.
+///
+/// Some errors are an issue only with the usage of the command, and should just
+/// have a response. Other errors which are an issue with the bot should be
+/// logged.
+///
+/// See [`poise::FrameworkOptions::on_error`] for more information.
+pub async fn on_error(err: FrameworkError<'_>) {
+	use poise::FrameworkError as E;
+
+	match &err {
+		E::GuildOnly { ctx } | E::DmOnly { ctx } | E::NsfwOnly { ctx } => {
+			check_msg(
+				ctx.respond_err(
+					&format!(
+						"`{}{}` is only available in {}",
+						ctx.prefix(),
+						ctx.command().qualified_name,
+						match &err {
+							E::GuildOnly { .. } => "guilds",
+							E::DmOnly { .. } => "dms",
+							E::NsfwOnly { .. } => "nsfw channels",
+							_ => unreachable!(),
+						}
+					)
+					.into(),
+				)
+				.await,
+			);
+		}
+		E::ArgumentParse { error, ctx, input } => {
+			let mut response = match input {
+				Some(input) => format!("Could not parse {:?}. ", input),
+				None => String::new(),
+			};
+
+			if error.is::<poise::TooManyArguments>() {
+				response.push_str("Too many arguments supplied.")
+			} else if error.is::<poise::TooFewArguments>() {
+				response.push_str("Too few arguments supplied.")
+			} else if error.is::<core::num::ParseFloatError>() {
+				response.push_str("Expected a float like 0.25.")
+			} else if error.is::<crate::commands::queue::ParseLoopArgError>()
+				|| error.is::<crate::parser::ParseSelectionError>()
+			{
+				let mut msg = format!("{}.", error);
+				msg[..1].make_ascii_uppercase();
+				write!(response, "{}", msg).unwrap()
+			} else {
+				error!("Unhandled argument parse error: {:?}", error);
+
+				write!(response, "Could not parse arguments for command.").unwrap()
+			}
+
+			write!(
+				response,
+				"\n\nUse `{}help {}` for more info",
+				ctx.prefix(),
+				ctx.command().qualified_name
+			)
+			.unwrap();
+
+			check_msg(ctx.respond_err(&response.into()).await);
+		}
+		_ => error!("Unhandled error: {:?}", err),
 	}
 }
