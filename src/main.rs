@@ -256,7 +256,7 @@ async fn main() {
 					let client_builder = client_builder.type_map_insert::<AeadKey>(encrypt::gen_key());
 
 					client_builder
-						.event_handler(Handler)
+						.event_handler(Handler::default())
 						.type_map_insert::<VoiceUserCache>(Default::default())
 						.type_map_insert::<VoiceGuilds>(Default::default())
 						.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))

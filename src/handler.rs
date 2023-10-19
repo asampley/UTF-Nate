@@ -3,11 +3,16 @@
 //! This is how the intro and outro clips are played when voice state changes
 //! are detected.
 
+use dashmap::DashMap;
+use rand::rngs::StdRng;
+use rand::seq::IteratorRandom;
+use rand::SeedableRng;
 use tracing::{error, info};
 
 use serenity::async_trait;
 use serenity::client::Context as SerenityContext;
 use serenity::model::gateway::Ready;
+use serenity::model::prelude::UserId;
 use serenity::model::user::OnlineStatus;
 use serenity::model::voice::VoiceState;
 use serenity::prelude::EventHandler as SerenityEventHandler;
@@ -18,19 +23,46 @@ use std::fmt::Write;
 
 use crate::Pool;
 
-use crate::audio::clip_source;
+use crate::audio::{clip_iter, clip_source};
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
 use crate::util::*;
 
 /// Handler that handeles serenity events for playing intros and outros, and
 /// other non-command events.
-pub struct Handler;
+#[derive(Default)]
+pub struct Handler {
+	random_audio_cache: DashMap<u64, String>,
+}
 
 /// Enum tagging either an intro or outro.
 enum IOClip {
 	Intro,
 	Outro,
+}
+
+impl Handler {
+	fn random_clip(&self, seed: u64) -> String {
+		self.random_audio_cache
+			.entry(seed)
+			.or_insert_with(|| {
+				clip_iter()
+					.choose(&mut StdRng::seed_from_u64(seed))
+					.expect("No clips found")
+					.to_string_lossy()
+					.into_owned()
+			})
+			.value()
+			.to_owned()
+	}
+
+	fn random_intro(&self, user_id: UserId) -> String {
+		self.random_clip(user_id.0)
+	}
+
+	fn random_outro(&self, user_id: UserId) -> String {
+		self.random_clip(!user_id.0)
+	}
 }
 
 #[async_trait]
@@ -112,13 +144,13 @@ impl SerenityEventHandler for Handler {
 								.map_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
-								.unwrap_or_else(|| "bnw/cow happy".to_owned()),
+								.unwrap_or_else(|| self.random_intro(new_state.user_id)),
 							IOClip::Outro => Config::get_outro(&pool, &new_state.user_id)
 								.await
 								.map_err(|e| error!("Error fetching outro: {:?}", e))
 								.ok()
 								.flatten()
-								.unwrap_or_else(|| "bnw/death".to_owned()),
+								.unwrap_or_else(|| self.random_outro(new_state.user_id)),
 						}
 					}
 				};

@@ -583,6 +583,14 @@ pub fn get_clip(loc: &OsStr) -> Option<OsString> {
 	None
 }
 
+pub fn clip_iter() -> impl Iterator<Item = OsString> {
+	WalkDir::new(&*CLIP_PATH)
+		.into_iter()
+		.filter_map(|f| f.ok())
+		.filter(|f| f.file_type().is_file())
+		.map(|f| f.path().file_stem().unwrap().to_owned())
+}
+
 /// Verify that the clip exists within the clip path directory.
 pub fn valid_clip(path: &Path) -> bool {
 	sandboxed_join(&CLIP_PATH, path).is_some()
