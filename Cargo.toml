@@ -11,6 +11,14 @@ http-interface = ["dep:askama", "dep:axum", "dep:axum-extra", "dep:chrono", "dep
 [profile.dev.build-override]
 opt-level = 3
 
+[package.metadata.deb]
+depends = ["$auto"]
+suggests = ["youtube-dl", "python", "postgresql"]
+assets = [
+	["target/release/utf-nate", "usr/bin/", "755"],
+]
+conf-files = ["/opt/utf-nate/resources/**/*"]
+
 [dependencies]
 async-trait = "0.1.83"
 caith = "4.2"
