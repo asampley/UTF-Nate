@@ -7,6 +7,7 @@ use dashmap::DashMap;
 use rand::rngs::StdRng;
 use rand::seq::IteratorRandom;
 use rand::SeedableRng;
+use tap::TapFallible;
 use tracing::{error, info};
 
 use serenity::async_trait;
@@ -131,7 +132,7 @@ impl SerenityEventHandler for Handler {
 						match io {
 							IOClip::Intro => Config::get_bot_intro(&pool, &guild_id)
 								.await
-								.map_err(|e| error!("Error fetching intro: {:?}", e))
+								.tap_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
 								.unwrap_or_else(|| "dota/bleep bloop I am a robot".to_owned()),
@@ -141,13 +142,13 @@ impl SerenityEventHandler for Handler {
 						match io {
 							IOClip::Intro => Config::get_intro(&pool, &new_state.user_id)
 								.await
-								.map_err(|e| error!("Error fetching intro: {:?}", e))
+								.tap_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
 								.unwrap_or_else(|| self.random_intro(new_state.user_id)),
 							IOClip::Outro => Config::get_outro(&pool, &new_state.user_id)
 								.await
-								.map_err(|e| error!("Error fetching outro: {:?}", e))
+								.tap_err(|e| error!("Error fetching outro: {:?}", e))
 								.ok()
 								.flatten()
 								.unwrap_or_else(|| self.random_outro(new_state.user_id)),
@@ -169,7 +170,7 @@ impl SerenityEventHandler for Handler {
 
 					let volume = Config::get_volume_clip(&pool, &guild_id)
 						.await
-						.map_err(|e| error!("Unable to get clip volume: {:?}", e))
+						.tap_err(|e| error!("Unable to get clip volume: {:?}", e))
 						.ok()
 						.flatten()
 						.unwrap_or(0.5);
@@ -318,6 +319,16 @@ pub async fn on_error(err: FrameworkError<'_>) {
 			.unwrap();
 
 			check_msg(ctx.respond_err(&response.into()).await);
+		}
+		E::UnknownCommand { ctx, msg, .. } => {
+			check_msg(
+				(*ctx, msg.channel_id)
+					.respond_err(
+						&format!("Unrecognized command. Use `help` to get a list of commands.")
+							.into(),
+					)
+					.await,
+			);
 		}
 		_ => error!("Unhandled error: {:?}", err),
 	}

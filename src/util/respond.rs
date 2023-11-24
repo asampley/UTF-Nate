@@ -1,7 +1,5 @@
 use poise::{Context, ReplyHandle};
 
-use tracing::{error, info};
-
 use serenity::async_trait;
 use serenity::builder::CreateEmbed;
 use serenity::utils::Color;
@@ -87,6 +85,23 @@ pub trait Respond {
 }
 
 #[async_trait]
+impl Respond for (&serenity::client::Context, serenity::model::id::ChannelId) {
+	type Value = serenity::model::channel::Message;
+	type Error = serenity::prelude::SerenityError;
+
+	async fn respond(
+		&self,
+		result: Result<&Response, &Response>,
+	) -> Result<Self::Value, Self::Error> {
+		self.1
+			.send_message(self.0, |message| {
+				message.embed(|embed| Response::embed(result, embed))
+			})
+			.await
+	}
+}
+
+#[async_trait]
 impl<'a, U, E> Respond for Context<'a, U, E>
 where
 	U: Sync,
@@ -100,28 +115,5 @@ where
 	) -> Result<Self::Value, Self::Error> {
 		self.send(|reply| reply.embed(|embed| Response::embed(result, embed)))
 			.await
-	}
-}
-
-pub trait Log: Debug {
-	fn and_log(&self);
-	fn or_log(&self);
-}
-
-impl<T, E> Log for Result<T, E>
-where
-	T: Debug,
-	E: Debug,
-{
-	fn and_log(&self) {
-		if self.is_ok() {
-			info!("{:?}", self);
-		}
-	}
-
-	fn or_log(&self) {
-		if self.is_err() {
-			error!("{:?}", self);
-		}
 	}
 }

@@ -1,5 +1,8 @@
 use songbird::SongbirdKey;
 
+use tap::TapFallible;
+use tracing::error;
+
 use crate::commands::{BotState, Source};
 use crate::util::{GetExpect, Response};
 
@@ -35,10 +38,11 @@ pub async fn summon(state: &BotState, source: &Source) -> Result<Response, Respo
 	let songbird = state.data.read().await.clone_expect::<SongbirdKey>();
 	let (_call, join_result) = songbird.join(guild_id, connect_to).await;
 
-	match join_result {
-		Ok(()) => Ok("Joined channel".into()),
-		Err(_) => Err("Error joining the channel".into()),
-	}
+	join_result
+		.tap_err(|e| error!("Error joining the channel: {e:?}"))
+		.map_err(|_| "Error joining the channel")?;
+
+	Ok("Joined channel".into())
 }
 
 #[tracing::instrument(level = "info", ret, skip(state))]
@@ -55,7 +59,10 @@ pub async fn banish(state: &BotState, source: &Source) -> Result<Response, Respo
 			Ok(()) => Ok("Left voice channel".into()),
 			Err(e) => match e {
 				NoCall => Err("Not in a voice channel".into()),
-				_ => Err("Internal bot error".into()),
+				e => {
+					error!("Error while joining the call: {:?}", e);
+					Err("Internal bot error".into())
+				}
 			},
 		}
 	}

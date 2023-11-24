@@ -1,3 +1,4 @@
+use tap::TapFallible;
 use tracing::error;
 
 use serde::{Deserialize, Serialize};
@@ -87,10 +88,8 @@ pub async fn intro_outro(
 				Intro => Config::get_intro(&pool, &source.user_id).await,
 				Outro => Config::get_outro(&pool, &source.user_id).await,
 			}
-			.map_err(|e| {
-				error!("Unable to fetch user data: {:?}", e);
-				"Unable to retrieve intro/outro"
-			})?;
+			.tap_err(|e| error!("Unable to fetch user data: {:?}", e))
+			.map_err(|_| "Unable to retrieve intro/outro")?;
 
 			Ok(format!(
 				"User {} is {}",
@@ -115,10 +114,8 @@ pub async fn intro_outro(
 				Intro => Config::set_intro(&pool, &source.user_id, clip).await,
 				Outro => Config::set_outro(&pool, &source.user_id, clip).await,
 			}
-			.map_err(|e| {
-				error!("Unable to write user data: {:?}", e);
-				"Unable to set intro/outro"
-			})?;
+			.tap_err(|e| error!("Unable to write user data: {:?}", e))
+			.map_err(|_| "Unable to set intro/outro")?;
 
 			Ok(format!("Set new {} to {}", mode.lowercase(), clip).into())
 		}
@@ -170,18 +167,16 @@ pub async fn introbot(
 
 			Config::set_bot_intro(&pool, &guild_id, clip)
 				.await
-				.map_err(|e| {
-					error!("Unable to set bot intro: {:?}", e);
-					"Unable to set bot intro"
-				})?;
+				.tap_err(|e| error!("Unable to set bot intro: {:?}", e))
+				.map_err(|_| "Unable to set bot intro")?;
 
 			Ok(format!("Set bot intro to {}", clip).into())
 		}
 		None => {
-			let intro = Config::get_bot_intro(&pool, &guild_id).await.map_err(|e| {
-				error!("Unable to retrieve bot intro: {:?}", e);
-				"Unable to retrieve bot intro"
-			})?;
+			let intro = Config::get_bot_intro(&pool, &guild_id)
+				.await
+				.tap_err(|e| error!("Unable to retrieve bot intro: {:?}", e))
+				.map_err(|_| "Unable to retrieve bot intro")?;
 
 			Ok(format!(
 				"Bot intro is {}",

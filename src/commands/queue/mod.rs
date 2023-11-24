@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use songbird::SongbirdKey;
 
+use tap::TapFallible;
 use thiserror::Error;
 
 use tracing::{error, info};
@@ -189,10 +190,8 @@ pub async fn skip(
 			1 => "Skipped 1 clip".into(),
 			c => format!("Skipped {} clips", c).into(),
 		})
-		.map_err(|e| {
-			error!("{:?}", e);
-			"Error skipping clips".into()
-		})
+		.tap_err(|e| error!("{:?}", e))
+		.map_err(|_| "Error skipping clips".into())
 }
 
 #[tracing::instrument(level = "info", ret, skip(state))]
@@ -212,10 +211,8 @@ pub async fn pause(state: &BotState, source: &Source) -> Result<Response, Respon
 		.queue()
 		.pause()
 		.map(|_| "Pausing current clip".into())
-		.map_err(|e| {
-			error!("{:?}", e);
-			"Error pausing clip".into()
-		})
+		.tap_err(|e| error!("{:?}", e))
+		.map_err(|_| "Error pausing clip".into())
 }
 
 #[tracing::instrument(level = "info", ret, skip(state))]
@@ -235,10 +232,8 @@ pub async fn unpause(state: &BotState, source: &Source) -> Result<Response, Resp
 		.queue()
 		.resume()
 		.map(|_| "Unpausing current clip".into())
-		.map_err(|e| {
-			error!("{:?}", e);
-			"Error unpausing clip".into()
-		})
+		.tap_err(|e| error!("{:?}", e))
+		.map_err(|_| "Error unpausing clip".into())
 }
 
 #[tracing::instrument(level = "info", ret, skip(state))]
@@ -339,10 +334,8 @@ pub async fn shuffle(
 		})
 		.and_then(|_| queue.resume())
 		.map(|_| "Shuffled queue".into())
-		.map_err(|e| {
-			error!("{:?}", e);
-			"Error shuffling queue".into()
-		})
+		.tap_err(|e| error!("{:?}", e))
+		.map_err(|_| "Error shuffling queue".into())
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -403,8 +396,6 @@ pub async fn r#loop(
 			.loop_for(*c)
 			.map(|_| format!("Looping current song {c} more times").into()),
 	}
-	.map_err(|e| {
-		error!("{:?}", e);
-		"Error changing looping settings".into()
-	})
+	.tap_err(|e| error!("{:?}", e))
+	.map_err(|_| "Error changing looping settings".into())
 }

@@ -1,3 +1,4 @@
+use tap::TapFallible;
 use tracing::{debug, error};
 
 use serde::{Deserialize, Serialize};
@@ -77,7 +78,7 @@ pub async fn play(
 			PlayStyle::Clip => Config::get_volume_clip(&pool, &guild_id).await,
 			PlayStyle::Play => Config::get_volume_play(&pool, &guild_id).await,
 		}
-		.map_err(|e| error!("Unable to get volume: {:?}", e))
+		.tap_err(|e| error!("Unable to get volume: {:?}", e))
 		.ok()
 		.flatten()
 		.unwrap_or(0.5);

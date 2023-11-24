@@ -12,6 +12,7 @@ use futures::{Future, TryStreamExt};
 
 use itertools::Itertools;
 
+use tap::TapFallible;
 use tracing::{debug, error, warn};
 
 use once_cell::sync::Lazy;
@@ -192,10 +193,8 @@ where
 
 				let playlist = youtube::playlist(&youtube_api, &id)
 					.await
-					.map_err(|e| {
-						error!("Error in youtube data api for playlists: {:?}", e);
-						AudioError::YoutubePlaylist
-					})?
+					.tap_err(|e| error!("Error in youtube data api for playlists: {:?}", e))
+					.map_err(|_| AudioError::YoutubePlaylist)?
 					.ok_or_else(|| {
 						error!("No playlist found");
 						AudioError::NotFound
@@ -213,10 +212,8 @@ where
 					.try_buffered(4)
 					.try_concat()
 					.await
-					.map_err(|e| {
-						error!("Error in youtube data api for playlist items: {:?}", e);
-						AudioError::YoutubePlaylist
-					})?;
+					.tap_err(|e| error!("Error in youtube data api for playlist items: {:?}", e))
+					.map_err(|_| AudioError::YoutubePlaylist)?;
 
 				let count = videos.len();
 
@@ -256,10 +253,8 @@ where
 
 				let video = youtube::video(&youtube_api, &id)
 					.await
-					.map_err(|e| {
-						error!("Youtube video error: {:?}", e);
-						AudioError::YoutubePlaylist
-					})?
+					.tap_err(|e| error!("Youtube video error: {:?}", e))
+					.map_err(|_| AudioError::YoutubePlaylist)?
 					.ok_or_else(|| {
 						error!("No video found with id {:?}", id);
 						AudioError::NotFound
@@ -300,10 +295,10 @@ where
 				"track" => {
 					let track_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
 
-					let track = spotify::track(&token, track_id).await.map_err(|e| {
-						error!("Error reading spotify track: {:?}", e);
-						AudioError::Spotify
-					})?;
+					let track = spotify::track(&token, track_id)
+						.await
+						.tap_err(|e| error!("Error reading spotify track: {:?}", e))
+						.map_err(|_| AudioError::Spotify)?;
 
 					let lazy = YtdlSearchLazy::from(&track);
 
@@ -328,10 +323,10 @@ where
 
 					let playlist_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
 
-					let playlist = spotify::playlist(&token, playlist_id).await.map_err(|e| {
-						error!("Error reading spotify playlist: {:?}", e);
-						AudioError::Spotify
-					})?;
+					let playlist = spotify::playlist(&token, playlist_id)
+						.await
+						.tap_err(|e| error!("Error reading spotify playlist: {:?}", e))
+						.map_err(|_| AudioError::Spotify)?;
 
 					let info = SourceInfo {
 						title: Some(playlist.name.clone()),
@@ -358,10 +353,10 @@ where
 
 					let album_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
 
-					let album = spotify::album(&token, album_id).await.map_err(|e| {
-						error!("Error reading spotify album: {:?}", e);
-						AudioError::Spotify
-					})?;
+					let album = spotify::album(&token, album_id)
+						.await
+						.tap_err(|e| error!("Error reading spotify album: {:?}", e))
+						.map_err(|_| AudioError::Spotify)?;
 
 					let info = SourceInfo {
 						title: Some(album.name.clone()),
@@ -450,7 +445,7 @@ pub enum FindClip {
 pub fn warn_duplicate_clip_names() {
 	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
-		.filter_map(|f| f.ok())
+		.filter_map(|f| f.tap_err(|e| error!("{:?}", e)).ok())
 		.filter(|f| f.file_type().is_file())
 		.filter_map(|f| {
 			f.path()
@@ -471,7 +466,7 @@ pub fn warn_duplicate_clip_names() {
 pub fn warn_exact_name_finds_different_clip() {
 	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
-		.filter_map(|f| f.ok())
+		.filter_map(|f| f.tap_err(|e| error!("{:?}", e)).ok())
 		.filter(|f| f.file_type().is_file())
 		.filter(|f| {
 			let path = f.path();
@@ -509,7 +504,7 @@ pub fn find_clip(loc: &OsStr) -> FindClip {
 
 	let top_two = WalkDir::new(&*CLIP_PATH)
 		.into_iter()
-		.filter_map(|f| f.ok())
+		.filter_map(|f| f.tap_err(|e| error!("{:?}", e)).ok())
 		.filter(|f| f.file_type().is_file())
 		// calculate the levenshtein distance of each file
 		// break ties by prioritizing longest length of match
@@ -586,7 +581,7 @@ pub fn get_clip(loc: &OsStr) -> Option<OsString> {
 pub fn clip_iter() -> impl Iterator<Item = OsString> {
 	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
-		.filter_map(|f| f.ok())
+		.filter_map(|f| f.tap_err(|e| error!("{:?}", e)).ok())
 		.filter(|f| f.file_type().is_file())
 		.map(|f| f.path().file_stem().unwrap().to_owned())
 }

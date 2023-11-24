@@ -1,3 +1,4 @@
+use tap::TapFallible;
 use tracing::error;
 
 use ring::aead::{Aad, LessSafeKey, UnboundKey, AES_256_GCM};
@@ -45,10 +46,9 @@ impl Encrypted {
 
 		let nonce = ring::aead::Nonce::assume_unique_for_key(nonce_bytes);
 
-		let mut data = serde_json::to_vec(&t).map_err(|e| {
-			error!("Error encrypting data: {:?}", e);
-			ring::error::Unspecified
-		})?;
+		let mut data = serde_json::to_vec(&t)
+			.tap_err(|e| error!("Error encrypting data: {:?}", e))
+			.map_err(|_| ring::error::Unspecified)?;
 
 		key.seal_in_place_append_tag(nonce, Aad::empty(), &mut data)?;
 
@@ -66,9 +66,8 @@ impl Encrypted {
 
 		let object = &self.data[..self.data.len() - ALGO.tag_len()];
 
-		serde_json::from_reader(object).map_err(|e| {
-			error!("Error decrypting data: {:?}", e);
-			ring::error::Unspecified
-		})
+		serde_json::from_reader(object)
+			.tap_err(|e| error!("Error decrypting data: {:?}", e))
+			.map_err(|_| ring::error::Unspecified)
 	}
 }

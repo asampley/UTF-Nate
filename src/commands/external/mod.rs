@@ -4,6 +4,7 @@ use once_cell::sync::Lazy;
 
 use serde::{Deserialize, Serialize};
 
+use tap::TapFallible;
 use tracing::{error, info};
 
 use std::fs::read_dir;
@@ -47,34 +48,25 @@ pub async fn cmd(CmdArgs { command, args }: CmdArgs) -> Result<Response, Respons
 		let output = process::Command::new(&command)
 			.args(args.iter().flat_map(serenity::utils::parse_quotes))
 			.stdin(Stdio::null())
-			.output();
+			.output()
+			.tap_err(|reason| error!("Error executing command {:?}: {:?}", command, reason))
+			.map_err(|_| "Error executing command")?;
 
-		match output {
-			Ok(output) => {
-				let stdout = String::from_utf8_lossy(&output.stdout);
-				let stderr = String::from_utf8_lossy(&output.stderr);
+		let stdout = String::from_utf8_lossy(&output.stdout);
+		let stderr = String::from_utf8_lossy(&output.stderr);
 
-				info!("Stdout of command: {}", stdout);
-				info!("Stderr of command: {}", stderr);
+		info!("Stdout of command: {}", stdout);
+		info!("Stderr of command: {}", stderr);
 
-				if output.status.success() {
-					Ok(stdout.as_ref().into())
-				} else {
-					Err("Error executing command. Please check logs".into())
-				}
-			}
-			Err(reason) => {
-				error!("Error executing command {:?}: {:?}", command, reason);
-
-				Err("Error executing command".into())
-			}
+		if output.status.success() {
+			Ok(stdout.as_ref().into())
+		} else {
+			Err("Error executing command. Please check logs".into())
 		}
 	})
 	.await
-	.unwrap_or_else(|e| {
-		error!("Failed to join blocking task: {e:?}");
-		Err("Error executing command".into())
-	})
+	.tap_err(|e| error!("Failed to join blocking task: {e:?}"))
+	.unwrap_or_else(|_| Err("Error executing command".into()))
 }
 
 #[tracing::instrument(level = "info", ret)]
@@ -82,35 +74,31 @@ pub async fn cmdlist(CmdlistArgs { path }: &CmdlistArgs) -> Result<Response, Res
 	let dir =
 		sandboxed_join(&CMD_PATH, path.as_deref().unwrap_or("")).ok_or("Invalid directory")?;
 
-	match read_dir(dir) {
-		Err(reason) => {
-			error!("Unable to read directory: {:?}", reason);
-			Err("Invalid directory".into())
-		}
-		Ok(dir_iter) => {
-			let message = dir_iter
-				.filter_map(|e| e.ok())
-				.map(|e| {
-					(
-						e.path()
-							.file_stem()
-							.and_then(|f| f.to_str())
-							.map(|f| f.to_owned()),
-						e.file_type(),
-					)
-				})
-				.filter(|(f, t)| f.is_some() && t.is_ok())
-				.map(|(f, t)| (f.unwrap(), t.unwrap()))
-				.sorted_by(|(f0, t0), (f1, t1)| {
-					(!t0.is_dir(), f0.to_lowercase()).cmp(&(!t1.is_dir(), f1.to_lowercase()))
-				})
-				.map(|(f, t)| format!("{: <20}", f + if t.is_dir() { "/" } else { "" }))
-				.chunks(3)
-				.into_iter()
-				.map(|chunk| chunk.fold("".to_owned(), |acc, s| acc + &s))
-				.fold("".to_owned(), |acc, s| acc + "\n" + &s);
+	let dir_iter = read_dir(dir)
+		.tap_err(|reason| error!("Unable to read directory: {:?}", reason))
+		.map_err(|_| "Invalid directory")?;
 
-			Ok(("```\n".to_owned() + &message + "\n```").into())
-		}
-	}
+	let message = dir_iter
+		.filter_map(|e| e.tap_err(|e| error!("{:?}", e)).ok())
+		.map(|e| {
+			(
+				e.path()
+					.file_stem()
+					.and_then(|f| f.to_str())
+					.map(|f| f.to_owned()),
+				e.file_type(),
+			)
+		})
+		.filter(|(f, t)| f.is_some() && t.is_ok())
+		.map(|(f, t)| (f.unwrap(), t.unwrap()))
+		.sorted_by(|(f0, t0), (f1, t1)| {
+			(!t0.is_dir(), f0.to_lowercase()).cmp(&(!t1.is_dir(), f1.to_lowercase()))
+		})
+		.map(|(f, t)| format!("{: <20}", f + if t.is_dir() { "/" } else { "" }))
+		.chunks(3)
+		.into_iter()
+		.map(|chunk| chunk.fold("".to_owned(), |acc, s| acc + &s))
+		.fold("".to_owned(), |acc, s| acc + "\n" + &s);
+
+	Ok(("```\n".to_owned() + &message + "\n```").into())
 }

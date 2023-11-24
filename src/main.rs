@@ -19,6 +19,7 @@ use clap::Parser;
 
 use ring::aead::LessSafeKey;
 
+use tap::TapFallible;
 use thiserror::Error;
 
 use tokio::task::JoinSet;
@@ -356,15 +357,11 @@ async fn main() {
 fn load_config() -> Config {
 	let path = "config.toml";
 
-	match read_toml(path) {
-		Ok(config) => {
-			info!("Read config file from {path:?}");
-			config
-		}
-		Err(e) => {
-			error!("{e}");
+	read_toml(path)
+		.tap_ok(|_| info!("Read config file from {:?}", path))
+		.tap_err(|e| error!("{:?}", e))
+		.unwrap_or_else(|_| {
 			info!("Creating default config");
 			Config::default()
-		}
-	}
+		})
 }

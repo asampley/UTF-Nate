@@ -8,7 +8,7 @@ mod ord_key;
 mod respond;
 
 pub use ord_key::OrdKey;
-pub use respond::{Log, Respond, Response};
+pub use respond::{Respond, Response};
 
 use tracing::error;
 
