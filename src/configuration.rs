@@ -11,12 +11,13 @@ use once_cell::sync::Lazy;
 
 use serde::{Deserialize, Serialize};
 
-use serenity::model::gateway::Activity;
+use serenity::gateway::ActivityData;
 use serenity::model::id::{GuildId, UserId};
 
 use sqlx::AnyExecutor as Executor;
 use sqlx::{Decode, Encode, Type};
 
+use tap::Conv;
 use thiserror::Error;
 
 use std::fmt;
@@ -63,15 +64,17 @@ pub enum ActivityConfig {
 	Watching { name: String },
 }
 
-impl From<&ActivityConfig> for Activity {
-	fn from(value: &ActivityConfig) -> Self {
-		match value {
-			ActivityConfig::Competing { name } => Activity::competing(name),
-			ActivityConfig::Listening { name } => Activity::listening(name),
-			ActivityConfig::Playing { name } => Activity::playing(name),
-			ActivityConfig::Streaming { name, url } => Activity::streaming(name, url),
-			ActivityConfig::Watching { name } => Activity::watching(name),
-		}
+impl TryFrom<&ActivityConfig> for ActivityData {
+	type Error = serenity::Error;
+
+	fn try_from(value: &ActivityConfig) -> Result<Self, Self::Error> {
+		Ok(match value {
+			ActivityConfig::Competing { name } => ActivityData::competing(name),
+			ActivityConfig::Listening { name } => ActivityData::listening(name),
+			ActivityConfig::Playing { name } => ActivityData::playing(name),
+			ActivityConfig::Streaming { name, url } => ActivityData::streaming(name, url)?,
+			ActivityConfig::Watching { name } => ActivityData::watching(name),
+		})
 	}
 }
 
@@ -135,13 +138,13 @@ impl Config {
 	/// intro. This can later be retrieved using [`Self::get_intro`].
 	pub async fn set_intro<'e, E: Executor<'e>>(
 		executor: E,
-		user_id: &UserId,
+		user_id: UserId,
 		intro: &str,
 	) -> Result<(), ConfigError> {
 		Self::set_by_id(
 			executor,
 			&Self::read_query("set-intro.sql")?,
-			user_id.0 as i64,
+			user_id.conv::<i64>(),
 			intro,
 		)
 		.await
@@ -151,12 +154,12 @@ impl Config {
 	/// [`Self::set_intro`].
 	pub async fn get_intro<'e, E: Executor<'e>>(
 		executor: E,
-		user_id: &UserId,
+		user_id: UserId,
 	) -> Result<Option<String>, ConfigError> {
 		Self::get_by_id(
 			executor,
 			&Self::read_query("get-intro.sql")?,
-			user_id.0 as i64,
+			user_id.conv::<i64>(),
 		)
 		.await
 	}
@@ -165,13 +168,13 @@ impl Config {
 	/// outro. This can later be retrieved using [`Self::get_outro`].
 	pub async fn set_outro<'e, E: Executor<'e>>(
 		executor: E,
-		user_id: &UserId,
+		user_id: UserId,
 		outro: &str,
 	) -> Result<(), ConfigError> {
 		Self::set_by_id(
 			executor,
 			&Self::read_query("set-outro.sql")?,
-			user_id.0 as i64,
+			user_id.conv::<i64>(),
 			outro,
 		)
 		.await
@@ -181,12 +184,12 @@ impl Config {
 	/// [`Self::set_outro`].
 	pub async fn get_outro<'e, E: Executor<'e>>(
 		executor: E,
-		user_id: &UserId,
+		user_id: UserId,
 	) -> Result<Option<String>, ConfigError> {
 		Self::get_by_id(
 			executor,
 			&Self::read_query("get-outro.sql")?,
-			user_id.0 as i64,
+			user_id.conv::<i64>(),
 		)
 		.await
 	}
@@ -195,13 +198,13 @@ impl Config {
 	/// intro. This can later be retrieved using [`Self::get_bot_intro`].
 	pub async fn set_bot_intro<'e, E: Executor<'e>>(
 		executor: E,
-		guild_id: &GuildId,
+		guild_id: GuildId,
 		intro: &str,
 	) -> Result<(), ConfigError> {
 		Self::set_by_id(
 			executor,
 			&Self::read_query("set-bot-intro.sql")?,
-			guild_id.0 as i64,
+			guild_id.conv::<i64>(),
 			intro,
 		)
 		.await
@@ -211,12 +214,12 @@ impl Config {
 	/// [`Self::set_intro`].
 	pub async fn get_bot_intro<'e, E: Executor<'e>>(
 		executor: E,
-		guild_id: &GuildId,
+		guild_id: GuildId,
 	) -> Result<Option<String>, ConfigError> {
 		Self::get_by_id(
 			executor,
 			&Self::read_query("get-bot-intro.sql")?,
-			guild_id.0 as i64,
+			guild_id.conv::<i64>(),
 		)
 		.await
 	}
@@ -228,13 +231,13 @@ impl Config {
 	/// [`Self::set_volume_clip`]).
 	pub async fn set_volume_play<'e, E: Executor<'e>>(
 		executor: E,
-		guild_id: &GuildId,
-		volume: f32,
+		guild_id: GuildId,
+		volume: f64,
 	) -> Result<(), ConfigError> {
 		Self::set_by_id(
 			executor,
 			&Self::read_query("set-volume-play.sql")?,
-			guild_id.0 as i64,
+			guild_id.conv::<i64>(),
 			volume,
 		)
 		.await
@@ -247,12 +250,12 @@ impl Config {
 	/// [`Self::get_volume_clip`]).
 	pub async fn get_volume_play<'e, E: Executor<'e>>(
 		executor: E,
-		guild_id: &GuildId,
-	) -> Result<Option<f32>, ConfigError> {
+		guild_id: GuildId,
+	) -> Result<Option<f64>, ConfigError> {
 		Self::get_by_id(
 			executor,
 			&Self::read_query("get-volume-play.sql")?,
-			guild_id.0 as i64,
+			guild_id.conv::<i64>(),
 		)
 		.await
 	}
@@ -264,13 +267,13 @@ impl Config {
 	/// [`Self::set_volume_play`]).
 	pub async fn set_volume_clip<'e, E: Executor<'e>>(
 		executor: E,
-		guild_id: &GuildId,
-		volume: f32,
+		guild_id: GuildId,
+		volume: f64,
 	) -> Result<(), ConfigError> {
 		Self::set_by_id(
 			executor,
 			&Self::read_query("set-volume-clip.sql")?,
-			guild_id.0 as i64,
+			guild_id.conv::<i64>(),
 			volume,
 		)
 		.await
@@ -283,12 +286,12 @@ impl Config {
 	/// [`Self::get_volume_play`]).
 	pub async fn get_volume_clip<'e, E: Executor<'e>>(
 		executor: E,
-		guild_id: &GuildId,
-	) -> Result<Option<f32>, ConfigError> {
+		guild_id: GuildId,
+	) -> Result<Option<f64>, ConfigError> {
 		Self::get_by_id(
 			executor,
 			&Self::read_query("get-volume-clip.sql")?,
-			guild_id.0 as i64,
+			guild_id.conv::<i64>(),
 		)
 		.await
 	}
@@ -296,11 +299,21 @@ impl Config {
 
 #[cfg(test)]
 mod test {
+	use sqlx::pool::PoolOptions;
+
 	use super::*;
 
 	/// Get a memory sqlite database for testing
 	async fn pool() -> sqlx::AnyPool {
-		let pool = sqlx::AnyPool::connect("sqlite::memory:").await.unwrap();
+		sqlx::any::install_default_drivers();
+
+		let pool = PoolOptions::new()
+			.max_connections(1)
+			.max_lifetime(None)
+			.idle_timeout(None)
+			.connect("sqlite::memory:")
+			.await
+			.unwrap();
 
 		Config::setup_db(&pool).await.unwrap();
 
@@ -314,7 +327,9 @@ mod test {
 	async fn get_intro_unset() {
 		let db = pool().await;
 
-		let get = Config::get_intro(&db, &UserId(0)).await.expect(ERROR_GET);
+		let get = Config::get_intro(&db, UserId::new(1))
+			.await
+			.expect(ERROR_GET);
 
 		assert_eq!(get, None)
 	}
@@ -323,7 +338,9 @@ mod test {
 	async fn get_outro_unset() {
 		let db = pool().await;
 
-		let get = Config::get_outro(&db, &UserId(0)).await.expect(ERROR_GET);
+		let get = Config::get_outro(&db, UserId::new(1))
+			.await
+			.expect(ERROR_GET);
 
 		assert_eq!(get, None)
 	}
@@ -332,7 +349,7 @@ mod test {
 	async fn get_bot_intro_unset() {
 		let db = pool().await;
 
-		let get = Config::get_bot_intro(&db, &GuildId(0))
+		let get = Config::get_bot_intro(&db, GuildId::new(1))
 			.await
 			.expect(ERROR_GET);
 
@@ -343,7 +360,7 @@ mod test {
 	async fn get_volume_clip_unset() {
 		let db = pool().await;
 
-		let get = Config::get_volume_clip(&db, &GuildId(0))
+		let get = Config::get_volume_clip(&db, GuildId::new(1))
 			.await
 			.expect(ERROR_GET);
 
@@ -354,7 +371,7 @@ mod test {
 	async fn get_volume_play_unset() {
 		let db = pool().await;
 
-		let get = Config::get_volume_play(&db, &GuildId(0))
+		let get = Config::get_volume_play(&db, GuildId::new(1))
 			.await
 			.expect(ERROR_GET);
 
@@ -367,11 +384,13 @@ mod test {
 
 		let set = "test";
 
-		Config::set_intro(&db, &UserId(0), set)
+		Config::set_intro(&db, UserId::new(1), set)
 			.await
 			.expect(ERROR_SET);
 
-		let get = Config::get_intro(&db, &UserId(0)).await.expect(ERROR_GET);
+		let get = Config::get_intro(&db, UserId::new(1))
+			.await
+			.expect(ERROR_GET);
 
 		assert_eq!(get.as_deref(), Some(set));
 	}
@@ -382,11 +401,13 @@ mod test {
 
 		let set = "test";
 
-		Config::set_outro(&db, &UserId(0), set)
+		Config::set_outro(&db, UserId::new(1), set)
 			.await
 			.expect(ERROR_SET);
 
-		let get = Config::get_outro(&db, &UserId(0)).await.expect(ERROR_GET);
+		let get = Config::get_outro(&db, UserId::new(1))
+			.await
+			.expect(ERROR_GET);
 
 		assert_eq!(get.as_deref(), Some(set));
 	}
@@ -397,11 +418,11 @@ mod test {
 
 		let set = "test";
 
-		Config::set_bot_intro(&db, &GuildId(0), set)
+		Config::set_bot_intro(&db, GuildId::new(1), set)
 			.await
 			.expect(ERROR_SET);
 
-		let get = Config::get_bot_intro(&db, &GuildId(0))
+		let get = Config::get_bot_intro(&db, GuildId::new(1))
 			.await
 			.expect(ERROR_GET);
 
@@ -414,11 +435,11 @@ mod test {
 
 		let set = 0.1234;
 
-		Config::set_volume_clip(&db, &GuildId(0), set)
+		Config::set_volume_clip(&db, GuildId::new(1), set)
 			.await
 			.expect(ERROR_SET);
 
-		let get = Config::get_volume_clip(&db, &GuildId(0))
+		let get = Config::get_volume_clip(&db, GuildId::new(1))
 			.await
 			.expect(ERROR_GET);
 
@@ -431,11 +452,11 @@ mod test {
 
 		let set = 0.1234;
 
-		Config::set_volume_play(&db, &GuildId(0), set)
+		Config::set_volume_play(&db, GuildId::new(1), set)
 			.await
 			.expect(ERROR_SET);
 
-		let get = Config::get_volume_play(&db, &GuildId(0))
+		let get = Config::get_volume_play(&db, GuildId::new(1))
 			.await
 			.expect(ERROR_GET);
 

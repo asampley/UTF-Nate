@@ -1,21 +1,23 @@
-use tap::TapFallible;
-use tracing::{debug, error};
-
 use serde::{Deserialize, Serialize};
 
+use serenity::model::id::ChannelId;
 use serenity::prelude::Mutex;
 
-use songbird::create_player;
 use songbird::input::Input;
+use songbird::tracks::Track;
 use songbird::Call;
 use songbird::SongbirdKey;
 
+use tap::TapFallible;
+use tracing::{debug, error};
+
 use std::sync::Arc;
 
-use crate::audio::{clip_source, play_sources};
+use crate::audio::{get_inputs, SearchSource};
 use crate::audio::{AudioError, PlayStyle};
 use crate::commands::{BotState, Source};
 use crate::configuration::Config;
+use crate::data::QueueData;
 use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
 use crate::util::write_duration;
 use crate::util::{GetExpect, Response};
@@ -75,12 +77,13 @@ pub async fn play(
 
 		let pool = data_lock.clone_expect::<Pool>();
 		let volume = match play_style {
-			PlayStyle::Clip => Config::get_volume_clip(&pool, &guild_id).await,
-			PlayStyle::Play => Config::get_volume_play(&pool, &guild_id).await,
+			PlayStyle::Clip => Config::get_volume_clip(&pool, guild_id).await,
+			PlayStyle::Play => Config::get_volume_play(&pool, guild_id).await,
 		}
 		.tap_err(|e| error!("Unable to get volume: {:?}", e))
 		.ok()
 		.flatten()
+		.map(|f| f as f32)
 		.unwrap_or(0.5);
 
 		let keys = data_lock.clone_expect::<Keys>();
@@ -90,47 +93,42 @@ pub async fn play(
 
 	debug!("Dropped lock for play");
 
-	if let Some(call) = songbird.get(guild_id) {
-		debug!("Fetching audio source");
+	match songbird.get(guild_id) {
+		None => Err("Not in a voice channel".into()),
+		Some(call) => {
+			debug!("Fetching audio input");
 
-		let result = match play_style {
-			PlayStyle::Clip => match clip_source(args.search.as_ref()).await {
-				Ok(clip) => {
-					if play_input(
-						play_style,
-						call.clone(),
-						voice_guild_arc,
-						clip,
-						volume,
-						play_index,
-					)
-					.await
-					{
-						Ok(format!("Playing {}", args.search))
-					} else {
-						Ok(format!("Error playing {}", args.search))
-					}
-				}
-				Err(e) => Err(e),
-			},
-			PlayStyle::Play => {
-				match play_sources(keys, &args.search, play_index.is_none(), move |input| {
-					let call = call.clone();
-					let voice_guild_arc = voice_guild_arc.clone();
+			let search_location = Some(match play_style {
+				PlayStyle::Clip => SearchSource::Local,
+				PlayStyle::Play => SearchSource::Youtube,
+			});
 
-					async move {
-						play_input(play_style, call, voice_guild_arc, input, volume, play_index)
-							.await;
-					}
-				})
-				.await
-				{
+			let channel_id = source.channel_id;
+
+			let result =
+				match get_inputs(keys, &args.search, play_index.is_none(), search_location).await {
 					Ok(info) => {
 						use std::fmt::Write;
 
+						for input in info.inputs {
+							play_input(
+								play_style,
+								call.clone(),
+								voice_guild_arc.clone(),
+								channel_id,
+								input,
+								volume,
+								play_index,
+							)
+							.await;
+						}
+
 						let title = info.title.as_deref().unwrap_or(&args.search);
 
-						let mut response = String::from("Queuing");
+						let mut response = match play_style {
+							PlayStyle::Clip => String::from("Playing"),
+							PlayStyle::Play => String::from("Queued"),
+						};
 
 						if info.count != 1 {
 							write!(response, " {} clips from", info.count).unwrap();
@@ -151,57 +149,56 @@ pub async fn play(
 						Ok(response)
 					}
 					Err(e) => Err(e),
+				};
+
+			debug!("Finished fetching audio source");
+
+			match result {
+				Ok(response) => Ok(response.into()),
+				Err(e) => {
+					error!("Error playing audio: {}", e);
+					Err(match e {
+						AudioError::Songbird(_)
+						| AudioError::Symphonia(_)
+						| AudioError::Metadata(_) => "Playback error".into(),
+						AudioError::UnsupportedUrl => {
+							format!("Unsupported URL: {}", &args.search).into()
+						}
+						AudioError::NotFound => format!("Clip {} not found", &args.search).into(),
+						AudioError::Spotify => "Error reading from Spotify".into(),
+						AudioError::YoutubePlaylist => "Error reading youtube playlist".into(),
+						AudioError::PlaylistNotAllowed => {
+							"A playlist is not allowed in this context".into()
+						}
+					})
 				}
 			}
-		};
-
-		debug!("Finished fetching audio source");
-
-		match result {
-			Ok(response) => Ok(response.into()),
-			Err(e) => {
-				error!("Error playing audio: {}", e);
-				Err(match e {
-					AudioError::Songbird(_) => "Playback error".into(),
-					AudioError::UnsupportedUrl => {
-						format!("Unsupported URL: {}", &args.search).into()
-					}
-					AudioError::MultipleClip(clip_a, clip_b) => format!(
-						"Multiple clips matching {} found. Please be more specific.\n\
-						> {}\n\
-						> {}\n\
-						> ...",
-						&args.search,
-						clip_a.to_string_lossy(),
-						clip_b.to_string_lossy()
-					)
-					.into(),
-					AudioError::NotFound => format!("Clip {} not found", &args.search).into(),
-					AudioError::Spotify => "Error reading from Spotify".into(),
-					AudioError::YoutubePlaylist => "Error reading youtube playlist".into(),
-					AudioError::PlaylistNotAllowed => {
-						"A playlist is not allowed in this context".into()
-					}
-				})
-			}
 		}
-	} else {
-		Err("Not in a voice channel".into())
 	}
 }
 
 async fn queue_input(
 	call: Arc<Mutex<Call>>,
-	input: Input,
+	voice_guild_arc: ArcRw<VoiceGuild>,
+	channel_id: Option<ChannelId>,
+	mut input: Input,
 	volume: f32,
 	play_index: Option<usize>,
 ) -> bool {
-	let (mut track, _handle) = create_player(input);
-	track.set_volume(volume);
+	let queue_data = QueueData {
+		aux_metadata: input
+			.aux_metadata()
+			.await
+			.tap_err(|e| error!("Unable to fetch metadata: {:?}", e))
+			.ok(),
+		channel_id,
+	};
+
+	let track = Track::from(input).volume(volume);
 
 	let mut lock = call.lock().await;
 
-	lock.enqueue(track);
+	let handle = lock.enqueue(track).await;
 
 	if let Some(index) = play_index {
 		if index < lock.queue().len() {
@@ -218,6 +215,11 @@ async fn queue_input(
 		}
 	}
 
+	voice_guild_arc
+		.write()
+		.await
+		.add_queue_data(handle, queue_data);
+
 	true
 }
 
@@ -227,10 +229,9 @@ async fn immediate_input(
 	input: Input,
 	volume: f32,
 ) -> bool {
-	let (mut track, handle) = create_player(input);
-	track.set_volume(volume);
+	let track = Track::from(input).volume(volume);
 
-	call.lock().await.play(track);
+	let handle = call.lock().await.play(track);
 	voice_guild_arc
 		.write()
 		.await
@@ -242,12 +243,15 @@ async fn play_input(
 	play_style: PlayStyle,
 	call: Arc<Mutex<Call>>,
 	voice_guild_arc: ArcRw<VoiceGuild>,
+	channel_id: Option<ChannelId>,
 	input: Input,
 	volume: f32,
 	play_index: Option<usize>,
 ) -> bool {
 	match play_style {
 		PlayStyle::Clip => immediate_input(call, voice_guild_arc, input, volume).await,
-		PlayStyle::Play => queue_input(call, input, volume, play_index).await,
+		PlayStyle::Play => {
+			queue_input(call, voice_guild_arc, channel_id, input, volume, play_index).await
+		}
 	}
 }

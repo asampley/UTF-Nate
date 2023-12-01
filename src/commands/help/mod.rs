@@ -60,7 +60,7 @@ pub fn write_groups<U, E>(text: &mut String, commands: &[Command<U, E>]) {
 		.iter()
 		.map(|command| {
 			(
-				command.category,
+				command.category.as_deref(),
 				&command.qualified_name,
 				command
 					.custom_data
@@ -97,15 +97,14 @@ pub fn find_command<'a, U, E>(
 ) -> Option<&'a Command<U, E>> {
 	commands
 		.iter()
-		.filter(|c| c.name == name[0] || c.aliases.contains(&name[0].as_str()))
-		.filter_map(|c| {
+		.filter(|c| c.name == name[0] || c.aliases.contains(&name[0]))
+		.find_map(|c| {
 			if name.len() == 1 {
 				Some(c)
 			} else {
 				find_command(&c.subcommands, &name[1..])
 			}
 		})
-		.next()
 }
 
 pub fn md_discord(md: &str) -> String {

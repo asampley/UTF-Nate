@@ -4,7 +4,8 @@ use dashmap::DashMap;
 
 use fxhash::FxBuildHasher as BuildHasher;
 
-use tracing::debug;
+use songbird::input::AuxMetadata;
+use tracing::{debug, error};
 
 use serenity::async_trait;
 use serenity::futures::channel::mpsc;
@@ -13,11 +14,11 @@ use serenity::prelude::{RwLock, TypeMapKey};
 
 use serde::Deserialize;
 
-use songbird::error::TrackError;
-use songbird::tracks::TrackHandle;
+use songbird::tracks::{ControlError, PlayMode, TrackHandle};
 
 use uuid::Uuid;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::spotify::SpotifyApi;
@@ -74,8 +75,14 @@ impl TypeMapKey for VoiceUserCache {
 /// Collection of audios that have been queued.
 pub struct VoiceGuild {
 	audios: Vec<TrackHandle>,
+	queue_data: HashMap<Uuid, QueueData, BuildHasher>,
 	to_remove: mpsc::UnboundedReceiver<Uuid>,
 	to_remove_sender: mpsc::UnboundedSender<Uuid>,
+}
+
+pub struct QueueData {
+	pub channel_id: Option<ChannelId>,
+	pub aux_metadata: Option<AuxMetadata>,
 }
 
 impl Default for VoiceGuild {
@@ -84,6 +91,7 @@ impl Default for VoiceGuild {
 		let (to_remove_sender, to_remove) = mpsc::unbounded();
 		VoiceGuild {
 			audios: Vec::default(),
+			queue_data: HashMap::default(),
 			to_remove,
 			to_remove_sender,
 		}
@@ -113,6 +121,30 @@ impl VoiceGuild {
 		Ok(())
 	}
 
+	/// Get queue data associated with a track
+	pub fn queue_data(&self, track: &TrackHandle) -> Option<&QueueData> {
+		self.queue_data.get(&track.uuid())
+	}
+
+	/// Add metadata information for a queued track.
+	///
+	/// This is cleaned whenever a track is done.
+	///
+	/// Before the data is added, any audios that need to be cleaned up are
+	/// first cleared with [`Self::clean_audios`].
+	pub fn add_queue_data(&mut self, track: TrackHandle, queue_data: QueueData) {
+		self.clean_audios();
+
+		self.queue_data.insert(track.uuid(), queue_data);
+
+		track
+			.add_event(
+				songbird::Event::Track(songbird::TrackEvent::End),
+				TrackEventHandler(self.to_remove_sender.clone()),
+			)
+			.unwrap();
+	}
+
 	/// Stop all audios. See [`TrackHandle::stop`].
 	pub fn stop(&mut self) {
 		for audio in &self.audios {
@@ -124,7 +156,7 @@ impl VoiceGuild {
 	pub fn set_volume(&mut self, volume: f32) -> songbird::error::TrackResult<()> {
 		for audio in &self.audios {
 			match audio.set_volume(volume) {
-				Ok(_) | Err(TrackError::Finished) => (),
+				Ok(_) | Err(ControlError::Finished) => (),
 				Err(e) => return Err(e),
 			}
 		}
@@ -135,6 +167,10 @@ impl VoiceGuild {
 	/// of the channel.
 	fn clean_audios(&mut self) {
 		debug!("Cleaning audios. List before cleaning: {:?}", self.audios);
+		debug!(
+			"Cleaning audios. Map keys before cleaning: {:?}",
+			self.queue_data.keys()
+		);
 
 		loop {
 			match self.to_remove.try_next() {
@@ -147,6 +183,8 @@ impl VoiceGuild {
 							break;
 						}
 					}
+
+					self.queue_data.remove(&uuid);
 				}
 				Ok(None) => unimplemented!(),
 				Err(_) => break,
@@ -154,6 +192,10 @@ impl VoiceGuild {
 		}
 
 		debug!("Cleaned audios. List after cleaning: {:?}", self.audios);
+		debug!(
+			"Cleaned audios. Map keys before cleaning: {:?}",
+			self.queue_data.keys()
+		);
 	}
 }
 
@@ -171,6 +213,10 @@ impl songbird::EventHandler for TrackEventHandler {
 				if state.playing.is_done() {
 					debug!("Sending event to clean {}", handle.uuid());
 					self.0.unbounded_send(handle.uuid()).unwrap();
+				}
+
+				if let PlayMode::Errored(e) = &state.playing {
+					error!("Error playing clip: {:?}", e);
 				}
 			}
 		};

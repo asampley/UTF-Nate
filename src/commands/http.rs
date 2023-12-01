@@ -89,6 +89,7 @@ impl TryFrom<&Token> for super::Source {
 		} else {
 			Ok(Self {
 				guild_id: token.guild_id,
+				channel_id: None,
 				user_id: token.user_id,
 			})
 		}

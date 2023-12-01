@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 
 use songbird::SongbirdKey;
 
-use tap::TapFallible;
+use tap::{TapFallible, TapOptional};
 use thiserror::Error;
 
 use tracing::{error, info};
 
 use crate::commands::{BotState, Source};
-use crate::data::VoiceGuilds;
+use crate::data::{QueueData, VoiceGuilds};
 use crate::parser::{NumOrRange, Selection};
 use crate::util::{write_duration, GetExpect, Response};
 
@@ -246,36 +246,46 @@ pub async fn queue(
 		.guild_id
 		.ok_or("This command is only available in guilds")?;
 
-	let call = state
-		.data
-		.read()
-		.await
-		.clone_expect::<SongbirdKey>()
-		.get_or_insert(guild_id);
+	let lock = state.data.read().await;
 
-	let lock = call.lock().await;
+	let call = lock.clone_expect::<SongbirdKey>().get_or_insert(guild_id);
+	let call_lock = call.lock().await;
 
-	let current_queue = lock.queue().current_queue();
+	let current_queue = call_lock.queue().current_queue();
 	let len = current_queue.len();
 
-	Ok(if len == 0 {
-		"Nothing queued".to_owned()
-	} else {
-		let queue = args
-			.selection
-			.0
-			.iter()
-			.flat_map(|v| match v {
-				NumOrRange::Num(n) => *n..=*n,
-				NumOrRange::Range(r) => r.clone(),
-			})
-			.filter_map(|i| current_queue.get(i).map(|t| (i, t)))
-			.map(|(i, track)| {
-				use std::fmt::Write;
+	if len == 0 {
+		return Ok("Nothing queued".into());
+	}
 
-				let mut listing = format!("{i}:");
+	let voice_guilds = lock.clone_expect::<VoiceGuilds>();
 
-				let meta = track.metadata();
+	let voice_guild = voice_guilds
+		.get(&guild_id)
+		.tap_none(|| error!("VoiceGuild not initialized while trying to read queue"))
+		.ok_or("Internal bot error")?;
+
+	let voice_guild = voice_guild.read().await;
+
+	let queue = args
+		.selection
+		.0
+		.iter()
+		.flat_map(|v| match v {
+			NumOrRange::Num(n) => *n..=*n,
+			NumOrRange::Range(r) => r.clone(),
+		})
+		.filter_map(|i| current_queue.get(i).map(|t| (i, t)))
+		.map(|(i, track)| {
+			use std::fmt::Write;
+
+			let mut listing = format!("{i}:");
+
+			if let Some(QueueData {
+				aux_metadata: Some(meta),
+				..
+			}) = voice_guild.queue_data(track)
+			{
 				let title = meta.title.as_deref().unwrap_or("Unknown");
 
 				match &meta.source_url {
@@ -288,14 +298,15 @@ pub async fn queue(
 					write_duration(&mut listing, duration).unwrap();
 					listing.push(')');
 				};
+			} else {
+				listing.push_str("No metadata");
+			}
 
-				listing
-			})
-			.join("\n");
+			listing
+		})
+		.join("\n");
 
-		format!("Current queue ({} total):\n{}\n", len, queue)
-	}
-	.into())
+	Ok(format!("Current queue ({} total):\n{}\n", len, queue).into())
 }
 
 #[tracing::instrument(level = "info", ret, skip(state))]

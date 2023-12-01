@@ -29,7 +29,8 @@ use tracing_subscriber::filter::LevelFilter;
 
 use once_cell::sync::Lazy;
 
-use serenity::http::client::Http;
+use serenity::client::Client;
+use serenity::http::Http;
 use serenity::model::gateway::GatewayIntents;
 use serenity::model::Permissions;
 use serenity::prelude::RwLock;
@@ -60,6 +61,8 @@ static OPT: Lazy<Opt> = Lazy::new(|| {
 
 /// Configuration parameters from a file. See [`load_config()`].
 static CONFIG: Lazy<Config> = Lazy::new(load_config);
+
+static REQWEST_CLIENT: Lazy<reqwest::Client> = Lazy::new(reqwest::Client::new);
 
 /// Permissions recommended for registering the bot with a server, for full
 /// functionality.
@@ -174,7 +177,8 @@ async fn main() {
 		RECOMMENDED_PERMISSIONS.bits(),
 	);
 
-	let http = Http::new_with_application_id(&keys.discord.token, keys.discord.application_id);
+	let http = Http::new(&keys.discord.token);
+	http.set_application_id(keys.discord.application_id.into());
 
 	let commands = commands::commands();
 
@@ -187,6 +191,8 @@ async fn main() {
 			}
 		}
 	}
+
+	sqlx::any::install_default_drivers();
 
 	if OPT.init_database || !OPT.no_bot {
 		// initialize database connection
@@ -207,7 +213,7 @@ async fn main() {
 				}
 			};
 
-			match Config::setup_db(&mut trans).await {
+			match Config::setup_db(trans.as_mut()).await {
 				Ok(_) => (),
 				Err(e) => {
 					error!("Error creating tables: {e}");
@@ -232,45 +238,39 @@ async fn main() {
 			info!("Config: {:#?}", *CONFIG);
 
 			// create a framework to process message commands
-			let framework = Framework::builder()
-				.token(&keys.discord.token)
-				.intents(GATEWAY_INTENTS)
-				.setup(|_, _, _| Box::pin(async move { Ok(()) }))
-				.options(poise::FrameworkOptions {
-					prefix_options: poise::PrefixFrameworkOptions {
-						prefix: Some(CONFIG.prefixes[0].clone()),
-						additional_prefixes: CONFIG.prefixes[1..]
-							.iter()
-							.map(|p| poise::Prefix::Literal(p))
-							.collect(),
-						case_insensitive_commands: true,
-						..Default::default()
-					},
-					commands,
-					pre_command: |ctx| Box::pin(handler::before_hook(ctx)),
-					post_command: |ctx| Box::pin(handler::after_hook(ctx)),
-					on_error: |err| Box::pin(handler::on_error(err)),
-					..Default::default()
-				})
-				.client_settings(|client_builder| {
-					#[cfg(feature = "http-interface")]
-					let client_builder = client_builder.type_map_insert::<AeadKey>(encrypt::gen_key());
+			let client_builder = Client::builder(&keys.discord.token, GATEWAY_INTENTS)
+				.event_handler(Handler::default())
+				.type_map_insert::<VoiceUserCache>(Default::default())
+				.type_map_insert::<VoiceGuilds>(Default::default())
+				.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
+				.type_map_insert::<Pool>(db_pool)
+				.register_songbird_from_config(songbird::Config::default().preallocated_tracks(5))
+				.framework(
+					Framework::builder()
+						.setup(|_, _, _| Box::pin(async move { Ok(()) }))
+						.options(poise::FrameworkOptions {
+							prefix_options: poise::PrefixFrameworkOptions {
+								prefix: Some(CONFIG.prefixes[0].clone()),
+								additional_prefixes: CONFIG.prefixes[1..]
+									.iter()
+									.map(|p| poise::Prefix::Literal(p))
+									.collect(),
+								case_insensitive_commands: true,
+								..Default::default()
+							},
+							commands,
+							pre_command: |ctx| Box::pin(handler::before_hook(ctx)),
+							post_command: |ctx| Box::pin(handler::after_hook(ctx)),
+							on_error: |err| Box::pin(handler::on_error(err)),
+							..Default::default()
+						})
+						.build(),
+				);
 
-					client_builder
-						.event_handler(Handler::default())
-						.type_map_insert::<VoiceUserCache>(Default::default())
-						.type_map_insert::<VoiceGuilds>(Default::default())
-						.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
-						.type_map_insert::<Pool>(db_pool)
-						.register_songbird_from_config(
-							songbird::Config::default()
-								.decode_mode(songbird::driver::DecodeMode::Pass)
-								.preallocated_tracks(5),
-						)
-				})
-				.build()
-				.await
-				.expect("Error starting bot");
+			#[cfg(feature = "http-interface")]
+			let client_builder = client_builder.type_map_insert::<AeadKey>(encrypt::gen_key());
+
+			let mut client = client_builder.await.expect("Error starting bot");
 
 			#[cfg(feature = "http-interface")]
 			if let Some(addr) = &CONFIG.http {
@@ -282,10 +282,9 @@ async fn main() {
 				use crate::commands::http::FormRouter;
 				use crate::commands::*;
 
-				let client = framework.client();
 				let state = commands::BotState {
 					data: client.data.clone(),
-					cache: client.cache_and_http.cache.clone(),
+					cache: client.cache.clone(),
 				};
 
 				info!("Starting HTTP server");
@@ -341,7 +340,7 @@ async fn main() {
 				join_set.spawn(async move { http_future.await.map_err(Into::into) });
 			}
 
-			join_set.spawn(async move { framework.start().await.map_err(Into::into) });
+			join_set.spawn(async move { client.start().await.map_err(Into::into) });
 
 			while let Some(res) = join_set.join_next().await {
 				match res {

@@ -4,10 +4,8 @@
 //! contained within a folder to prevent people from going up directories
 //! ([`sandboxed_join`]), and some functions to help responding to commands.
 
-mod ord_key;
 mod respond;
 
-pub use ord_key::OrdKey;
 pub use respond::{Respond, Response};
 
 use tracing::error;
@@ -34,7 +32,7 @@ pub type Framework = poise::Framework<Data, CommandError>;
 #[derive(Debug, Error)]
 pub enum UtilError {
 	Serenity(#[from] serenity::Error),
-	Songbird(#[from] songbird::input::error::Error),
+	Songbird(#[from] songbird::input::core::errors::Error),
 }
 
 impl fmt::Display for UtilError {

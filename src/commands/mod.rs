@@ -19,7 +19,7 @@ pub mod voice;
 use futures::Future;
 
 use serenity::cache::Cache;
-use serenity::model::prelude::{GuildId, UserId};
+use serenity::model::id::{ChannelId, GuildId, UserId};
 use serenity::prelude::{RwLock, TypeMap};
 
 use std::sync::Arc;
@@ -68,6 +68,7 @@ impl CustomData {
 #[derive(Debug)]
 pub struct Source {
 	guild_id: Option<GuildId>,
+	channel_id: Option<ChannelId>,
 	user_id: UserId,
 }
 
@@ -75,6 +76,7 @@ impl From<&Context<'_>> for Source {
 	fn from(ctx: &Context<'_>) -> Self {
 		Source {
 			guild_id: ctx.guild_id(),
+			channel_id: Some(ctx.channel_id()),
 			user_id: ctx.author().id,
 		}
 	}

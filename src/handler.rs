@@ -24,10 +24,11 @@ use std::fmt::Write;
 
 use crate::Pool;
 
-use crate::audio::{clip_iter, clip_source};
+use crate::audio::{clip_iter, get_inputs};
 use crate::configuration::Config;
 use crate::data::{VoiceGuilds, VoiceUserCache};
 use crate::util::*;
+use crate::Keys;
 
 /// Handler that handeles serenity events for playing intros and outros, and
 /// other non-command events.
@@ -58,26 +59,28 @@ impl Handler {
 	}
 
 	fn random_intro(&self, user_id: UserId) -> String {
-		self.random_clip(user_id.0)
+		self.random_clip(user_id.get())
 	}
 
 	fn random_outro(&self, user_id: UserId) -> String {
-		self.random_clip(!user_id.0)
+		self.random_clip(!user_id.get())
 	}
 }
 
 #[async_trait]
 impl SerenityEventHandler for Handler {
-	async fn ready(&self, ctx: SerenityContext, _: Ready) {
+	async fn ready(&self, ctx: SerenityContext, ready: Ready) {
 		info!("Bot started!");
 
-		info!("Bot info {:?}", ctx.cache.current_user_id());
+		info!("Bot info {:?}", ready.user.id);
 
-		ctx.set_presence(
-			crate::CONFIG.activity.as_ref().map(Into::into),
-			OnlineStatus::Online,
-		)
-		.await;
+		let activity_data = crate::CONFIG.activity.as_ref().and_then(|a| {
+			a.try_into()
+				.tap_err(|e| error!("Error parsing activity data: {:?}", e))
+				.ok()
+		});
+
+		ctx.set_presence(activity_data, OnlineStatus::Online);
 	}
 
 	async fn voice_state_update(
@@ -97,7 +100,7 @@ impl SerenityEventHandler for Handler {
 					.or_default()
 					.clone();
 
-				let bot_id = ctx.cache.current_user_id();
+				let bot_id = ctx.cache.current_user().id;
 
 				// update cache if the user is the bot
 				if new_state.user_id == bot_id {
@@ -128,9 +131,9 @@ impl SerenityEventHandler for Handler {
 				let clip = {
 					let pool = ctx.data.read().await.clone_expect::<Pool>();
 
-					if new_state.user_id == ctx.cache.current_user_id() {
+					if new_state.user_id == ctx.cache.current_user().id {
 						match io {
-							IOClip::Intro => Config::get_bot_intro(&pool, &guild_id)
+							IOClip::Intro => Config::get_bot_intro(&pool, guild_id)
 								.await
 								.tap_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
@@ -140,13 +143,13 @@ impl SerenityEventHandler for Handler {
 						}
 					} else {
 						match io {
-							IOClip::Intro => Config::get_intro(&pool, &new_state.user_id)
+							IOClip::Intro => Config::get_intro(&pool, new_state.user_id)
 								.await
 								.tap_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
 								.unwrap_or_else(|| self.random_intro(new_state.user_id)),
-							IOClip::Outro => Config::get_outro(&pool, &new_state.user_id)
+							IOClip::Outro => Config::get_outro(&pool, new_state.user_id)
 								.await
 								.tap_err(|e| error!("Error fetching outro: {:?}", e))
 								.ok()
@@ -156,8 +159,10 @@ impl SerenityEventHandler for Handler {
 					}
 				};
 
-				let (songbird, voice_guild_arc, volume) = {
+				let (songbird, voice_guild_arc, keys, volume) = {
 					let lock = ctx.data.read().await;
+
+					let keys = lock.clone_expect::<Keys>();
 
 					let songbird = lock.clone_expect::<SongbirdKey>();
 					let pool = lock.clone_expect::<Pool>();
@@ -168,24 +173,27 @@ impl SerenityEventHandler for Handler {
 						.or_default()
 						.clone();
 
-					let volume = Config::get_volume_clip(&pool, &guild_id)
+					let volume = Config::get_volume_clip(&pool, guild_id)
 						.await
 						.tap_err(|e| error!("Unable to get clip volume: {:?}", e))
 						.ok()
 						.flatten()
 						.unwrap_or(0.5);
 
-					(songbird, voice_guild_arc, volume)
+					(songbird, voice_guild_arc, keys, volume)
 				};
 
 				let mut voice_guild = voice_guild_arc.write().await;
 
 				if let Some(call) = songbird.get(guild_id) {
-					match clip_source(clip.as_ref()).await {
-						Ok(source) => {
+					match get_inputs(keys, clip.as_ref(), false, None).await {
+						Ok(mut info) => {
 							voice_guild
-								.add_audio(call.lock().await.play_source(source), volume)
-								.expect("Error playing source");
+								.add_audio(
+									call.lock().await.play_input(info.inputs.nth(0).unwrap()),
+									volume as f32,
+								)
+								.expect("Error playing input");
 							info!(
 								"Playing {} for user ({})",
 								match io {
@@ -218,17 +226,15 @@ impl SerenityEventHandler for Handler {
 ///
 /// See [`poise::FrameworkOptions::pre_command`] for more information.
 pub async fn before_hook(ctx: Context<'_>) {
-	let guild_name = ctx.guild_id().map(|gid| {
-		ctx.serenity_context()
-			.cache
-			.guild_field(gid, |g| g.name.clone())
-	});
+	let guild = ctx
+		.guild_id()
+		.and_then(|gid| ctx.serenity_context().cache.guild(gid));
 
 	info!(
 		"User {} ({}) in guild {:?} ({:?}) running {}",
 		ctx.author().name,
 		ctx.author().id,
-		guild_name,
+		guild.as_ref().map(|g| &g.name),
 		ctx.guild_id(),
 		ctx.invoked_command_name()
 	);
@@ -240,17 +246,15 @@ pub async fn before_hook(ctx: Context<'_>) {
 ///
 /// See [`poise::FrameworkOptions::post_command`] for more information.
 pub async fn after_hook(ctx: Context<'_>) {
-	let guild_name = ctx.guild_id().map(|gid| {
-		ctx.serenity_context()
-			.cache
-			.guild_field(gid, |g| g.name.clone())
-	});
+	let guild = ctx
+		.guild_id()
+		.and_then(|gid| ctx.serenity_context().cache.guild(gid));
 
 	info!(
 		"User {} ({}) in guild {:?} ({:?}) completed {}",
 		ctx.author().name,
 		ctx.author().id,
-		guild_name,
+		guild.as_ref().map(|g| &g.name),
 		ctx.guild_id(),
 		ctx.invoked_command_name()
 	);
@@ -267,7 +271,7 @@ pub async fn on_error(err: FrameworkError<'_>) {
 	use poise::FrameworkError as E;
 
 	match &err {
-		E::GuildOnly { ctx } | E::DmOnly { ctx } | E::NsfwOnly { ctx } => {
+		E::GuildOnly { ctx, .. } | E::DmOnly { ctx, .. } | E::NsfwOnly { ctx, .. } => {
 			check_msg(
 				ctx.respond_err(
 					&format!(
@@ -286,7 +290,9 @@ pub async fn on_error(err: FrameworkError<'_>) {
 				.await,
 			);
 		}
-		E::ArgumentParse { error, ctx, input } => {
+		E::ArgumentParse {
+			error, ctx, input, ..
+		} => {
 			let mut response = match input {
 				Some(input) => format!("Could not parse {:?}. ", input),
 				None => String::new(),

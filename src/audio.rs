@@ -8,20 +8,26 @@
 //! Clip searches are done using levenshtein distance in order to fuzzily
 //! match making it easier to use without knowing exact clip names.
 
-use futures::{Future, TryStreamExt};
+use futures::TryStreamExt;
 
 use itertools::Itertools;
 
+use songbird::input::{AudioStream, AudioStreamError, AuxMetadata, Compose};
+
+use symphonia::core::io::MediaSource;
 use tap::TapFallible;
 use tracing::{debug, error, warn};
 
 use once_cell::sync::Lazy;
 
+use rand::seq::IteratorRandom;
+
 use regex::Regex;
 
 use reqwest::Url;
 
-use songbird::input::restartable::Restartable;
+use serenity::async_trait;
+
 use songbird::input::Input;
 
 use thiserror::Error;
@@ -33,10 +39,10 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
 use crate::data::{ArcRw, Keys};
-use crate::spotify;
 use crate::util::*;
-use crate::youtube::{self, YtdlLazy, YtdlSearchLazy};
+use crate::youtube::{self, compose_yt_search};
 use crate::RESOURCE_PATH;
+use crate::{spotify, REQWEST_CLIENT};
 
 /// Path to shared directory for clips.
 pub static CLIP_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("clips/"));
@@ -60,6 +66,15 @@ pub enum PlayStyle {
 	Clip,
 }
 
+/// Enum for places to search when a URL is not provided.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SearchSource {
+	/// Search on youtube.
+	Youtube,
+	/// Search through local clip files.
+	Local,
+}
+
 impl std::str::FromStr for PlayStyle {
 	type Err = ();
 
@@ -72,12 +87,59 @@ impl std::str::FromStr for PlayStyle {
 	}
 }
 
+pub struct ComposeWithMetadata<C> {
+	pub compose: C,
+	pub aux_metadata: AuxMetadata,
+}
+
+impl<C> ComposeWithMetadata<C> {
+	pub fn new(compose: C, aux_metadata: AuxMetadata) -> Self {
+		Self {
+			compose,
+			aux_metadata,
+		}
+	}
+}
+
+#[async_trait]
+impl<C: Compose> Compose for ComposeWithMetadata<C> {
+	fn create(&mut self) -> Result<AudioStream<Box<dyn MediaSource>>, AudioStreamError> {
+		self.compose.create()
+	}
+
+	async fn create_async(
+		&mut self,
+	) -> Result<AudioStream<Box<dyn MediaSource>>, AudioStreamError> {
+		self.compose.create_async().await
+	}
+
+	fn should_create_async(&self) -> bool {
+		self.compose.should_create_async()
+	}
+
+	async fn aux_metadata(&mut self) -> Result<AuxMetadata, AudioStreamError> {
+		Ok(self.aux_metadata.clone())
+	}
+}
+
+impl<C: Compose + 'static> From<ComposeWithMetadata<C>> for Input {
+	fn from(compose: ComposeWithMetadata<C>) -> Self {
+		Self::Lazy(Box::new(compose))
+	}
+}
+
 /// Error type for all audio errors in fetching clips or playing clips.
 #[derive(Debug, Error)]
 pub enum AudioError {
 	/// Pass through to a songbird error.
+	#[error("encountered symphonia error: {0}")]
+	Symphonia(#[from] songbird::input::core::errors::Error),
+
 	#[error("encountered songbird error: {0}")]
-	Songbird(#[from] songbird::input::error::Error),
+	Songbird(#[from] songbird::input::AudioStreamError),
+
+	#[error("error while retrieving metadata: {0}")]
+	Metadata(#[from] songbird::input::AuxMetadataError),
 
 	/// Error indicating the context does not allow playlists.
 	#[error("playlists are not allowed in this context")]
@@ -95,33 +157,13 @@ pub enum AudioError {
 	#[error("unsupported url")]
 	UnsupportedUrl,
 
-	/// Error indicating too many matching clips were found.
-	#[error("multiple clips matched")]
-	MultipleClip(OsString, OsString),
-
 	/// Error indicating no matching clips were found.
 	#[error("no clips matched")]
 	NotFound,
 }
 
-/// Create an audio source for a clip based on a search string.
-///
-/// The search functionality is based on the [`find_clip`] function, and this
-/// merely converts it into a playable source for [`songbird`].
-pub async fn clip_source(loc: &OsStr) -> Result<Input, AudioError> {
-	match find_clip(loc) {
-		FindClip::One(clip) => match get_clip(&clip) {
-			Some(clip) => Ok(songbird::ffmpeg(&clip).await?),
-			None => Err(AudioError::NotFound),
-		},
-		FindClip::Multiple(clip_a, clip_b) => Err(AudioError::MultipleClip(clip_a, clip_b)),
-		FindClip::None => Err(AudioError::NotFound),
-	}
-}
-
 /// Contains a few details for a source for display. This could be a single source
 /// or a playlist, but either way should have a title and url, if possible.
-#[derive(Debug)]
 pub struct SourceInfo {
 	/// The title that can be used as a good display string.
 	pub title: Option<String>,
@@ -134,33 +176,32 @@ pub struct SourceInfo {
 
 	/// duration of all sources added up
 	pub duration: Option<std::time::Duration>,
+
+	/// Iterator for the inputs
+	pub inputs: Box<dyn Iterator<Item = Input> + Send + Sync>,
 }
 
-/// Creates audio sources for [`songbird`], and as each audio source is created
-/// it is run through the supplied callback `f`. Information about the audio
-/// sources is returned upon completion of all callbacks.
+/// Creates audio inputs for [`songbird`], and as each audio inputs is created.
+/// Information about the audio inputs is included with an iterator over the
+/// inputs.
 ///
 /// If `loc` is a URL, as matched by the [`URL`] regular expression, it will try
 /// to match either a youtube or spotify URL, based on the host names in the
 /// [`YOUTUBE_HOST`] and [`SPOTIFY_HOST`] regular expressions. Any other URL
-/// will be run through ffmpeg, and if that fails, it returns an
+/// will be streamed as an audio file, and if that fails, it returns an
 /// [`AudioError::UnsupportedUrl`] error.
 ///
 /// If `loc` is not a URL then it will instead do a search on youtube and grab
 /// the first match.
 ///
 /// Certain contexts may wish to exclude playlists, so `allow_playlist` can be
-/// used to return an [`AudioError::PlaylistNotAllowed`] instead.
-pub async fn play_sources<F, T>(
+/// set to false return an [`AudioError::PlaylistNotAllowed`] instead.
+pub async fn get_inputs(
 	keys: ArcRw<Keys>,
 	loc: &str,
 	allow_playlist: bool,
-	f: F,
-) -> Result<SourceInfo, AudioError>
-where
-	F: Fn(Input) -> T + Send + Sync + 'static,
-	T: Future<Output = ()> + Send,
-{
+	search_location: Option<SearchSource>,
+) -> Result<SourceInfo, AudioError> {
 	if URL.is_match(loc) {
 		let url = Url::parse(loc).map_err(|_| AudioError::UnsupportedUrl)?;
 		let host = url.host_str().ok_or(AudioError::UnsupportedUrl)?;
@@ -175,8 +216,8 @@ where
 				.clone()
 				.ok_or(AudioError::YoutubePlaylist)?;
 
-			// if it is a playlist, queue the playlist
 			if path == "/playlist" {
+				// youtube playlist
 				if !allow_playlist {
 					return Err(AudioError::PlaylistNotAllowed);
 				}
@@ -217,7 +258,7 @@ where
 
 				let count = videos.len();
 
-				let info = SourceInfo {
+				Ok(SourceInfo {
 					title: Some(playlist.snippet.title),
 					url: Some(loc.to_string()),
 					count,
@@ -225,19 +266,14 @@ where
 						.iter()
 						.map(|video| video.content_details.duration.to_std())
 						.try_fold(std::time::Duration::ZERO, |acc, opt| opt.map(|x| acc + x)),
-				};
-
-				tokio::spawn(async move {
-					for item in videos {
-						match YtdlLazy::from(item).into_input().await {
-							Ok(input) => f(input).await,
-							Err(e) => error!("Error creating input: {:?}", e),
-						}
-					}
-				});
-
-				Ok(info)
+					inputs: Box::new(
+						videos
+							.into_iter()
+							.map(|item| Input::from(ComposeWithMetadata::from(item))),
+					),
+				})
 			} else {
+				// single youtube video
 				let id = if path == "/watch" {
 					url.query_pairs()
 						.filter(|(key, _)| key == "v")
@@ -260,20 +296,17 @@ where
 						AudioError::NotFound
 					})?;
 
-				let loc_string = loc.to_string();
+				let duration = video.content_details.duration.to_std();
+				let title = video.snippet.title.clone();
 
-				tokio::spawn(async move {
-					match Restartable::ytdl(loc_string, true).await {
-						Ok(restartable) => f(restartable.into()).await,
-						Err(e) => error!("Error creating input: {:?}", e),
-					}
-				});
+				let compose = ComposeWithMetadata::from(video);
 
 				Ok(SourceInfo {
-					title: Some(video.snippet.title),
+					title: Some(title),
 					url: Some(loc.to_string()),
 					count: 1,
-					duration: video.content_details.duration.to_std(),
+					duration,
+					inputs: Box::new(std::iter::once_with(|| compose.into())),
 				})
 			}
 		} else if SPOTIFY_HOST.is_match(host) {
@@ -293,6 +326,7 @@ where
 
 			match path_segments.next().ok_or(AudioError::UnsupportedUrl)? {
 				"track" => {
+					// spotify single song
 					let track_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
 
 					let track = spotify::track(&token, track_id)
@@ -300,23 +334,18 @@ where
 						.tap_err(|e| error!("Error reading spotify track: {:?}", e))
 						.map_err(|_| AudioError::Spotify)?;
 
-					let lazy = YtdlSearchLazy::from(&track);
-
-					tokio::spawn(async move {
-						match lazy.into_input().await {
-							Ok(input) => f(input).await,
-							Err(e) => error!("Error creating input: {:?}", e),
-						}
-					});
+					let compose = ComposeWithMetadata::from(&track);
 
 					Ok(SourceInfo {
 						title: Some(track.name),
 						url: Some(loc.to_string()),
 						count: 1,
 						duration: None,
+						inputs: Box::new(std::iter::once_with(|| compose.into())),
 					})
 				}
 				"playlist" => {
+					// spotify playlist
 					if !allow_playlist {
 						return Err(AudioError::PlaylistNotAllowed);
 					}
@@ -328,25 +357,22 @@ where
 						.tap_err(|e| error!("Error reading spotify playlist: {:?}", e))
 						.map_err(|_| AudioError::Spotify)?;
 
-					let info = SourceInfo {
-						title: Some(playlist.name.clone()),
+					Ok(SourceInfo {
+						title: Some(playlist.name),
 						url: Some(loc.to_string()),
 						count: playlist.tracks.items.len(),
 						duration: None,
-					};
-
-					tokio::spawn(async move {
-						for track in playlist.tracks.items.into_iter().map(|t| t.track) {
-							match YtdlSearchLazy::from(&track).into_input().await {
-								Ok(input) => f(input).await,
-								Err(e) => error!("Error creating input: {:?}", e),
-							}
-						}
-					});
-
-					Ok(info)
+						inputs: Box::new(
+							playlist
+								.tracks
+								.items
+								.into_iter()
+								.map(|t| Input::from(ComposeWithMetadata::from(&t.track))),
+						),
+					})
 				}
 				"album" => {
+					// spotify playlist
 					if !allow_playlist {
 						return Err(AudioError::PlaylistNotAllowed);
 					}
@@ -358,84 +384,100 @@ where
 						.tap_err(|e| error!("Error reading spotify album: {:?}", e))
 						.map_err(|_| AudioError::Spotify)?;
 
-					let info = SourceInfo {
-						title: Some(album.name.clone()),
+					Ok(SourceInfo {
+						title: Some(album.name),
 						url: Some(loc.to_string()),
 						count: album.tracks.items.len(),
 						duration: None,
-					};
-
-					tokio::spawn(async move {
-						for track in album.tracks.items {
-							match YtdlSearchLazy::from(&track).into_input().await {
-								Ok(input) => f(input).await,
-								Err(e) => error!("Error creating input: {:?}", e),
-							}
-						}
-					});
-
-					Ok(info)
+						inputs: Box::new(
+							album
+								.tracks
+								.items
+								.into_iter()
+								.map(|track| Input::from(ComposeWithMetadata::from(&track))),
+						),
+					})
 				}
 				_ => Err(AudioError::UnsupportedUrl),
 			}
 		} else {
-			match songbird::ffmpeg(loc).await {
-				Ok(source) => {
-					let info = SourceInfo {
-						title: None,
-						url: Some(loc.to_string()),
-						count: 1,
-						duration: source.metadata.duration,
-					};
+			// arbitrary audio file url
+			let title = url
+				.path_segments()
+				.map(|mut p| p.nth_back(0).unwrap().to_string());
 
-					f(source).await;
+			let mut compose = ComposeWithMetadata::new(
+				songbird::input::HttpRequest::new(REQWEST_CLIENT.clone(), loc.to_string()),
+				AuxMetadata {
+					title: title.clone(),
+					source_url: Some(loc.to_string()),
+					..Default::default()
+				},
+			);
 
-					Ok(info)
-				}
-				Err(e) => {
-					error!("Error creating input: {:?}", e);
-					Err(AudioError::UnsupportedUrl)
-				}
-			}
+			let aux_metadata = compose
+				.aux_metadata()
+				.await
+				.tap_err(|e| error!("Error getting metadata: {:?}", e))?;
+
+			Ok(SourceInfo {
+				title,
+				url: Some(loc.to_string()),
+				count: 1,
+				duration: aux_metadata.duration,
+				inputs: Box::new(std::iter::once_with(|| compose.into())),
+			})
 		}
 	} else {
-		let loc_string = loc.to_string();
+		// arbitrary search term
+		match search_location {
+			Some(SearchSource::Youtube) => {
+				let loc_string = loc.to_string();
 
-		match Restartable::ytdl_search(loc_string, true).await {
-			Ok(restartable) => {
-				let input: Input = restartable.into();
+				let mut compose = compose_yt_search(loc_string);
 
-				let info = SourceInfo {
-					title: input.metadata.title.clone(),
-					url: input.metadata.source_url.clone(),
+				let aux_metadata = compose
+					.aux_metadata()
+					.await
+					.tap_err(|e| error!("Error getting metadata: {:?}", e))?;
+
+				Ok(SourceInfo {
+					title: aux_metadata.title,
+					url: aux_metadata.source_url,
 					count: 1,
-					duration: input.metadata.duration,
+					duration: aux_metadata.duration,
+					inputs: Box::new(std::iter::once_with(|| compose.into())),
+				})
+			}
+			Some(SearchSource::Local) => {
+				let clips = search_clips(loc.as_ref());
+
+				let clip_name = clips
+					.into_iter()
+					.choose(&mut rand::thread_rng())
+					.ok_or(AudioError::NotFound)?;
+
+				let clip = get_clip(&clip_name).ok_or(AudioError::NotFound)?;
+
+				let aux_metadata = AuxMetadata {
+					title: Some(clip_name.to_string_lossy().into_owned()),
+					..Default::default()
 				};
 
-				tokio::spawn(async move { f(input).await });
+				let compose =
+					ComposeWithMetadata::new(songbird::input::File::new(clip), aux_metadata);
 
-				Ok(info)
+				Ok(SourceInfo {
+					title: Some(clip_name.to_string_lossy().into_owned()),
+					url: None,
+					count: 1,
+					duration: None,
+					inputs: Box::new(std::iter::once_with(|| compose.into())),
+				})
 			}
-			Err(e) => {
-				error!("Error creating input: {:?}", e);
-
-				Err(e.into())
-			}
+			None => Err(AudioError::NotFound),
 		}
 	}
-}
-
-/// Results from searching for a clip.
-#[derive(Debug)]
-pub enum FindClip {
-	/// A single best matching clip was found.
-	One(OsString),
-
-	/// At least two equally matching clips were found.
-	Multiple(OsString, OsString),
-
-	/// No matching clips were found.
-	None,
 }
 
 /// Log a warning if any clips have the same file stem.
@@ -471,8 +513,8 @@ pub fn warn_exact_name_finds_different_clip() {
 		.filter(|f| {
 			let path = f.path();
 
-			match find_clip(path.file_stem().unwrap()) {
-				FindClip::One(p) => p != path.strip_prefix(&*CLIP_PATH).unwrap().with_extension(""),
+			match &search_clips(path.file_stem().unwrap())[..] {
+				[p] => p != &path.strip_prefix(&*CLIP_PATH).unwrap().with_extension(""),
 				_ => true,
 			}
 		})
@@ -486,78 +528,51 @@ pub fn warn_exact_name_finds_different_clip() {
 
 /// Try to find a clip based on the search `loc`.
 ///
-/// If the clip is recognized as a URL, it leaves it as is.
+/// If the clip matches a URL, it is just returned.
 ///
 /// The actual search is done by searching for the lowest levenshtein distance.
 /// Ties are broken by using whichever clip has the longest match, followed by
-/// whichever clip has the shortest path, including the directory. In the case
-/// there is still a tie [`FindClip::Multiple`] is returned.
+/// whichever clip has the shortest path, including the directory.
 ///
 /// As specified by [`triple_accel::levenshtein::levenshtein_search`], half the
 /// bytes of the search have to be found in the clip, or else it is possible
-/// for [`FindClip::None`] to be returned.
+/// for no clips to be returned.
 #[tracing::instrument(level = "info", ret)]
-pub fn find_clip(loc: &OsStr) -> FindClip {
+pub fn search_clips(loc: &OsStr) -> Vec<OsString> {
 	if URL.is_match(&loc.to_string_lossy()) {
-		return FindClip::One(loc.to_owned());
+		return vec![loc.to_owned()];
 	}
 
-	let top_two = WalkDir::new(&*CLIP_PATH)
+	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
 		.filter_map(|f| f.tap_err(|e| error!("{:?}", e)).ok())
 		.filter(|f| f.file_type().is_file())
 		// calculate the levenshtein distance of each file
 		// break ties by prioritizing longest length of match
 		// followed by shortest length of clip path
-		.filter_map(|f| {
+		.min_set_by_key(|f| {
 			let path = f.path().to_string_lossy();
 
 			let leven = triple_accel::levenshtein::levenshtein_search(
 				loc.to_string_lossy().as_bytes(),
 				path.as_bytes(),
 			)
-			.next()?;
+			.next();
 
-			Some(OrdKey {
-				key: (leven.k, -((leven.end - leven.start) as isize), path.len()),
-				value: f,
-			})
+			match leven {
+				Some(leven) => (leven.k, -((leven.end - leven.start) as isize), path.len()),
+				None => (u32::MAX, isize::MAX, usize::MAX),
+			}
 		})
-		.k_smallest(2)
-		.collect_vec();
-
-	debug!("Found the follwing top two clips: {:?}", top_two);
-
-	if top_two.is_empty() {
-		FindClip::None
-	} else if top_two.len() > 1 && top_two[0].key == top_two[1].key {
-		FindClip::Multiple(
-			top_two[0]
-				.value
-				.path()
+		.into_iter()
+		.map(|f| {
+			f.path()
 				.strip_prefix(&*CLIP_PATH)
 				.unwrap()
 				.with_extension("")
-				.into(),
-			top_two[1]
-				.value
-				.path()
-				.strip_prefix(&*CLIP_PATH)
-				.unwrap()
-				.with_extension("")
-				.into(),
-		)
-	} else {
-		FindClip::One(
-			top_two[0]
-				.value
-				.path()
-				.strip_prefix(&*CLIP_PATH)
-				.unwrap()
-				.with_extension("")
-				.into(),
-		)
-	}
+				.into()
+		})
+		.collect_vec()
 }
 
 pub fn get_clip(loc: &OsStr) -> Option<OsString> {
@@ -595,8 +610,6 @@ pub fn valid_clip(path: &Path) -> bool {
 mod tests {
 	use super::*;
 
-	use std::time::Duration;
-
 	const URLS: &[&str] = &[
 		// youtube single video
 		"https://www.youtube.com/watch?v=k2mFvwDTTt0",
@@ -610,40 +623,15 @@ mod tests {
 		"https://open.spotify.com/playlist/2O18dCV9uoGTyxN5HLJkTo",
 	];
 
-	/// Test to make sure response is not blocked by long callback
+	// test to make sure inputs equal count
 	#[tokio::test]
-	async fn play_sources_long_callback() {
-		let threshold = Duration::from_millis(2000);
-
-		let callback = move |_| async move { tokio::time::sleep(threshold).await };
-
+	async fn play_sources_count() {
 		let keys: ArcRw<_> = std::sync::Arc::new(read_toml::<Keys, _>("keys.toml").unwrap().into());
 
-		let mut join_set = tokio::task::JoinSet::new();
-
 		for url in URLS {
-			let k = keys.clone();
+			let sources = get_inputs(keys.clone(), url, true, None).await.unwrap();
 
-			join_set.spawn(async move {
-				tokio::time::timeout(threshold, async move {
-					play_sources(k, url, true, callback).await.unwrap();
-				})
-				.await
-				.unwrap_or_else(|_| {
-					panic!("play_sources took too long responding with a long callback ({url})")
-				});
-			});
+			assert_eq!(sources.count, sources.inputs.count())
 		}
-
-		let mut okay = true;
-
-		while let Some(join) = join_set.join_next().await {
-			if let Err(e) = join {
-				println!("Error joining: {e}");
-				okay = false;
-			}
-		}
-
-		assert!(okay);
 	}
 }

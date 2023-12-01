@@ -12,15 +12,13 @@ use itertools::Itertools;
 
 use tracing::debug;
 
-use reqwest::Client;
-
 use serde::Deserialize;
 
-use songbird::input::Metadata;
+use songbird::input::{AuxMetadata, YoutubeDl};
 
 use std::time::{Duration, Instant};
 
-use crate::youtube::YtdlSearchLazy;
+use crate::{audio::ComposeWithMetadata, youtube::compose_yt_search_with_meta, REQWEST_CLIENT};
 
 use api::{Album, Playlist, Track};
 
@@ -70,7 +68,7 @@ impl SpotifyToken {
 	pub async fn new(api: &SpotifyApi) -> reqwest::Result<Self> {
 		debug!("Fetching spotify token...");
 
-		let response = reqwest::Client::new()
+		let response = REQWEST_CLIENT
 			.post("https://accounts.spotify.com/api/token")
 			.basic_auth(&api.client_id, Some(&api.client_secret))
 			.header("content-type", "application/x-www-form-urlencoded")
@@ -105,7 +103,7 @@ impl SpotifyToken {
 	}
 }
 
-impl From<&Track> for YtdlSearchLazy {
+impl From<&Track> for ComposeWithMetadata<YoutubeDl> {
 	/// Convert a spotify track into a youtube search that songbird can use.
 	fn from(track: &Track) -> Self {
 		let artist = if track.artists.is_empty() {
@@ -114,13 +112,13 @@ impl From<&Track> for YtdlSearchLazy {
 			Some(track.artists.iter().map(|a| &a.name).join(", "))
 		};
 
-		Self::new(
+		compose_yt_search_with_meta(
 			format!(
 				"{} {}",
 				track.name,
 				track.artists.iter().map(|a| &a.name).join(" ")
 			),
-			Metadata {
+			AuxMetadata {
 				title: Some(track.name.clone()),
 				artist,
 				source_url: Some(format!("https://open.spotify.com/track/{}", track.id)),
@@ -135,7 +133,7 @@ impl From<&Track> for YtdlSearchLazy {
 ///
 /// See <https://developer.spotify.com/documentation/web-api/reference/#/operations/get-playlist>
 pub async fn playlist(token: &str, playlist_id: &str) -> reqwest::Result<Playlist> {
-	Client::new()
+	REQWEST_CLIENT
 		.get(format!(
 			"https://api.spotify.com/v1/playlists/{}",
 			playlist_id
@@ -151,7 +149,7 @@ pub async fn playlist(token: &str, playlist_id: &str) -> reqwest::Result<Playlis
 ///
 /// See <https://developer.spotify.com/documentation/web-api/reference/#/operations/get-an-album>
 pub async fn album(token: &str, album_id: &str) -> reqwest::Result<Album> {
-	Client::new()
+	REQWEST_CLIENT
 		.get(format!("https://api.spotify.com/v1/albums/{}", album_id))
 		.bearer_auth(token)
 		.send()
@@ -164,7 +162,7 @@ pub async fn album(token: &str, album_id: &str) -> reqwest::Result<Album> {
 ///
 /// See <https://developer.spotify.com/documentation/web-api/reference/#/operations/get-track>
 pub async fn track(token: &str, track_id: &str) -> reqwest::Result<Track> {
-	Client::new()
+	REQWEST_CLIENT
 		.get(format!("https://api.spotify.com/v1/tracks/{}", track_id))
 		.bearer_auth(token)
 		.send()

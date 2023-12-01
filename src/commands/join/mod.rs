@@ -20,15 +20,13 @@ pub const fn banish_help() -> &'static str {
 
 #[tracing::instrument(level = "info", ret, skip(state))]
 pub async fn summon(state: &BotState, source: &Source) -> Result<Response, Response> {
-	let guild_id = source
+	let guild_id: serenity::model::id::GuildId = source
 		.guild_id
 		.ok_or("This command is only available in guilds")?;
 
-	let guild = guild_id
+	let channel_id = guild_id
 		.to_guild_cached(&state.cache)
-		.ok_or("Internal bot error")?;
-
-	let channel_id = guild
+		.ok_or("Internal bot error")?
 		.voice_states
 		.get(&source.user_id)
 		.and_then(|voice_state| voice_state.channel_id);
@@ -36,9 +34,9 @@ pub async fn summon(state: &BotState, source: &Source) -> Result<Response, Respo
 	let connect_to = channel_id.ok_or("Not in a voice channel")?;
 
 	let songbird = state.data.read().await.clone_expect::<SongbirdKey>();
-	let (_call, join_result) = songbird.join(guild_id, connect_to).await;
-
-	join_result
+	songbird
+		.join(guild_id, connect_to)
+		.await
 		.tap_err(|e| error!("Error joining the channel: {e:?}"))
 		.map_err(|_| "Error joining the channel")?;
 

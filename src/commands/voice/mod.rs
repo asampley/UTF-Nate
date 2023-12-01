@@ -5,7 +5,7 @@ use tracing::error;
 
 use serde::{Deserialize, Serialize};
 
-use songbird::error::TrackError;
+use songbird::tracks::ControlError;
 use songbird::SongbirdKey;
 
 use std::fs::read_dir;
@@ -108,12 +108,12 @@ pub async fn volume(
 
 			Ok(format!(
 				"Play volume: {}\nClip volume: {}",
-				Config::get_volume_play(&pool, &guild_id)
+				Config::get_volume_play(&pool, guild_id)
 					.await
 					.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
 					.map_err(|_| "Unable to retrieve volume")?
 					.unwrap_or(0.5),
-				Config::get_volume_clip(&pool, &guild_id)
+				Config::get_volume_clip(&pool, guild_id)
 					.await
 					.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
 					.map_err(|_| "Unable to retrieve volume")?
@@ -127,7 +127,7 @@ pub async fn volume(
 			Ok(match style {
 				PlayStyle::Clip => format!(
 					"Clip volume: {}",
-					Config::get_volume_clip(&pool, &guild_id)
+					Config::get_volume_clip(&pool, guild_id)
 						.await
 						.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
 						.map_err(|_| "Unable to retrieve volume")?
@@ -135,7 +135,7 @@ pub async fn volume(
 				),
 				PlayStyle::Play => format!(
 					"Play volume: {}",
-					Config::get_volume_play(&pool, &guild_id)
+					Config::get_volume_play(&pool, guild_id)
 						.await
 						.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
 						.map_err(|_| "Unable to retrieve volume")?
@@ -167,7 +167,7 @@ pub async fn volume(
 						.current_queue()
 					{
 						handle.set_volume(volume).or_else(|e| match e {
-							TrackError::Finished => Ok(()),
+							ControlError::Finished => Ok(()),
 							_ => Err("Error setting volume"),
 						})?;
 
@@ -198,8 +198,12 @@ pub async fn volume(
 				let pool = data_lock.clone_expect::<Pool>();
 
 				match style {
-					PlayStyle::Clip => Config::set_volume_clip(&pool, &guild_id, volume).await,
-					PlayStyle::Play => Config::set_volume_play(&pool, &guild_id, volume).await,
+					PlayStyle::Clip => {
+						Config::set_volume_clip(&pool, guild_id, volume.into()).await
+					}
+					PlayStyle::Play => {
+						Config::set_volume_play(&pool, guild_id, volume.into()).await
+					}
 				}
 				.tap_err(|e| error!("Error setting volume: {:?}", e))
 				.map_err(|_| "Error setting volume")?;

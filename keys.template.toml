@@ -11,7 +11,7 @@ connect_string = "postgresql://utf_nate:password@localhost/utf_nate"
 # sqlite file for single instance, but no external setup required
 #connect_string = "sqlite://utf-nate.db"
 # sqlite in memory, which gets wiped on restart
-#connect_string = "sqlite::memory:"
+#connect_string = "sqlite:file:test?mode=memory&cache=shared"
 
 # Optional youtube API, required for play commands
 # [youtube]

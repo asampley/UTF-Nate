@@ -7,63 +7,42 @@ pub mod api;
 
 use futures::Stream;
 use itertools::Itertools;
-use tracing::{error, info};
-
-use reqwest::Client;
 
 use serde::{Deserialize, Serialize};
 
-use serenity::async_trait;
-
 use songbird::constants::SAMPLE_RATE_RAW;
-use songbird::input::codec::Codec;
-use songbird::input::restartable::{Restart, Restartable};
-use songbird::input::{ytdl, ytdl_search, Container, Input, Metadata};
-
-use std::time::Duration;
+use songbird::input::{AuxMetadata, YoutubeDl};
 
 use api::{ListResponse, Playlist, PlaylistItem, Video};
+
+use std::fmt::Display;
+
+use crate::audio::ComposeWithMetadata;
+use crate::REQWEST_CLIENT;
 
 #[derive(Clone, Deserialize)]
 pub struct YoutubeApi {
 	pub key: String,
 }
 
-pub struct YtdlLazy {
+pub fn compose_yt_url(
 	uri: String,
-	metadata: Metadata,
+	mut aux_metadata: AuxMetadata,
+) -> ComposeWithMetadata<YoutubeDl> {
+	aux_metadata.channels = Some(2);
+	aux_metadata.sample_rate = Some(SAMPLE_RATE_RAW as u32);
+
+	ComposeWithMetadata::new(YoutubeDl::new(REQWEST_CLIENT.clone(), uri), aux_metadata)
 }
 
-pub struct YtdlSearchLazy {
-	search: String,
-	metadata: Metadata,
-}
-
-impl YtdlLazy {
-	pub fn new(uri: String, mut metadata: Metadata) -> Self {
-		metadata.channels = Some(2);
-		metadata.sample_rate = Some(SAMPLE_RATE_RAW as u32);
-
-		Self { uri, metadata }
-	}
-
-	pub async fn into_input(self) -> songbird::input::error::Result<Input> {
-		self.into_restartable().await.map(|v| v.into())
-	}
-
-	pub async fn into_restartable(self) -> songbird::input::error::Result<Restartable> {
-		Restartable::new(self, true).await
-	}
-}
-
-impl From<Video> for YtdlLazy {
+impl From<Video> for ComposeWithMetadata<YoutubeDl> {
 	fn from(item: Video) -> Self {
 		let url = format!("https://youtu.be/{}", item.id);
 		let tn = item.snippet.thumbnails;
 
-		Self::new(
+		compose_yt_url(
 			url.clone(),
-			Metadata {
+			AuxMetadata {
 				channel: Some(item.snippet.channel_title),
 				source_url: Some(url),
 				title: Some(item.snippet.title),
@@ -82,14 +61,14 @@ impl From<Video> for YtdlLazy {
 	}
 }
 
-impl From<PlaylistItem> for YtdlLazy {
+impl From<PlaylistItem> for ComposeWithMetadata<YoutubeDl> {
 	fn from(item: PlaylistItem) -> Self {
 		let url = format!("https://youtu.be/{}", item.content_details.video_id);
 		let tn = item.snippet.thumbnails;
 
-		Self::new(
+		compose_yt_url(
 			url.clone(),
-			Metadata {
+			AuxMetadata {
 				channel: item.snippet.video_owner_channel_title,
 				source_url: Some(url),
 				title: Some(item.snippet.title),
@@ -107,60 +86,30 @@ impl From<PlaylistItem> for YtdlLazy {
 	}
 }
 
-impl YtdlSearchLazy {
-	pub fn new(search: String, mut metadata: Metadata) -> Self {
+pub fn compose_yt_search(search: impl Display) -> YoutubeDl {
+	fn inner(search: String) -> YoutubeDl {
+		YoutubeDl::new(REQWEST_CLIENT.clone(), search)
+	}
+
+	let search = format!("ytsearch:{search}");
+
+	inner(search)
+}
+
+pub fn compose_yt_search_with_meta(
+	search: impl Display,
+	metadata: AuxMetadata,
+) -> ComposeWithMetadata<YoutubeDl> {
+	fn inner(search: String, mut metadata: AuxMetadata) -> ComposeWithMetadata<YoutubeDl> {
 		metadata.channels = Some(2);
 		metadata.sample_rate = Some(SAMPLE_RATE_RAW as u32);
 
-		Self { search, metadata }
+		ComposeWithMetadata::new(YoutubeDl::new(REQWEST_CLIENT.clone(), search), metadata)
 	}
 
-	pub async fn into_input(self) -> songbird::input::error::Result<Input> {
-		self.into_restartable().await.map(|v| v.into())
-	}
+	let search = format!("ytsearch:{search}");
 
-	pub async fn into_restartable(self) -> songbird::input::error::Result<Restartable> {
-		Restartable::new(self, true).await
-	}
-}
-
-#[async_trait]
-impl Restart for YtdlLazy {
-	async fn call_restart(
-		&mut self,
-		_time: Option<Duration>,
-	) -> songbird::input::error::Result<Input> {
-		ytdl(&self.uri).await
-	}
-
-	async fn lazy_init(
-		&mut self,
-	) -> songbird::input::error::Result<(Option<Metadata>, Codec, Container)> {
-		Ok((Some(self.metadata.clone()), Codec::FloatPcm, Container::Raw))
-	}
-}
-
-#[async_trait]
-impl Restart for YtdlSearchLazy {
-	async fn call_restart(
-		&mut self,
-		_time: Option<Duration>,
-	) -> songbird::input::error::Result<Input> {
-		let input = ytdl_search(&self.search).await?;
-
-		match input.metadata.source_url {
-			Some(ref url) => info!("Youtube lazy search \"{}\" found {}", self.search, url),
-			None => error!("Youtube lazy search \"{}\" URL not set", self.search),
-		}
-
-		Ok(input)
-	}
-
-	async fn lazy_init(
-		&mut self,
-	) -> songbird::input::error::Result<(Option<Metadata>, Codec, Container)> {
-		Ok((Some(self.metadata.clone()), Codec::FloatPcm, Container::Raw))
-	}
+	inner(search, metadata)
 }
 
 pub fn stream_paged<'a, T, Q>(
@@ -176,7 +125,7 @@ where
 			None
 		} else {
 			let response: Result<_, _> = try {
-				Client::new()
+				REQWEST_CLIENT
 					.get(url)
 					.query(&query)
 					.query(&page_token.map(|next| [("pageToken", next)]))
@@ -195,7 +144,7 @@ where
 }
 
 pub async fn playlist(api: &YoutubeApi, playlist_id: &str) -> reqwest::Result<Option<Playlist>> {
-	Ok(Client::new()
+	Ok(REQWEST_CLIENT
 		.get("https://www.googleapis.com/youtube/v3/playlists")
 		.query(&[
 			("key", api.key.as_ref()),
@@ -227,7 +176,7 @@ pub fn playlist_items<'a>(
 }
 
 pub async fn video(api: &YoutubeApi, video_id: &str) -> reqwest::Result<Option<Video>> {
-	Ok(Client::new()
+	Ok(REQWEST_CLIENT
 		.get("https://www.googleapis.com/youtube/v3/videos")
 		.query(&[
 			("key", api.key.as_ref()),
@@ -256,7 +205,7 @@ pub async fn videos(
 		("part", "contentDetails,snippet"),
 	];
 
-	Client::new()
+	REQWEST_CLIENT
 		.get(url)
 		.query(&query_base)
 		.query(&[("id", &video_ids.into_iter().join(","))])

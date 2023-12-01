@@ -1,8 +1,8 @@
-use poise::{Context, ReplyHandle};
+use poise::{Context, CreateReply, ReplyHandle};
 
 use serenity::async_trait;
-use serenity::builder::CreateEmbed;
-use serenity::utils::Color;
+use serenity::builder::{CreateEmbed, CreateMessage};
+use serenity::model::colour::Color;
 
 use std::fmt::Debug;
 
@@ -35,7 +35,7 @@ impl From<&str> for Response {
 }
 
 impl Response {
-	fn embed_color<'a>(&self, color: Color, create: &'a mut CreateEmbed) -> &'a mut CreateEmbed {
+	fn embed_color(&self, color: Color, create: CreateEmbed) -> CreateEmbed {
 		// TODO see if this constant is defined somewhere
 		if self.text.len() <= 4096 {
 			create.color(color).description(&self.text)
@@ -46,18 +46,15 @@ impl Response {
 		}
 	}
 
-	fn embed_err<'a>(&self, create: &'a mut CreateEmbed) -> &'a mut CreateEmbed {
+	fn embed_err(&self, create: CreateEmbed) -> CreateEmbed {
 		self.embed_color(ERR_COLOR, create)
 	}
 
-	fn embed_ok<'a>(&self, create: &'a mut CreateEmbed) -> &'a mut CreateEmbed {
+	fn embed_ok(&self, create: CreateEmbed) -> CreateEmbed {
 		self.embed_color(OK_COLOR, create)
 	}
 
-	fn embed<'a>(
-		result: Result<&Response, &Response>,
-		create: &'a mut CreateEmbed,
-	) -> &'a mut CreateEmbed {
+	fn embed(result: Result<&Response, &Response>, create: CreateEmbed) -> CreateEmbed {
 		match result {
 			Ok(response) => response.embed_ok(create),
 			Err(response) => response.embed_err(create),
@@ -94,9 +91,10 @@ impl Respond for (&serenity::client::Context, serenity::model::id::ChannelId) {
 		result: Result<&Response, &Response>,
 	) -> Result<Self::Value, Self::Error> {
 		self.1
-			.send_message(self.0, |message| {
-				message.embed(|embed| Response::embed(result, embed))
-			})
+			.send_message(
+				self.0,
+				CreateMessage::new().embed(Response::embed(result, CreateEmbed::new())),
+			)
 			.await
 	}
 }
@@ -113,7 +111,7 @@ where
 		&self,
 		result: Result<&Response, &Response>,
 	) -> Result<Self::Value, Self::Error> {
-		self.send(|reply| reply.embed(|embed| Response::embed(result, embed)))
+		self.send(CreateReply::default().embed(Response::embed(result, CreateEmbed::new())))
 			.await
 	}
 }
