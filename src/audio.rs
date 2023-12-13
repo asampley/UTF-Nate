@@ -475,7 +475,26 @@ pub async fn get_inputs(
 					inputs: Box::new(std::iter::once_with(|| compose.into())),
 				})
 			}
-			None => Err(AudioError::NotFound),
+			// try to get an exact match on the clip, else fail
+			None => {
+				let clip = get_clip(dbg!(loc.as_ref())).ok_or(AudioError::NotFound)?;
+
+				let aux_metadata = AuxMetadata {
+					title: Some(loc.to_owned()),
+					..Default::default()
+				};
+
+				let compose =
+					ComposeWithMetadata::new(songbird::input::File::new(clip), aux_metadata);
+
+				Ok(SourceInfo {
+					title: Some(loc.to_owned()),
+					url: None,
+					count: 1,
+					duration: None,
+					inputs: Box::new(std::iter::once_with(|| compose.into())),
+				})
+			}
 		}
 	}
 }
@@ -530,6 +549,9 @@ pub fn warn_exact_name_finds_different_clip() {
 ///
 /// If the clip matches a URL, it is just returned.
 ///
+/// If the clip matches a file exactly (excluding extension), that is returned
+/// skipping the search.
+///
 /// The actual search is done by searching for the lowest levenshtein distance.
 /// Ties are broken by using whichever clip has the longest match, followed by
 /// whichever clip has the shortest path, including the directory.
@@ -541,6 +563,11 @@ pub fn warn_exact_name_finds_different_clip() {
 pub fn search_clips(loc: &OsStr) -> Vec<OsString> {
 	if URL.is_match(&loc.to_string_lossy()) {
 		return vec![loc.to_owned()];
+	}
+
+	// short circuit exact match
+	if let Some(path) = get_clip(loc) {
+		return vec![path];
 	}
 
 	WalkDir::new(&*CLIP_PATH)
