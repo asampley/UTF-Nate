@@ -232,7 +232,7 @@ impl Config {
 	pub async fn set_volume_play<'e, E: Executor<'e>>(
 		executor: E,
 		guild_id: GuildId,
-		volume: f64,
+		volume: f32,
 	) -> Result<(), ConfigError> {
 		Self::set_by_id(
 			executor,
@@ -251,7 +251,7 @@ impl Config {
 	pub async fn get_volume_play<'e, E: Executor<'e>>(
 		executor: E,
 		guild_id: GuildId,
-	) -> Result<Option<f64>, ConfigError> {
+	) -> Result<Option<f32>, ConfigError> {
 		Self::get_by_id(
 			executor,
 			&Self::read_query("get-volume-play.sql")?,
@@ -268,7 +268,7 @@ impl Config {
 	pub async fn set_volume_clip<'e, E: Executor<'e>>(
 		executor: E,
 		guild_id: GuildId,
-		volume: f64,
+		volume: f32,
 	) -> Result<(), ConfigError> {
 		Self::set_by_id(
 			executor,
@@ -287,7 +287,7 @@ impl Config {
 	pub async fn get_volume_clip<'e, E: Executor<'e>>(
 		executor: E,
 		guild_id: GuildId,
-	) -> Result<Option<f64>, ConfigError> {
+	) -> Result<Option<f32>, ConfigError> {
 		Self::get_by_id(
 			executor,
 			&Self::read_query("get-volume-clip.sql")?,

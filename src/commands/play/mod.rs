@@ -83,7 +83,6 @@ pub async fn play(
 		.tap_err(|e| error!("Unable to get volume: {:?}", e))
 		.ok()
 		.flatten()
-		.map(|f| f as f32)
 		.unwrap_or(0.5);
 
 		let keys = data_lock.clone_expect::<Keys>();

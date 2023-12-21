@@ -188,20 +188,22 @@ impl SerenityEventHandler for Handler {
 				if let Some(call) = songbird.get(guild_id) {
 					match get_inputs(keys, clip.as_ref(), false, None).await {
 						Ok(mut info) => {
-							voice_guild
+							let _ = voice_guild
 								.add_audio(
 									call.lock().await.play_input(info.inputs.nth(0).unwrap()),
-									volume as f32,
+									volume,
 								)
-								.expect("Error playing input");
-							info!(
-								"Playing {} for user ({})",
-								match io {
-									IOClip::Intro => "intro",
-									IOClip::Outro => "outro",
-								},
-								new_state.user_id
-							);
+								.tap_err(|e| error!("Error playing input: {:?}", e))
+								.tap_ok(|_| {
+									info!(
+										"Playing {} for user ({})",
+										match io {
+											IOClip::Intro => "intro",
+											IOClip::Outro => "outro",
+										},
+										new_state.user_id
+									)
+								});
 						}
 						Err(reason) => {
 							error!(
