@@ -18,7 +18,7 @@ use crate::audio::{get_inputs, SearchSource};
 use crate::audio::{AudioError, PlayStyle};
 use crate::commands::{BotState, Source};
 use crate::configuration::Config;
-use crate::data::QueueData;
+use crate::data::TrackMetadata;
 use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
 use crate::util::write_duration;
 use crate::util::{GetExpect, Response};
@@ -179,25 +179,26 @@ pub async fn play(
 
 async fn queue_input(
 	call: Arc<Mutex<Call>>,
-	voice_guild_arc: ArcRw<VoiceGuild>,
 	respond: Option<(Arc<Http>, ChannelId)>,
 	mut input: Input,
 	volume: f32,
 	play_index: Option<usize>,
 ) -> bool {
-	let queue_data = QueueData {
-		aux_metadata: input
-			.aux_metadata()
-			.await
-			.tap_err(|e| error!("Unable to fetch metadata: {:?}", e))
-			.ok(),
-	};
+	let aux_metadata = input
+		.aux_metadata()
+		.await
+		.tap_err(|e| error!("Unable to fetch metadata: {:?}", e))
+		.ok();
 
 	let track = Track::from(input).volume(volume);
 
 	let mut lock = call.lock().await;
 
 	let handle = lock.enqueue(track).await;
+
+	if let Some(meta) = aux_metadata {
+		handle.typemap().write().await.insert::<TrackMetadata>(meta);
+	}
 
 	if let Some(index) = play_index {
 		if index < lock.queue().len() {
@@ -214,10 +215,9 @@ async fn queue_input(
 		}
 	}
 
-	voice_guild_arc
-		.write()
-		.await
-		.add_queue_data(handle, queue_data, respond);
+	if let Err(e) = VoiceGuild::add_error_handler(handle, respond) {
+		error!("Error setting up error handler for track: {:?}", e);
+	}
 
 	true
 }
@@ -225,7 +225,6 @@ async fn queue_input(
 async fn immediate_input(
 	call: Arc<Mutex<Call>>,
 	voice_guild_arc: ArcRw<VoiceGuild>,
-	respond: Option<(Arc<Http>, ChannelId)>,
 	input: Input,
 	volume: f32,
 ) -> bool {
@@ -235,7 +234,7 @@ async fn immediate_input(
 	voice_guild_arc
 		.write()
 		.await
-		.add_audio(handle, volume, respond)
+		.add_audio(handle, volume)
 		.is_ok()
 }
 
@@ -249,9 +248,7 @@ async fn play_input(
 	play_index: Option<usize>,
 ) -> bool {
 	match play_style {
-		PlayStyle::Clip => immediate_input(call, voice_guild_arc, respond, input, volume).await,
-		PlayStyle::Play => {
-			queue_input(call, voice_guild_arc, respond, input, volume, play_index).await
-		}
+		PlayStyle::Clip => immediate_input(call, voice_guild_arc, input, volume).await,
+		PlayStyle::Play => queue_input(call, respond, input, volume, play_index).await,
 	}
 }

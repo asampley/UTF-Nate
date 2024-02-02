@@ -26,7 +26,7 @@ use crate::Pool;
 
 use crate::audio::{clip_iter, get_inputs};
 use crate::configuration::Config;
-use crate::data::{VoiceGuilds, VoiceUserCache};
+use crate::data::{VoiceGuild, VoiceGuilds, VoiceUserCache};
 use crate::util::*;
 use crate::Keys;
 
@@ -200,11 +200,9 @@ impl SerenityEventHandler for Handler {
 								IOClip::Outro => "outro",
 							};
 
-							match voice_guild.add_audio(
-								call.lock().await.play_input(info.inputs.nth(0).unwrap()),
-								volume,
-								respond.clone(),
-							) {
+							let audio = call.lock().await.play_input(info.inputs.nth(0).unwrap());
+
+							match voice_guild.add_audio(audio.clone(), volume) {
 								Err(e) => {
 									check_msg(
 										respond
@@ -217,6 +215,13 @@ impl SerenityEventHandler for Handler {
 									error!("Error playing input: {:?}", e)
 								}
 								Ok(_) => {
+									if let Err(e) = VoiceGuild::add_error_handler(audio, respond) {
+										error!(
+											"Error setting up a handler for the {}: {:?}",
+											io_str, e
+										);
+									}
+
 									info!("Playing {} for user ({})", io_str, new_state.user_id)
 								}
 							}

@@ -8,6 +8,7 @@ mod respond;
 
 pub use respond::{Respond, Response};
 
+use songbird::input::AuxMetadata;
 use tracing::error;
 
 use serde::Deserialize;
@@ -147,4 +148,27 @@ pub fn write_duration(write: &mut impl std::fmt::Write, duration: Duration) -> s
 	} else {
 		write!(write, "{m}:{s:>02}")
 	}
+}
+
+/// Format track metadata in markdown, as the title (potentially linked), and
+/// the duration.
+///
+/// If the title is unavailable it is named "Unknown".
+///
+/// All other fields if unavailable are omitted.
+pub fn write_track(write: &mut impl std::fmt::Write, meta: &AuxMetadata) -> std::fmt::Result {
+	let title = meta.title.as_deref().unwrap_or("Unknown");
+
+	match &meta.source_url {
+		Some(url) => write!(write, " [{title}]({url})")?,
+		None => write!(write, " {title}")?,
+	}
+
+	if let Some(duration) = meta.duration {
+		write!(write, " (")?;
+		write_duration(write, duration)?;
+		write!(write, ")")?;
+	};
+
+	Ok(())
 }

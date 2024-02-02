@@ -1,22 +1,20 @@
 use std::collections::HashSet;
 
-use itertools::Itertools;
-
 use rand::Rng;
 
 use serde::{Deserialize, Serialize};
 
 use songbird::SongbirdKey;
 
-use tap::{TapFallible, TapOptional};
+use tap::TapFallible;
 use thiserror::Error;
 
 use tracing::{error, info};
 
 use crate::commands::{BotState, Source};
-use crate::data::{QueueData, VoiceGuilds};
+use crate::data::{TrackMetadata, VoiceGuilds};
 use crate::parser::{NumOrRange, Selection};
-use crate::util::{write_duration, GetExpect, Response};
+use crate::util::{write_track, GetExpect, Response};
 
 #[cfg(feature = "http-interface")]
 pub mod http;
@@ -258,16 +256,9 @@ pub async fn queue(
 		return Ok("Nothing queued".into());
 	}
 
-	let voice_guilds = lock.clone_expect::<VoiceGuilds>();
+	let mut response = format!("Current queue ({} total):\n", len);
 
-	let voice_guild = voice_guilds
-		.get(&guild_id)
-		.tap_none(|| error!("VoiceGuild not initialized while trying to read queue"))
-		.ok_or("Internal bot error")?;
-
-	let voice_guild = voice_guild.read().await;
-
-	let queue = args
+	let tracks = args
 		.selection
 		.0
 		.iter()
@@ -275,38 +266,21 @@ pub async fn queue(
 			NumOrRange::Num(n) => *n..=*n,
 			NumOrRange::Range(r) => r.clone(),
 		})
-		.filter_map(|i| current_queue.get(i).map(|t| (i, t)))
-		.map(|(i, track)| {
-			use std::fmt::Write;
+		.filter_map(|i| current_queue.get(i).map(|t| (i, t)));
 
-			let mut listing = format!("{i}:");
+	for (i, track) in tracks {
+		use std::fmt::Write;
 
-			if let Some(QueueData {
-				aux_metadata: Some(meta),
-				..
-			}) = voice_guild.queue_data(track)
-			{
-				let title = meta.title.as_deref().unwrap_or("Unknown");
+		write!(response, "{i}:").unwrap();
 
-				match &meta.source_url {
-					Some(url) => write!(listing, " [{title}]({url})").unwrap(),
-					None => write!(listing, " {title}").unwrap(),
-				}
+		if let Some(meta) = track.typemap().read().await.get::<TrackMetadata>() {
+			write_track(&mut response, meta).unwrap();
+		} else {
+			response.push_str("No metadata");
+		}
+	}
 
-				if let Some(duration) = meta.duration {
-					listing.push_str(" (");
-					write_duration(&mut listing, duration).unwrap();
-					listing.push(')');
-				};
-			} else {
-				listing.push_str("No metadata");
-			}
-
-			listing
-		})
-		.join("\n");
-
-	Ok(format!("Current queue ({} total):\n{}\n", len, queue).into())
+	Ok(response.into())
 }
 
 #[tracing::instrument(level = "info", ret, skip(state))]
