@@ -141,8 +141,10 @@ async fn main() {
 		.compact()
 		.finish();
 
-	tracing::subscriber::set_global_default(subscriber)
-		.expect("unable to set default tracing subscriber");
+	if let Err(e) = tracing::subscriber::set_global_default(subscriber) {
+		error!("Unable to set default tracing subscriber: {:?}", e);
+		return;
+	}
 
 	if !OPT.no_check_clips {
 		// warn if there are duplicate clip names
@@ -270,7 +272,13 @@ async fn main() {
 			#[cfg(feature = "http-interface")]
 			let client_builder = client_builder.type_map_insert::<AeadKey>(encrypt::gen_key());
 
-			let mut client = client_builder.await.expect("Error starting bot");
+			let mut client = match client_builder.await {
+				Ok(client) => client,
+				Err(e) => {
+					error!("Error starting bot: {:?}", e);
+					return;
+				}
+			};
 
 			#[cfg(feature = "http-interface")]
 			if let Some(addr) = &CONFIG.http {
@@ -344,7 +352,13 @@ async fn main() {
 
 			while let Some(res) = join_set.join_next().await {
 				match res {
-					Ok(res) => res.expect("Failure in joined process"),
+					Ok(res) => match res {
+						Ok(_) => (),
+						Err(e) => {
+							error!("Failure in joined process: {:?}", e);
+							return;
+						}
+					},
 					Err(e) => error!("Failed to join: {}", e),
 				}
 			}

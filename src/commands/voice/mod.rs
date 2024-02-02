@@ -198,12 +198,8 @@ pub async fn volume(
 				let pool = data_lock.clone_expect::<Pool>();
 
 				match style {
-					PlayStyle::Clip => {
-						Config::set_volume_clip(&pool, guild_id, volume.into()).await
-					}
-					PlayStyle::Play => {
-						Config::set_volume_play(&pool, guild_id, volume.into()).await
-					}
+					PlayStyle::Clip => Config::set_volume_clip(&pool, guild_id, volume).await,
+					PlayStyle::Play => Config::set_volume_play(&pool, guild_id, volume).await,
 				}
 				.tap_err(|e| error!("Error setting volume: {:?}", e))
 				.map_err(|_| "Error setting volume")?;
