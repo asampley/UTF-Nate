@@ -278,6 +278,8 @@ pub async fn queue(
 		} else {
 			response.push_str("No metadata");
 		}
+
+		write!(response, "\n").unwrap();
 	}
 
 	Ok(response.into())
