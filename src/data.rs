@@ -22,6 +22,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::spotify::SpotifyApi;
+use crate::util::{check_msg, Respond};
 use crate::youtube::YoutubeApi;
 
 /// Authentication keys required to connect to assorted external interfaces.
@@ -81,7 +82,6 @@ pub struct VoiceGuild {
 }
 
 pub struct QueueData {
-	pub channel_id: Option<ChannelId>,
 	pub aux_metadata: Option<AuxMetadata>,
 }
 
@@ -103,10 +103,13 @@ impl VoiceGuild {
 	///
 	/// Before the audio is added, any audios that need to be cleaned up are
 	/// first cleared with [`Self::clean_audios`].
+	///
+	/// If a failure occurs, `respond` is used to convey the error to the user.
 	pub fn add_audio(
 		&mut self,
 		audio: TrackHandle,
 		volume: f32,
+		respond: impl Respond + Send + Sync + 'static,
 	) -> songbird::error::TrackResult<()> {
 		self.clean_audios();
 
@@ -114,7 +117,10 @@ impl VoiceGuild {
 		audio
 			.add_event(
 				songbird::Event::Track(songbird::TrackEvent::End),
-				TrackEventHandler(self.to_remove_sender.clone()),
+				TrackEventHandler {
+					respond,
+					done_sender: self.to_remove_sender.clone(),
+				},
 			)
 			.unwrap();
 		self.audios.push(audio);
@@ -132,7 +138,12 @@ impl VoiceGuild {
 	///
 	/// Before the data is added, any audios that need to be cleaned up are
 	/// first cleared with [`Self::clean_audios`].
-	pub fn add_queue_data(&mut self, track: TrackHandle, queue_data: QueueData) {
+	pub fn add_queue_data(
+		&mut self,
+		track: TrackHandle,
+		queue_data: QueueData,
+		respond: impl Respond + Send + Sync + 'static,
+	) {
 		self.clean_audios();
 
 		self.queue_data.insert(track.uuid(), queue_data);
@@ -140,7 +151,10 @@ impl VoiceGuild {
 		track
 			.add_event(
 				songbird::Event::Track(songbird::TrackEvent::End),
-				TrackEventHandler(self.to_remove_sender.clone()),
+				TrackEventHandler {
+					respond,
+					done_sender: self.to_remove_sender.clone(),
+				},
 			)
 			.unwrap();
 	}
@@ -201,10 +215,13 @@ impl VoiceGuild {
 
 /// Send events when the tracks finish, to remove them from a [`VoiceGuild`],
 /// for example.
-pub struct TrackEventHandler(mpsc::UnboundedSender<Uuid>);
+pub struct TrackEventHandler<R> {
+	respond: R,
+	done_sender: mpsc::UnboundedSender<Uuid>,
+}
 
 #[async_trait]
-impl songbird::EventHandler for TrackEventHandler {
+impl<R: Respond + Send + Sync> songbird::EventHandler for TrackEventHandler<R> {
 	async fn act(&self, ctx: &songbird::EventContext<'_>) -> Option<songbird::Event> {
 		if let songbird::EventContext::Track(track_events) = ctx {
 			for (state, handle) in track_events.iter() {
@@ -212,11 +229,17 @@ impl songbird::EventHandler for TrackEventHandler {
 
 				if state.playing.is_done() {
 					debug!("Sending event to clean {}", handle.uuid());
-					self.0.unbounded_send(handle.uuid()).unwrap();
+					self.done_sender.unbounded_send(handle.uuid()).unwrap();
 				}
 
 				if let PlayMode::Errored(e) = &state.playing {
-					error!("Error playing clip: {:?}", e);
+					check_msg(
+						self.respond
+							.respond_err(&format!("Error playing track: {}", e).into())
+							.await,
+					);
+
+					error!("Error playing track: {:?}", e);
 				}
 			}
 		};

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use serenity::http::Http;
 use serenity::model::id::ChannelId;
 use serenity::prelude::Mutex;
 
@@ -114,7 +115,7 @@ pub async fn play(
 								play_style,
 								call.clone(),
 								voice_guild_arc.clone(),
-								channel_id,
+								channel_id.map(|id| (state.http.clone(), id)),
 								input,
 								volume,
 								play_index,
@@ -179,7 +180,7 @@ pub async fn play(
 async fn queue_input(
 	call: Arc<Mutex<Call>>,
 	voice_guild_arc: ArcRw<VoiceGuild>,
-	channel_id: Option<ChannelId>,
+	respond: Option<(Arc<Http>, ChannelId)>,
 	mut input: Input,
 	volume: f32,
 	play_index: Option<usize>,
@@ -190,7 +191,6 @@ async fn queue_input(
 			.await
 			.tap_err(|e| error!("Unable to fetch metadata: {:?}", e))
 			.ok(),
-		channel_id,
 	};
 
 	let track = Track::from(input).volume(volume);
@@ -217,7 +217,7 @@ async fn queue_input(
 	voice_guild_arc
 		.write()
 		.await
-		.add_queue_data(handle, queue_data);
+		.add_queue_data(handle, queue_data, respond);
 
 	true
 }
@@ -225,6 +225,7 @@ async fn queue_input(
 async fn immediate_input(
 	call: Arc<Mutex<Call>>,
 	voice_guild_arc: ArcRw<VoiceGuild>,
+	respond: Option<(Arc<Http>, ChannelId)>,
 	input: Input,
 	volume: f32,
 ) -> bool {
@@ -234,7 +235,7 @@ async fn immediate_input(
 	voice_guild_arc
 		.write()
 		.await
-		.add_audio(handle, volume)
+		.add_audio(handle, volume, respond)
 		.is_ok()
 }
 
@@ -242,15 +243,15 @@ async fn play_input(
 	play_style: PlayStyle,
 	call: Arc<Mutex<Call>>,
 	voice_guild_arc: ArcRw<VoiceGuild>,
-	channel_id: Option<ChannelId>,
+	respond: Option<(Arc<Http>, ChannelId)>,
 	input: Input,
 	volume: f32,
 	play_index: Option<usize>,
 ) -> bool {
 	match play_style {
-		PlayStyle::Clip => immediate_input(call, voice_guild_arc, input, volume).await,
+		PlayStyle::Clip => immediate_input(call, voice_guild_arc, respond, input, volume).await,
 		PlayStyle::Play => {
-			queue_input(call, voice_guild_arc, channel_id, input, volume, play_index).await
+			queue_input(call, voice_guild_arc, respond, input, volume, play_index).await
 		}
 	}
 }

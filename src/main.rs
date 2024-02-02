@@ -293,6 +293,7 @@ async fn main() {
 				let state = commands::BotState {
 					data: client.data.clone(),
 					cache: client.cache.clone(),
+					http: client.http.clone(),
 				};
 
 				info!("Starting HTTP server");

@@ -19,6 +19,7 @@ pub mod voice;
 use futures::Future;
 
 use serenity::cache::Cache;
+use serenity::http::Http;
 use serenity::model::id::{ChannelId, GuildId, UserId};
 use serenity::prelude::{RwLock, TypeMap};
 
@@ -86,6 +87,7 @@ impl From<&Context<'_>> for Source {
 pub struct BotState {
 	pub data: Arc<RwLock<TypeMap>>,
 	pub cache: Arc<Cache>,
+	pub http: Arc<Http>,
 }
 
 impl From<Context<'_>> for BotState {
@@ -93,6 +95,7 @@ impl From<Context<'_>> for BotState {
 		Self {
 			data: ctx.serenity_context().data.clone(),
 			cache: ctx.serenity_context().cache.clone(),
+			http: ctx.serenity_context().http.clone(),
 		}
 	}
 }

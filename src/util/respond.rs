@@ -2,7 +2,11 @@ use poise::{Context, CreateReply, ReplyHandle};
 
 use serenity::async_trait;
 use serenity::builder::{CreateEmbed, CreateMessage};
+use serenity::http::Http;
+use serenity::model::channel::Message;
 use serenity::model::colour::Color;
+use serenity::model::id::ChannelId;
+use serenity::prelude::SerenityError;
 
 use std::fmt::Debug;
 
@@ -65,7 +69,7 @@ impl Response {
 #[async_trait]
 pub trait Respond {
 	type Value;
-	type Error;
+	type Error: Debug;
 
 	async fn respond(
 		&self,
@@ -81,19 +85,38 @@ pub trait Respond {
 	}
 }
 
+/// allow responding to be bypassed when the response possibility is unsure.
 #[async_trait]
-impl Respond for (&serenity::client::Context, serenity::model::id::ChannelId) {
-	type Value = serenity::model::channel::Message;
-	type Error = serenity::prelude::SerenityError;
+impl<R: Respond + Send + Sync> Respond for Option<R> {
+	type Value = Option<R::Value>;
+	type Error = R::Error;
 
 	async fn respond(
 		&self,
 		result: Result<&Response, &Response>,
 	) -> Result<Self::Value, Self::Error> {
-		self.1
+		match self {
+			Some(r) => r.respond(result).await.map(Some),
+			None => Ok(None),
+		}
+	}
+}
+
+#[async_trait]
+impl<H: AsRef<Http> + Send + Sync> Respond for (H, ChannelId) {
+	type Value = Message;
+	type Error = SerenityError;
+
+	async fn respond(
+		&self,
+		result: Result<&Response, &Response>,
+	) -> Result<Self::Value, Self::Error> {
+		self.0
+			.as_ref()
 			.send_message(
-				self.0,
-				CreateMessage::new().embed(Response::embed(result, CreateEmbed::new())),
+				self.1,
+				vec![],
+				&CreateMessage::new().embed(Response::embed(result, CreateEmbed::new())),
 			)
 			.await
 	}
@@ -105,7 +128,7 @@ where
 	U: Sync,
 {
 	type Value = ReplyHandle<'a>;
-	type Error = serenity::prelude::SerenityError;
+	type Error = SerenityError;
 
 	async fn respond(
 		&self,

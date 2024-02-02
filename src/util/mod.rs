@@ -18,6 +18,7 @@ use serenity::prelude::{TypeMap, TypeMapKey};
 use thiserror::Error;
 
 use std::fmt;
+use std::fmt::Debug;
 use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
 
@@ -85,7 +86,10 @@ pub fn sandboxed_join(sandbox: &Path, path: impl AsRef<Path>) -> Option<PathBuf>
 
 /// Log an error if `result` is an error. This is useful for checking if
 /// sending a message was successful.
-pub fn check_msg<T>(result: serenity::Result<T>) {
+pub fn check_msg<T, E>(result: Result<T, E>)
+where
+	E: Debug,
+{
 	if let Err(reason) = result {
 		error!("Error sending message: {:?}", reason);
 	}
