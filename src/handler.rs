@@ -207,7 +207,7 @@ impl SerenityEventHandler for Handler {
 									check_msg(
 										respond
 											.respond_err(
-												&format!("Error playing {}: {}", io_str, e).into(),
+												format!("Error playing {}: {}", io_str, e).into(),
 											)
 											.await,
 									);
@@ -297,7 +297,7 @@ pub async fn on_error(err: FrameworkError<'_>) {
 		E::GuildOnly { ctx, .. } | E::DmOnly { ctx, .. } | E::NsfwOnly { ctx, .. } => {
 			check_msg(
 				ctx.respond_err(
-					&format!(
+					format!(
 						"`{}{}` is only available in {}",
 						ctx.prefix(),
 						ctx.command().qualified_name,
@@ -347,13 +347,13 @@ pub async fn on_error(err: FrameworkError<'_>) {
 			)
 			.unwrap();
 
-			check_msg(ctx.respond_err(&response.into()).await);
+			check_msg(ctx.respond_err(response.into()).await);
 		}
 		E::UnknownCommand { ctx, msg, .. } => {
 			check_msg(
 				(*ctx, msg.channel_id)
 					.respond_err(
-						&"Unrecognized command. Use `help` to get a list of commands.".into(),
+						"Unrecognized command. Use `help` to get a list of commands.".into(),
 					)
 					.await,
 			);

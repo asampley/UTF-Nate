@@ -228,7 +228,7 @@ impl<R: Respond + Send + Sync> songbird::EventHandler for TrackErrorHandler<R> {
 
 					error!("{}", response);
 
-					check_msg(self.respond.respond_err(&response.into()).await);
+					check_msg(self.respond.respond_err(response.into()).await);
 				}
 			}
 		};

@@ -118,7 +118,7 @@ where
 		_ => ctx.defer_or_broadcast().await,
 	}?;
 
-	ctx.respond(f.await.as_ref()).await?;
+	ctx.respond(f.await).await?;
 
 	Ok(())
 }
