@@ -353,9 +353,7 @@ pub async fn on_error(err: FrameworkError<'_>) {
 			check_msg(
 				(*ctx, msg.channel_id)
 					.respond_err(
-						&"Unrecognized command. Use `help` to get a list of commands."
-							.to_string()
-							.into(),
+						&"Unrecognized command. Use `help` to get a list of commands.".into(),
 					)
 					.await,
 			);
