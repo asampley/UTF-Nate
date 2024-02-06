@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use thiserror::Error;
+
 use std::num::ParseIntError;
 
 use crate::util::Response;
@@ -13,26 +15,26 @@ pub struct UnicodeArgs {
 	codepoints: String,
 }
 
+#[derive(Debug, Error)]
 enum ParseCodeError {
-	ParseIntError(ParseIntError),
+	#[error("unable to parse int")]
+	ParseIntError(#[from] ParseIntError),
+
+	#[error("invalid unicode code")]
 	InvalidCode(u32),
 }
 
 fn parse_code(string: &str) -> Result<char, ParseCodeError> {
 	use ParseCodeError::*;
 
-	let code = if let Some(code) = string.strip_prefix("0x") {
-		u32::from_str_radix(code, 16)
-	} else {
-		string.parse()
-	};
+	let code = match string.strip_prefix("0x") {
+		Some(code) => u32::from_str_radix(code, 16),
+		None => string.parse(),
+	}?;
 
-	match code {
-		Err(parse_error) => Err(ParseIntError(parse_error)),
-		Ok(c) => match std::char::from_u32(c) {
-			None => Err(InvalidCode(c)),
-			Some(c) => Ok(c),
-		},
+	match std::char::from_u32(code) {
+		None => Err(InvalidCode(code)),
+		Some(c) => Ok(c),
 	}
 }
 

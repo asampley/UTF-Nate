@@ -13,7 +13,6 @@ use tracing::error;
 
 use serde::Deserialize;
 
-use serenity::async_trait;
 use serenity::prelude::{TypeMap, TypeMapKey};
 
 use thiserror::Error;
@@ -100,7 +99,6 @@ where
 ///
 /// This is useful for when the get function should never fail, but could if
 /// something was inconfigured correctly.
-#[async_trait]
 pub trait GetExpect {
 	fn get_expect<T: TypeMapKey>(&self) -> &<T as TypeMapKey>::Value;
 

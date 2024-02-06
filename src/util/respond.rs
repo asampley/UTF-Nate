@@ -1,6 +1,5 @@
 use poise::{Context, CreateReply, ReplyHandle};
 
-use serenity::async_trait;
 use serenity::builder::{CreateEmbed, CreateMessage};
 use serenity::http::Http;
 use serenity::model::channel::Message;
@@ -9,6 +8,7 @@ use serenity::model::id::ChannelId;
 use serenity::prelude::SerenityError;
 
 use std::fmt::Debug;
+use std::future::Future;
 
 const OK_COLOR: Color = Color::from_rgb(127, 255, 127);
 const ERR_COLOR: Color = Color::from_rgb(255, 127, 127);
@@ -66,27 +66,31 @@ impl Response {
 	}
 }
 
-#[async_trait]
-pub trait Respond {
+pub trait Respond: Sync {
 	type Value;
 	type Error: Debug;
 
-	async fn respond(
+	fn respond(
 		&self,
 		result: Result<&Response, &Response>,
-	) -> Result<Self::Value, Self::Error>;
+	) -> impl Future<Output = Result<Self::Value, Self::Error>> + Send;
 
-	async fn respond_ok(&self, response: &Response) -> Result<Self::Value, Self::Error> {
-		self.respond(Ok(response)).await
+	fn respond_ok(
+		&self,
+		response: &Response,
+	) -> impl Future<Output = Result<Self::Value, Self::Error>> + Send {
+		async move { self.respond(Ok(response)).await }
 	}
 
-	async fn respond_err(&self, response: &Response) -> Result<Self::Value, Self::Error> {
-		self.respond(Err(response)).await
+	fn respond_err(
+		&self,
+		response: &Response,
+	) -> impl Future<Output = Result<Self::Value, Self::Error>> + Send {
+		async move { self.respond(Err(response)).await }
 	}
 }
 
 /// allow responding to be bypassed when the response possibility is unsure.
-#[async_trait]
 impl<R: Respond + Send + Sync> Respond for Option<R> {
 	type Value = Option<R::Value>;
 	type Error = R::Error;
@@ -102,7 +106,6 @@ impl<R: Respond + Send + Sync> Respond for Option<R> {
 	}
 }
 
-#[async_trait]
 impl<H: AsRef<Http> + Send + Sync> Respond for (H, ChannelId) {
 	type Value = Message;
 	type Error = SerenityError;
@@ -122,7 +125,6 @@ impl<H: AsRef<Http> + Send + Sync> Respond for (H, ChannelId) {
 	}
 }
 
-#[async_trait]
 impl<'a, U, E> Respond for Context<'a, U, E>
 where
 	U: Sync,

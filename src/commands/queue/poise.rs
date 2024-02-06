@@ -4,7 +4,6 @@ use crate::parser::Selection;
 use crate::util::*;
 
 pub use super::LoopArg;
-pub use super::ParseLoopArgError;
 use super::{LoopArgs, SkipArgs};
 
 #[poise::command(
