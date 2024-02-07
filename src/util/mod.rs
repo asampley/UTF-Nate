@@ -61,8 +61,7 @@ pub fn sandboxed_join(sandbox: &Path, path: impl AsRef<Path>) -> Option<PathBuf>
 				.as_ref()
 				.components()
 				// normal or current dir okay
-				.map(|c| !matches!(c, Component::Normal(_) | Component::CurDir))
-				.any(|illegal| illegal);
+				.any(|c| !matches!(c, Component::Normal(_) | Component::CurDir));
 
 			// return false if any components are illegal
 			// prevents scanning the directory structure
@@ -169,4 +168,87 @@ pub fn write_track(write: &mut impl std::fmt::Write, meta: &AuxMetadata) -> std:
 	};
 
 	Ok(())
+}
+
+#[cfg(test)]
+mod test {
+	use std::{assert_matches::assert_matches, path::PathBuf};
+
+	use tap::TapFallible;
+
+	use tracing::error;
+	use walkdir::{DirEntry, WalkDir};
+
+	use super::sandboxed_join;
+
+	use crate::audio::CLIP_PATH;
+
+	fn test_files() -> impl Iterator<Item = DirEntry> {
+		WalkDir::new(&*CLIP_PATH)
+			.into_iter()
+			.filter_map(|f| f.tap_err(|e| error!("{:?}", e)).ok())
+			.filter(|f| f.file_type().is_file())
+	}
+
+	#[test]
+	fn test_case_not_empty() {
+		assert!(test_files().any(|_| true));
+	}
+
+	#[test]
+	fn sandboxed_fails_bad_path() {
+		for entry in test_files() {
+			let relative = entry
+				.path()
+				.strip_prefix(&*CLIP_PATH)
+				.expect("Unexpected prefix");
+			let non_existant = relative.with_extension("doesnotexist");
+
+			assert_eq!(None, sandboxed_join(&CLIP_PATH, &non_existant));
+		}
+	}
+
+	#[test]
+	fn sandboxed_gets_relative() {
+		for entry in test_files() {
+			let relative = entry
+				.path()
+				.strip_prefix(&*CLIP_PATH)
+				.expect("Unexpected prefix");
+
+			assert_matches!(sandboxed_join(&CLIP_PATH, relative), Some(_));
+		}
+	}
+
+	#[test]
+	fn sandboxed_fails_moving_up() {
+		for entry in test_files() {
+			let relative = entry
+				.path()
+				.strip_prefix(&*CLIP_PATH)
+				.expect("Unexpected prefix");
+			let relative = [
+				"..".as_ref(),
+				CLIP_PATH.components().last().unwrap().as_ref(),
+				relative,
+			]
+			.iter()
+			.collect::<PathBuf>();
+
+			assert!((CLIP_PATH.join(&relative)).exists());
+
+			assert_eq!(None, sandboxed_join(&CLIP_PATH, relative));
+		}
+	}
+
+	#[test]
+	fn sandboxed_fails_absolute() {
+		for entry in test_files() {
+			let absolute = entry.path();
+
+			assert!(absolute.exists());
+
+			assert_matches!(sandboxed_join(&CLIP_PATH, absolute), None);
+		}
+	}
 }

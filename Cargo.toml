@@ -8,6 +8,9 @@ edition = "2021"
 default = ["http-interface"]
 http-interface = ["dep:askama", "dep:axum", "dep:axum-extra", "dep:chrono", "dep:hyper", "dep:public-ip", "dep:tower-http"]
 
+[profile.dev.build-override]
+opt-level = 3
+
 [dependencies]
 caith = "4.2"
 dashmap = "5.5"
