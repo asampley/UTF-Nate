@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::HashSet;
 
 use rand::Rng;
@@ -52,6 +53,10 @@ pub const fn loop_help() -> &'static str {
 	include_str!("loop.md")
 }
 
+pub const fn move_help() -> &'static str {
+	include_str!("move.md")
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SkipArgs {
 	pub skip_set: Option<Selection<usize>>,
@@ -80,6 +85,12 @@ impl Default for QueueArgs {
 			selection: Self::default_selection(),
 		}
 	}
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MoveArgs {
+	pub selection: Selection<usize>,
+	pub position: usize,
 }
 
 #[tracing::instrument(level = "info", ret, skip(state))]
@@ -385,4 +396,93 @@ pub async fn r#loop(
 	}
 	.tap_err(|e| error!("{:?}", e))
 	.map_err(|_| "Error changing looping settings".into())
+}
+
+pub async fn r#move(
+	state: &BotState,
+	source: &Source,
+	args: MoveArgs,
+) -> Result<Response, Response> {
+	let guild_id = source
+		.guild_id
+		.ok_or("This command is only available in guilds")?;
+
+	let call = state
+		.data
+		.read()
+		.await
+		.clone_expect::<SongbirdKey>()
+		.get_or_insert(guild_id)
+		.clone();
+
+	let call = call.lock().await;
+
+	let queue = call.queue();
+
+	queue.current().ok_or("Nothing is currently playing")?;
+
+	let moved = queue.modify_queue(|deque| {
+		let selection_iter = args.selection.into_iter();
+
+		// once accounted for moving, don't move twice
+		let moving: HashSet<_> = selection_iter.clone().collect();
+
+		let mut indices = vec![usize::MAX; deque.len()];
+
+		// position can at most be the length of the queue less the size of the selection
+		let position = min(deque.len() - moving.len(), args.position);
+
+		// fill in selection indices first
+		let mut dest = position;
+		for s in selection_iter {
+			if s < deque.len() && indices[s] == usize::MAX {
+				indices[s] = dest;
+				dest += 1;
+			}
+		}
+
+		// fill in the rest of the indices
+		let mut dest_rest = 0;
+		for i in &mut indices {
+			// skip to end of selection if we've hit the start
+			if dest_rest == position {
+				dest_rest = dest;
+			}
+			// change anything not yet set
+			if *i == usize::MAX {
+				*i = dest_rest;
+				dest_rest += 1;
+			}
+		}
+
+		// swap element until everything is in order
+		// this will terminate because each step puts one
+		// more element in the correct place, and it finishes
+		// when all elements are in the correct place.
+		let mut i = 0;
+		while i < indices.len() {
+			let goto = indices[i];
+
+			if i == goto {
+				i += 1;
+			} else {
+				deque.swap(dbg!(i), dbg!(goto));
+				indices.swap(i, goto);
+			}
+		}
+
+		moving.len()
+	});
+
+	info!("Moved tracks {:?}", moved);
+
+	queue
+		.resume()
+		.map(|_| match moved {
+			0 => "No clips moved".into(),
+			1 => "Moved 1 clip".into(),
+			c => format!("Moved {} clips", c).into(),
+		})
+		.tap_err(|e| error!("{:?}", e))
+		.map_err(|_| "Error moving clips".into())
 }

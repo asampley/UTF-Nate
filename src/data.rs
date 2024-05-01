@@ -128,7 +128,7 @@ impl VoiceGuild {
 	/// Add an error handler in case the track fails during or starting play.
 	pub fn add_error_handler(
 		audio: TrackHandle,
-		respond: impl Respond + Send + Sync + 'static,
+		respond: impl Respond + Send + 'static,
 	) -> songbird::error::TrackResult<()> {
 		audio.add_event(
 			songbird::Event::Track(songbird::TrackEvent::End),

@@ -4,7 +4,7 @@ use crate::parser::Selection;
 use crate::util::*;
 
 pub use super::LoopArg;
-use super::{LoopArgs, SkipArgs};
+use super::{LoopArgs, MoveArgs, SkipArgs};
 
 #[poise::command(
 	category = "queue",
@@ -136,6 +136,35 @@ pub async fn r#loop(
 	run(
 		&ctx,
 		super::r#loop(&ctx.into(), &(&ctx).into(), &LoopArgs { count }),
+	)
+	.await
+}
+
+#[poise::command(
+	category = "queue",
+	rename = "move",
+	prefix_command,
+	slash_command,
+	guild_only,
+	custom_data = "CustomData::new(super::move_help)"
+)]
+pub async fn r#move(
+	ctx: Context<'_>,
+	#[description = "Range or index of songs to move, separated by commas"] selection: Selection<
+		usize,
+	>,
+	#[description = "Index to move songs to"] position: usize,
+) -> CommandResult {
+	run(
+		&ctx,
+		super::r#move(
+			&ctx.into(),
+			&(&ctx).into(),
+			MoveArgs {
+				selection,
+				position,
+			},
+		),
 	)
 	.await
 }

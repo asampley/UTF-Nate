@@ -48,6 +48,7 @@ pub static COMMAND_CREATES: &[fn() -> Command] = &[
 	queue::poise::shuffle,
 	queue::poise::shufflenow,
 	queue::poise::r#loop,
+	queue::poise::r#move,
 	roll::poise::roll,
 	#[cfg(feature = "http-interface")]
 	token::poise::token,

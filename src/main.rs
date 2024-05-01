@@ -319,6 +319,7 @@ async fn main() {
 					.form_route(queue::poise::shuffle, queue::http::shuffle)
 					.form_route(queue::poise::shufflenow, queue::http::shufflenow)
 					.form_route(queue::poise::r#loop, queue::http::r#loop)
+					.form_route(queue::poise::r#move, queue::http::r#move)
 					.route(
 						"/volume/get",
 						get(|| async { form_endpoint(voice::poise::volume_get) }),

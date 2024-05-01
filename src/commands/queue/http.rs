@@ -8,7 +8,7 @@ use crate::commands::BotState;
 use crate::util::GetExpect;
 use crate::AeadKey;
 
-use super::{LoopArgs, QueueArgs, SkipArgs};
+use super::{LoopArgs, MoveArgs, QueueArgs, SkipArgs};
 
 pub async fn stop(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
@@ -92,4 +92,17 @@ pub async fn r#loop(
 	};
 
 	render_response(super::r#loop(&state, &source, &args).await)
+}
+
+pub async fn r#move(
+	State(state): State<BotState>,
+	jar: CookieJar,
+	Query(args): Query<MoveArgs>,
+) -> Html<String> {
+	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {
+		Err(e) => return render_response(Err(e)),
+		Ok(source) => source,
+	};
+
+	render_response(super::r#move(&state, &source, args).await)
 }

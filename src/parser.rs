@@ -40,6 +40,19 @@ impl<T> FromIterator<NumOrRange<T>> for Selection<T> {
 	}
 }
 
+impl<T> IntoIterator for Selection<T>
+where
+	RangeInclusive<T>: Iterator<Item = T>,
+	T: Copy,
+{
+	type Item = T;
+	type IntoIter = std::iter::Flatten<std::vec::IntoIter<NumOrRange<T>>>;
+
+	fn into_iter(self) -> Self::IntoIter {
+		self.0.into_iter().flatten()
+	}
+}
+
 /// Represents the two possibilities of either a scalar or range of values.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum NumOrRange<T> {
@@ -70,6 +83,22 @@ impl std::str::FromStr for Selection<usize> {
 			}
 			.into()
 		})
+	}
+}
+
+impl<T> IntoIterator for NumOrRange<T>
+where
+	RangeInclusive<T>: Iterator<Item = T>,
+	T: Copy,
+{
+	type Item = T;
+	type IntoIter = RangeInclusive<T>;
+
+	fn into_iter(self) -> Self::IntoIter {
+		match self {
+			NumOrRange::Range(r) => r,
+			NumOrRange::Num(n) => n..=n,
+		}
 	}
 }
 

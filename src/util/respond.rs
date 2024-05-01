@@ -66,6 +66,7 @@ impl Response {
 	}
 }
 
+#[allow(dead_code)]
 pub trait Respond: Sync {
 	type Value;
 	type Error: Debug;

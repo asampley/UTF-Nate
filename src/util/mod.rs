@@ -98,6 +98,7 @@ where
 ///
 /// This is useful for when the get function should never fail, but could if
 /// something was inconfigured correctly.
+#[allow(dead_code)]
 pub trait GetExpect {
 	fn get_expect<T: TypeMapKey>(&self) -> &<T as TypeMapKey>::Value;
 
