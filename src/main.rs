@@ -91,7 +91,8 @@ impl serenity::prelude::TypeMapKey for Pool {
 }
 
 /// Key for [`ring::aead::LessSafeKey`] for encryption purposes.
-struct AeadKey;
+#[allow(dead_code)]
+enum AeadKey {}
 
 impl serenity::prelude::TypeMapKey for AeadKey {
 	type Value = LessSafeKey;
