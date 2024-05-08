@@ -5,6 +5,7 @@ use rand::Rng;
 
 use serde::{Deserialize, Serialize};
 
+use songbird::tracks::PlayMode;
 use songbird::SongbirdKey;
 
 use tap::TapFallible;
@@ -141,6 +142,15 @@ pub async fn skip(
 
 	let queue = call.queue();
 
+	let current = queue.current().ok_or("Nothing is currently playing")?;
+
+	let resume = current
+		.get_info()
+		.await
+		.tap_err(|e| error!("{:?}", e))
+		.map_err(|_| "Error skipping clips")?
+		.playing == PlayMode::Play;
+
 	let result = match &args.skip_set {
 		Some(skip_set) if !skip_set.0.is_empty() => {
 			let mut skip_set = skip_set.clone();
@@ -180,7 +190,11 @@ pub async fn skip(
 
 			info!("Skipped tracks {:?}", &removed);
 
-			queue.resume().map(|_| removed.len())
+			if resume {
+				queue.resume().map(|_| removed.len())
+			} else {
+				Ok(removed.len())
+			}
 		}
 		_ => {
 			if queue.is_empty() {
@@ -419,7 +433,21 @@ pub async fn r#move(
 
 	let queue = call.queue();
 
-	queue.current().ok_or("Nothing is currently playing")?;
+	let current = queue.current().ok_or("Nothing is currently playing")?;
+
+	let resume = current
+		.get_info()
+		.await
+		.tap_err(|e| error!("{:?}", e))
+		.map_err(|_| "Error skipping clips")?
+		.playing == PlayMode::Play;
+
+	if args.position == 0 {
+		queue
+			.pause()
+			.tap_err(|e| error!("{:?}", e))
+			.map_err(|_| "Error moving clips")?;
+	}
 
 	let moved = queue.modify_queue(|deque| {
 		let selection_iter = args.selection.into_iter();
@@ -466,7 +494,7 @@ pub async fn r#move(
 			if i == goto {
 				i += 1;
 			} else {
-				deque.swap(dbg!(i), dbg!(goto));
+				deque.swap(i, goto);
 				indices.swap(i, goto);
 			}
 		}
@@ -476,8 +504,9 @@ pub async fn r#move(
 
 	info!("Moved tracks {:?}", moved);
 
-	queue
-		.resume()
+	let result = if resume { queue.resume() } else { Ok(()) };
+
+	result
 		.map(|_| match moved {
 			0 => "No clips moved".into(),
 			1 => "Moved 1 clip".into(),
