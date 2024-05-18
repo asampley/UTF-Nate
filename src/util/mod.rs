@@ -9,6 +9,8 @@ mod respond;
 pub use respond::{Respond, Response};
 
 use songbird::input::AuxMetadata;
+use songbird::tracks::TrackState;
+
 use tracing::error;
 
 use serde::Deserialize;
@@ -154,7 +156,11 @@ pub fn write_duration(write: &mut impl std::fmt::Write, duration: Duration) -> s
 /// If the title is unavailable it is named "Unknown".
 ///
 /// All other fields if unavailable are omitted.
-pub fn write_track(write: &mut impl std::fmt::Write, meta: &AuxMetadata) -> std::fmt::Result {
+pub fn write_track(
+	write: &mut impl std::fmt::Write,
+	meta: &AuxMetadata,
+	state: Option<TrackState>,
+) -> std::fmt::Result {
 	let title = meta.title.as_deref().unwrap_or("Unknown");
 
 	match &meta.source_url {
@@ -164,6 +170,12 @@ pub fn write_track(write: &mut impl std::fmt::Write, meta: &AuxMetadata) -> std:
 
 	if let Some(duration) = meta.duration {
 		write!(write, " (")?;
+		if let Some(position) = state.map(|s| s.position) {
+			if position != Duration::ZERO {
+				write_duration(write, position)?;
+				write!(write, "/")?;
+			}
+		}
 		write_duration(write, duration)?;
 		write!(write, ")")?;
 	};

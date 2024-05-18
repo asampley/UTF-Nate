@@ -299,7 +299,7 @@ pub async fn queue(
 		write!(response, "{i}:").unwrap();
 
 		if let Some(meta) = track.typemap().read().await.get::<TrackMetadata>() {
-			write_track(&mut response, meta).unwrap();
+			write_track(&mut response, meta, track.get_info().await.ok()).unwrap();
 		} else {
 			response.push_str("No metadata");
 		}

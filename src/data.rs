@@ -219,7 +219,7 @@ impl<R: Respond + Send + Sync> songbird::EventHandler for TrackErrorHandler<R> {
 					let mut response = String::from("Error playing ");
 
 					if let Some(meta) = handle.typemap().read().await.get::<TrackMetadata>() {
-						write_track(&mut response, meta).unwrap();
+						write_track(&mut response, meta, None).unwrap();
 					} else {
 						write!(response, "unknown track").unwrap();
 					}
