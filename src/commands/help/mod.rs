@@ -10,7 +10,7 @@ use crate::util::Response;
 pub mod poise;
 
 pub const fn help_help() -> &'static str {
-	include_str!("help.md")
+	include_str!("help/help.md")
 }
 
 #[tracing::instrument(level = "info", ret, skip(framework))]

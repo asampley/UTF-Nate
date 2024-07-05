@@ -23,39 +23,39 @@ pub mod http;
 pub mod poise;
 
 pub const fn stop_help() -> &'static str {
-	include_str!("stop.md")
+	include_str!("help/stop.md")
 }
 
 pub const fn skip_help() -> &'static str {
-	include_str!("skip.md")
+	include_str!("help/skip.md")
 }
 
 pub const fn pause_help() -> &'static str {
-	include_str!("pause.md")
+	include_str!("help/pause.md")
 }
 
 pub const fn unpause_help() -> &'static str {
-	include_str!("unpause.md")
+	include_str!("help/unpause.md")
 }
 
 pub const fn queue_help() -> &'static str {
-	include_str!("queue.md")
+	include_str!("help/queue.md")
 }
 
 pub const fn shuffle_help() -> &'static str {
-	include_str!("shuffle.md")
+	include_str!("help/shuffle.md")
 }
 
 pub const fn shufflenow_help() -> &'static str {
-	include_str!("shufflenow.md")
+	include_str!("help/shufflenow.md")
 }
 
 pub const fn loop_help() -> &'static str {
-	include_str!("loop.md")
+	include_str!("help/loop.md")
 }
 
 pub const fn move_help() -> &'static str {
-	include_str!("move.md")
+	include_str!("help/move.md")
 }
 
 #[derive(Debug, Deserialize, Serialize)]

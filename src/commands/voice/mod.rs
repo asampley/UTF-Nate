@@ -22,27 +22,27 @@ pub mod http;
 pub mod poise;
 
 pub const fn volume_help() -> &'static str {
-	include_str!("volume.md")
+	include_str!("help/volume.md")
 }
 
 pub const fn volume_get_help() -> &'static str {
-	include_str!("volume_get.md")
+	include_str!("help/volume_get.md")
 }
 
 pub const fn volume_play_help() -> &'static str {
-	include_str!("volume_play.md")
+	include_str!("help/volume_play.md")
 }
 
 pub const fn volume_clip_help() -> &'static str {
-	include_str!("volume_clip.md")
+	include_str!("help/volume_clip.md")
 }
 
 pub const fn volume_now_help() -> &'static str {
-	include_str!("volume_now.md")
+	include_str!("help/volume_now.md")
 }
 
 pub const fn list_help() -> &'static str {
-	include_str!("list.md")
+	include_str!("help/list.md")
 }
 
 #[derive(Debug, Deserialize, Serialize)]

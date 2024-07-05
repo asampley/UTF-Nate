@@ -29,19 +29,19 @@ pub mod http;
 pub mod poise;
 
 pub const fn clip_help() -> &'static str {
-	include_str!("clip.md")
+	include_str!("help/clip.md")
 }
 
 pub const fn play_help() -> &'static str {
-	include_str!("play.md")
+	include_str!("help/play.md")
 }
 
 pub const fn playnext_help() -> &'static str {
-	include_str!("playnext.md")
+	include_str!("help/playnext.md")
 }
 
 pub const fn playnow_help() -> &'static str {
-	include_str!("playnow.md")
+	include_str!("help/playnow.md")
 }
 
 #[derive(Debug, Deserialize, Serialize)]

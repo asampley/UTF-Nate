@@ -22,11 +22,11 @@ pub mod poise;
 pub static CMD_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("cmd/"));
 
 pub const fn cmd_help() -> &'static str {
-	include_str!("cmd.md")
+	include_str!("help/cmd.md")
 }
 
 pub const fn cmdlist_help() -> &'static str {
-	include_str!("cmdlist.md")
+	include_str!("help/cmdlist.md")
 }
 
 #[derive(Debug, Deserialize, Serialize)]

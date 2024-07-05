@@ -15,7 +15,7 @@ pub mod http;
 pub mod poise;
 
 pub const fn token_help() -> &'static str {
-	include_str!("token.md")
+	include_str!("help/token.md")
 }
 
 impl TryFrom<&CookieJar> for Encrypted {

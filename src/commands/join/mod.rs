@@ -11,11 +11,11 @@ pub mod http;
 pub mod poise;
 
 pub const fn summon_help() -> &'static str {
-	include_str!("summon.md")
+	include_str!("help/summon.md")
 }
 
 pub const fn banish_help() -> &'static str {
-	include_str!("banish.md")
+	include_str!("help/banish.md")
 }
 
 #[tracing::instrument(level = "info", ret, skip(state))]

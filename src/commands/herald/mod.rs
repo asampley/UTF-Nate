@@ -16,15 +16,15 @@ pub mod http;
 pub mod poise;
 
 pub const fn intro_help() -> &'static str {
-	include_str!("intro.md")
+	include_str!("help/intro.md")
 }
 
 pub const fn outro_help() -> &'static str {
-	include_str!("outro.md")
+	include_str!("help/outro.md")
 }
 
 pub const fn introbot_help() -> &'static str {
-	include_str!("introbot.md")
+	include_str!("help/introbot.md")
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

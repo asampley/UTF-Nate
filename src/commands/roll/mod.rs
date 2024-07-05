@@ -13,7 +13,7 @@ pub struct RollArgs {
 	pub expression: String,
 }
 
-#[doc = include_str!("roll.md")]
+#[doc = include_str!("help/roll.md")]
 #[tracing::instrument(level = "info", ret)]
 pub async fn roll(RollArgs { expression }: &RollArgs) -> Result<Response, Response> {
 	Ok(Roller::new(expression)
@@ -24,5 +24,5 @@ pub async fn roll(RollArgs { expression }: &RollArgs) -> Result<Response, Respon
 }
 
 pub const fn roll_help() -> &'static str {
-	include_str!("roll.md")
+	include_str!("help/roll.md")
 }
