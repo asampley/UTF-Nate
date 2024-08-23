@@ -40,6 +40,12 @@ impl<T> FromIterator<NumOrRange<T>> for Selection<T> {
 	}
 }
 
+impl<T> From<RangeInclusive<T>> for Selection<T> {
+	fn from(v: RangeInclusive<T>) -> Self {
+		Self::from_iter(std::iter::once(NumOrRange::from(v)))
+	}
+}
+
 impl<T> IntoIterator for Selection<T>
 where
 	RangeInclusive<T>: Iterator<Item = T>,

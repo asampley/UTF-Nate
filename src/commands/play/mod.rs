@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use serenity::http::Http;
 use serenity::model::id::ChannelId;
-use serenity::prelude::Mutex;
 
 use songbird::input::Input;
 use songbird::tracks::Track;
@@ -14,12 +13,13 @@ use tracing::{debug, error};
 
 use std::sync::Arc;
 
-use crate::audio::{get_inputs, SearchSource};
+use crate::audio::{get_inputs, move_queue, SearchSource};
 use crate::audio::{AudioError, PlayStyle};
 use crate::commands::{BotState, Source};
 use crate::configuration::Config;
 use crate::data::TrackMetadata;
 use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
+use crate::parser::Selection;
 use crate::util::write_duration;
 use crate::util::{GetExpect, Response};
 use crate::Pool;
@@ -105,51 +105,86 @@ pub async fn play(
 
 			let channel_id = source.channel_id;
 
-			let result =
-				match get_inputs(keys, &args.search, play_index.is_none(), search_location).await {
-					Ok(info) => {
-						use std::fmt::Write;
+			let result = match get_inputs(keys, &args.search, true, search_location).await {
+				Ok(info) => {
+					use std::fmt::Write;
 
-						for input in info.inputs {
-							play_input(
-								play_style,
-								call.clone(),
-								voice_guild_arc.clone(),
-								channel_id.map(|id| (state.http.clone(), id)),
-								input,
-								volume,
-								play_index,
-							)
-							.await;
-						}
+					let mut lock = call.lock().await;
 
-						let title = info.title.as_deref().unwrap_or(&args.search);
+					let mut input_count = 0;
 
-						let mut response = match play_style {
-							PlayStyle::Clip => String::from("Playing"),
-							PlayStyle::Play => String::from("Queued"),
+					for input in info.inputs {
+						play_input(
+							play_style,
+							&mut lock,
+							voice_guild_arc.clone(),
+							channel_id.map(|id| (state.http.clone(), id)),
+							input,
+							volume,
+						)
+						.await;
+
+						input_count += 1;
+					}
+
+					if let Some(play_index) = play_index {
+						let start = lock.queue().len() - input_count;
+
+						let _ = move_queue(
+							&mut lock,
+							Selection::from(start..=(start + input_count - 1)),
+							play_index,
+						)
+						.await
+						.tap_err(|e| error!("{:?}", e));
+					}
+
+					let title = info.title.as_deref().unwrap_or(&args.search);
+
+					let mut response = match play_style {
+						PlayStyle::Clip => String::from("Playing"),
+						PlayStyle::Play => String::from("Queued"),
+					};
+
+					if info.count != 1 {
+						write!(response, " {} clips from", info.count).unwrap();
+					}
+
+					match info.url {
+						Some(url) => write!(response, " [{}]({})", title, url),
+						None => write!(response, " {}", title),
+					}
+					.unwrap();
+
+					if let Some(duration) = info.duration {
+						response.push_str(" (");
+						write_duration(&mut response, duration).unwrap();
+						response.push(')');
+					}
+
+					if play_style == PlayStyle::Play {
+						let start = match play_index {
+							Some(i) => i,
+							None => lock.queue().len() - input_count,
 						};
 
-						if info.count != 1 {
-							write!(response, " {} clips from", info.count).unwrap();
+						if input_count > 1 {
+							write!(
+								response,
+								" at positions {} to {}",
+								start,
+								start + input_count - 1
+							)
+							.unwrap();
+						} else {
+							write!(response, " at position {}", start).unwrap();
 						}
-
-						match info.url {
-							Some(url) => write!(response, " [{}]({})", title, url),
-							None => write!(response, " {}", title),
-						}
-						.unwrap();
-
-						if let Some(duration) = info.duration {
-							response.push_str(" (");
-							write_duration(&mut response, duration).unwrap();
-							response.push(')');
-						}
-
-						Ok(response)
 					}
-					Err(e) => Err(e),
-				};
+
+					Ok(response)
+				}
+				Err(e) => Err(e),
+			};
 
 			debug!("Finished fetching audio source");
 
@@ -178,11 +213,10 @@ pub async fn play(
 }
 
 async fn queue_input(
-	call: Arc<Mutex<Call>>,
+	call: &mut Call,
 	respond: Option<(Arc<Http>, ChannelId)>,
 	mut input: Input,
 	volume: f32,
-	play_index: Option<usize>,
 ) -> bool {
 	let aux_metadata = input
 		.aux_metadata()
@@ -192,45 +226,29 @@ async fn queue_input(
 
 	let track = Track::from(input).volume(volume);
 
-	let mut lock = call.lock().await;
-
-	let handle = lock.enqueue(track).await;
+	let handle = call.enqueue(track).await;
 
 	if let Some(meta) = aux_metadata {
 		handle.typemap().write().await.insert::<TrackMetadata>(meta);
 	}
 
-	if let Some(index) = play_index {
-		if index < lock.queue().len() {
-			lock.queue().modify_queue(|q| {
-				let v = q.pop_back().unwrap();
-
-				if index == 0 {
-					q.front().map(|f| f.handle().pause());
-					let _ = v.handle().play();
-				}
-
-				q.insert(index, v);
-			})
-		}
-	}
-
 	if let Err(e) = VoiceGuild::add_error_handler(handle, respond) {
 		error!("Error setting up error handler for track: {:?}", e);
+		return false;
 	}
 
 	true
 }
 
 async fn immediate_input(
-	call: Arc<Mutex<Call>>,
+	call: &mut Call,
 	voice_guild_arc: ArcRw<VoiceGuild>,
 	input: Input,
 	volume: f32,
 ) -> bool {
 	let track = Track::from(input).volume(volume);
 
-	let handle = call.lock().await.play(track);
+	let handle = call.play(track);
 	voice_guild_arc
 		.write()
 		.await
@@ -240,15 +258,14 @@ async fn immediate_input(
 
 async fn play_input(
 	play_style: PlayStyle,
-	call: Arc<Mutex<Call>>,
+	call: &mut Call,
 	voice_guild_arc: ArcRw<VoiceGuild>,
 	respond: Option<(Arc<Http>, ChannelId)>,
 	input: Input,
 	volume: f32,
-	play_index: Option<usize>,
 ) -> bool {
 	match play_style {
 		PlayStyle::Clip => immediate_input(call, voice_guild_arc, input, volume).await,
-		PlayStyle::Play => queue_input(call, respond, input, volume, play_index).await,
+		PlayStyle::Play => queue_input(call, respond, input, volume).await,
 	}
 }

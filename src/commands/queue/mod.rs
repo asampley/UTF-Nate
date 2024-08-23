@@ -1,4 +1,3 @@
-use std::cmp::min;
 use std::collections::HashSet;
 
 use rand::Rng;
@@ -13,6 +12,7 @@ use thiserror::Error;
 
 use tracing::{error, info};
 
+use crate::audio::move_queue;
 use crate::commands::{BotState, Source};
 use crate::data::{TrackMetadata, VoiceGuilds};
 use crate::parser::{NumOrRange, Selection};
@@ -429,85 +429,11 @@ pub async fn r#move(
 		.get_or_insert(guild_id)
 		.clone();
 
-	let call = call.lock().await;
+	let mut call = call.lock().await;
 
-	let queue = call.queue();
-
-	let current = queue.current().ok_or("Nothing is currently playing")?;
-
-	let resume = current
-		.get_info()
+	move_queue(&mut call, args.selection, args.position)
 		.await
-		.tap_err(|e| error!("{:?}", e))
-		.map_err(|_| "Error skipping clips")?
-		.playing == PlayMode::Play;
-
-	if args.position == 0 {
-		queue
-			.pause()
-			.tap_err(|e| error!("{:?}", e))
-			.map_err(|_| "Error moving clips")?;
-	}
-
-	let moved = queue.modify_queue(|deque| {
-		let selection_iter = args.selection.into_iter();
-
-		// once accounted for moving, don't move twice
-		let moving: HashSet<_> = selection_iter.clone().collect();
-
-		let mut indices = vec![usize::MAX; deque.len()];
-
-		// position can at most be the length of the queue less the size of the selection
-		let position = min(deque.len() - moving.len(), args.position);
-
-		// fill in selection indices first
-		let mut dest = position;
-		for s in selection_iter {
-			if s < deque.len() && indices[s] == usize::MAX {
-				indices[s] = dest;
-				dest += 1;
-			}
-		}
-
-		// fill in the rest of the indices
-		let mut dest_rest = 0;
-		for i in &mut indices {
-			// skip to end of selection if we've hit the start
-			if dest_rest == position {
-				dest_rest = dest;
-			}
-			// change anything not yet set
-			if *i == usize::MAX {
-				*i = dest_rest;
-				dest_rest += 1;
-			}
-		}
-
-		// swap element until everything is in order
-		// this will terminate because each step puts one
-		// more element in the correct place, and it finishes
-		// when all elements are in the correct place.
-		let mut i = 0;
-		while i < indices.len() {
-			let goto = indices[i];
-
-			if i == goto {
-				i += 1;
-			} else {
-				deque.swap(i, goto);
-				indices.swap(i, goto);
-			}
-		}
-
-		moving.len()
-	});
-
-	info!("Moved tracks {:?}", moved);
-
-	let result = if resume { queue.resume() } else { Ok(()) };
-
-	result
-		.map(|_| match moved {
+		.map(|count| match count {
 			0 => "No clips moved".into(),
 			1 => "Moved 1 clip".into(),
 			c => format!("Moved {} clips", c).into(),
