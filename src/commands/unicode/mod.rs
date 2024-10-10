@@ -59,3 +59,47 @@ pub async fn unicode(args: &UnicodeArgs) -> Result<Response, Response> {
 pub const fn unicode_help() -> &'static str {
 	include_str!("help/unicode.md")
 }
+
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	use itertools::Itertools;
+
+	#[tokio::test]
+	async fn unicode_single_character() {
+		let codepoints = [41, 123, 0x7fff];
+
+		for c in codepoints {
+			assert_eq!(
+				char::from_u32(c).into_iter().collect::<String>(),
+				unicode(&UnicodeArgs {
+					codepoints: format!("0x{c:x}")
+				})
+				.await
+				.map(|response| response.text)
+				.unwrap()
+			);
+		}
+	}
+
+	#[tokio::test]
+	async fn unicode_multiple_characters() {
+		let codepoints = [41, 123, 0x7fff];
+
+		for combo in (0..codepoints.len()).flat_map(|k| codepoints.into_iter().combinations(k)) {
+			assert_eq!(
+				combo
+					.iter()
+					.flat_map(|&c| char::from_u32(c))
+					.collect::<String>(),
+				unicode(&UnicodeArgs {
+					codepoints: combo.iter().map(|c| format!("0x{c:x} ")).join(" ")
+				})
+				.await
+				.map(|response| response.text)
+				.unwrap()
+			);
+		}
+	}
+}
