@@ -79,10 +79,7 @@ pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 		.sorted_by(|(f0, t0), (f1, t1)| {
 			(!t0.is_dir(), f0.to_lowercase()).cmp(&(!t1.is_dir(), f1.to_lowercase()))
 		})
-		.map(|(f, t)| format!("{: <20}", f + if t.is_dir() { "/" } else { "" }))
-		.chunks(3)
-		.into_iter()
-		.map(|chunk| chunk.fold("".to_owned(), |acc, s| acc + &s))
+		.map(|(f, t)| f + if t.is_dir() { "/" } else { "" })
 		.fold("".to_owned(), |acc, s| acc + "\n" + &s);
 
 	Ok(("```\n".to_owned() + &message + "\n```").into())
