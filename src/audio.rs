@@ -19,11 +19,7 @@ use songbird::Call;
 
 use symphonia::core::io::MediaSource;
 
-use tap::TapFallible;
-
 use tracing::{debug, error, info, warn};
-
-use once_cell::sync::Lazy;
 
 use rand::seq::IteratorRandom;
 
@@ -44,6 +40,7 @@ use std::cmp::min;
 use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use crate::data::{ArcRw, Keys};
 use crate::parser::Selection;
@@ -53,17 +50,18 @@ use crate::RESOURCE_PATH;
 use crate::{spotify, REQWEST_CLIENT};
 
 /// Path to shared directory for clips.
-pub static CLIP_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("clips/"));
+pub static CLIP_PATH: LazyLock<PathBuf> = LazyLock::new(|| RESOURCE_PATH.join("clips/"));
 
 /// Regular expression which matches valid http or https urls.
-static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
+static URL: LazyLock<Regex> = LazyLock::new(|| Regex::new("^https?://").unwrap());
 
 /// Regular expression which matches the host portion of a url if the host is youtube.
-static YOUTUBE_HOST: Lazy<Regex> =
-	Lazy::new(|| Regex::new("^([^.]*\\.)?(youtube\\.com|youtu.be)").unwrap());
+static YOUTUBE_HOST: LazyLock<Regex> =
+	LazyLock::new(|| Regex::new("^([^.]*\\.)?(youtube\\.com|youtu.be)").unwrap());
 
 /// Regular expression which matches the host portion of a url if the host is spotify.
-static SPOTIFY_HOST: Lazy<Regex> = Lazy::new(|| Regex::new("^open\\.spotify\\.com").unwrap());
+static SPOTIFY_HOST: LazyLock<Regex> =
+	LazyLock::new(|| Regex::new("^open\\.spotify\\.com").unwrap());
 
 /// Enum for the two styles of audio source.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -242,7 +240,7 @@ pub async fn get_inputs(
 
 				let playlist = youtube::playlist(&youtube_api, &id)
 					.await
-					.tap_err(|e| error!("Error in youtube data api for playlists: {:?}", e))
+					.inspect_err(|e| error!("Error in youtube data api for playlists: {:?}", e))
 					.map_err(|_| AudioError::YoutubePlaylist)?
 					.ok_or_else(|| {
 						error!("No playlist found");
@@ -261,7 +259,9 @@ pub async fn get_inputs(
 					.try_buffered(4)
 					.try_concat()
 					.await
-					.tap_err(|e| error!("Error in youtube data api for playlist items: {:?}", e))
+					.inspect_err(|e| {
+						error!("Error in youtube data api for playlist items: {:?}", e)
+					})
 					.map_err(|_| AudioError::YoutubePlaylist)?;
 
 				let count = videos.len();
@@ -297,7 +297,7 @@ pub async fn get_inputs(
 
 				let video = youtube::video(&youtube_api, &id)
 					.await
-					.tap_err(|e| error!("Youtube video error: {:?}", e))
+					.inspect_err(|e| error!("Youtube video error: {:?}", e))
 					.map_err(|_| AudioError::YoutubePlaylist)?
 					.ok_or_else(|| {
 						error!("No video found with id {:?}", id);
@@ -339,7 +339,7 @@ pub async fn get_inputs(
 
 					let track = spotify::track(&token, track_id)
 						.await
-						.tap_err(|e| error!("Error reading spotify track: {:?}", e))
+						.inspect_err(|e| error!("Error reading spotify track: {:?}", e))
 						.map_err(|_| AudioError::Spotify)?;
 
 					let compose = ComposeWithMetadata::from(&track);
@@ -362,7 +362,7 @@ pub async fn get_inputs(
 
 					let playlist = spotify::playlist(&token, playlist_id)
 						.await
-						.tap_err(|e| error!("Error reading spotify playlist: {:?}", e))
+						.inspect_err(|e| error!("Error reading spotify playlist: {:?}", e))
 						.map_err(|_| AudioError::Spotify)?;
 
 					Ok(SourceInfo {
@@ -389,7 +389,7 @@ pub async fn get_inputs(
 
 					let album = spotify::album(&token, album_id)
 						.await
-						.tap_err(|e| error!("Error reading spotify album: {:?}", e))
+						.inspect_err(|e| error!("Error reading spotify album: {:?}", e))
 						.map_err(|_| AudioError::Spotify)?;
 
 					Ok(SourceInfo {
@@ -426,7 +426,7 @@ pub async fn get_inputs(
 			let aux_metadata = compose
 				.aux_metadata()
 				.await
-				.tap_err(|e| error!("Error getting metadata: {:?}", e))?;
+				.inspect_err(|e| error!("Error getting metadata: {:?}", e))?;
 
 			Ok(SourceInfo {
 				title,
@@ -447,7 +447,7 @@ pub async fn get_inputs(
 				let aux_metadata = compose
 					.aux_metadata()
 					.await
-					.tap_err(|e| error!("Error getting metadata: {:?}", e))?;
+					.inspect_err(|e| error!("Error getting metadata: {:?}", e))?;
 
 				Ok(SourceInfo {
 					title: aux_metadata.title,
@@ -594,7 +594,7 @@ pub async fn move_queue(
 pub fn warn_duplicate_clip_names() {
 	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
-		.filter_map(|f| f.tap_err(|e| error!("{:?}", e)).ok())
+		.filter_map(|f| f.inspect_err(|e| error!("{:?}", e)).ok())
 		.filter(|f| f.file_type().is_file())
 		.filter_map(|f| {
 			f.path()
@@ -615,7 +615,7 @@ pub fn warn_duplicate_clip_names() {
 pub fn warn_exact_name_finds_different_clip() {
 	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
-		.filter_map(|f| f.tap_err(|e| error!("{:?}", e)).ok())
+		.filter_map(|f| f.inspect_err(|e| error!("{:?}", e)).ok())
 		.filter(|f| f.file_type().is_file())
 		.filter(|f| {
 			let path = f.path();
@@ -660,7 +660,7 @@ pub fn search_clips(loc: &OsStr) -> Vec<OsString> {
 
 	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
-		.filter_map(|f| f.tap_err(|e| error!("{:?}", e)).ok())
+		.filter_map(|f| f.inspect_err(|e| error!("{:?}", e)).ok())
 		.filter(|f| f.file_type().is_file())
 		// calculate the levenshtein distance of each file
 		// break ties by prioritizing longest length of match
@@ -711,7 +711,7 @@ pub fn get_clip(loc: &OsStr) -> Option<OsString> {
 pub fn clip_iter() -> impl Iterator<Item = OsString> {
 	WalkDir::new(&*CLIP_PATH)
 		.into_iter()
-		.filter_map(|f| f.tap_err(|e| error!("{:?}", e)).ok())
+		.filter_map(|f| f.inspect_err(|e| error!("{:?}", e)).ok())
 		.filter(|f| f.file_type().is_file())
 		.map(|f| f.path().file_stem().unwrap().to_owned())
 }

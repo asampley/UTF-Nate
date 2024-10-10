@@ -22,15 +22,12 @@ use clap::Parser;
 use persistence::StorageError;
 use ring::aead::LessSafeKey;
 
-use tap::TapFallible;
 use thiserror::Error;
 
 use tokio::task::JoinSet;
 
 use tracing::{error, info};
 use tracing_subscriber::filter::LevelFilter;
-
-use once_cell::sync::Lazy;
 
 use serenity::client::Client;
 use serenity::http::Http;
@@ -49,23 +46,24 @@ use util::{read_toml, Framework};
 use std::fmt::Debug;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::LazyLock;
 
 use crate::persistence::Storage;
 
 /// Path to shared resources directory for things such as clips or database scripts.
-static RESOURCE_PATH: Lazy<&'static Path> = Lazy::new(|| Path::new("resources/"));
+static RESOURCE_PATH: LazyLock<&'static Path> = LazyLock::new(|| Path::new("resources/"));
 
 /// Options parsed from the command line using [`clap`].
-static OPT: Lazy<Opt> = Lazy::new(|| {
+static OPT: LazyLock<Opt> = LazyLock::new(|| {
 	let opt = Opt::parse();
 	println!("Options: {:#?}", opt);
 	opt
 });
 
 /// Configuration parameters from a file. See [`load_config()`].
-static CONFIG: Lazy<Config> = Lazy::new(load_config);
+static CONFIG: LazyLock<Config> = LazyLock::new(load_config);
 
-static REQWEST_CLIENT: Lazy<reqwest::Client> = Lazy::new(reqwest::Client::new);
+static REQWEST_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
 
 /// Permissions recommended for registering the bot with a server, for full
 /// functionality.
@@ -349,8 +347,8 @@ fn load_config() -> Config {
 	let path = "config.toml";
 
 	read_toml(path)
-		.tap_ok(|_| info!("Read config file from {:?}", path))
-		.tap_err(|e| error!("{:?}", e))
+		.inspect(|_| info!("Read config file from {:?}", path))
+		.inspect_err(|e| error!("{:?}", e))
 		.unwrap_or_else(|_| {
 			info!("Creating default config");
 			Config::default()

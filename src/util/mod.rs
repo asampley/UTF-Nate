@@ -4,9 +4,12 @@
 //! contained within a folder to prevent people from going up directories
 //! ([`sandboxed_join`]), and some functions to help responding to commands.
 
+mod conv;
 mod respond;
 
 pub use respond::{Respond, Response};
+
+pub use conv::Conv;
 
 use songbird::input::AuxMetadata;
 use songbird::tracks::TrackState;
@@ -187,8 +190,6 @@ pub fn write_track(
 mod test {
 	use std::{assert_matches::assert_matches, path::PathBuf};
 
-	use tap::TapFallible;
-
 	use tracing::error;
 	use walkdir::{DirEntry, WalkDir};
 
@@ -199,7 +200,7 @@ mod test {
 	fn test_files() -> impl Iterator<Item = DirEntry> {
 		WalkDir::new(&*CLIP_PATH)
 			.into_iter()
-			.filter_map(|f| f.tap_err(|e| error!("{:?}", e)).ok())
+			.filter_map(|f| f.inspect_err(|e| error!("{:?}", e)).ok())
 			.filter(|f| f.file_type().is_file())
 	}
 

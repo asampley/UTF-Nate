@@ -1,6 +1,5 @@
 use itertools::Itertools;
 
-use tap::TapFallible;
 use tracing::error;
 
 use serde::{Deserialize, Serialize};
@@ -61,11 +60,11 @@ pub async fn list(path: Option<&str>) -> Result<Response, Response> {
 	let dir = sandboxed_join(&CLIP_PATH, path.unwrap_or("")).ok_or("Invalid directory")?;
 
 	let dir_iter = read_dir(dir)
-		.tap_err(|reason| error!("Unable to read directory: {:?}", reason))
+		.inspect_err(|reason| error!("Unable to read directory: {:?}", reason))
 		.map_err(|_| "Invalid directory")?;
 
 	let message = dir_iter
-		.filter_map(|e| e.tap_err(|e| error!("{:?}", e)).ok())
+		.filter_map(|e| e.inspect_err(|e| error!("{:?}", e)).ok())
 		.map(|e| {
 			(
 				e.path()
@@ -110,13 +109,13 @@ pub async fn volume(
 				storage
 					.get_volume_play(guild_id)
 					.await
-					.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
+					.inspect_err(|e| error!("Unable to retrieve volume: {:?}", e))
 					.map_err(|_| "Unable to retrieve volume")?
 					.unwrap_or(0.5),
 				storage
 					.get_volume_clip(guild_id)
 					.await
-					.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
+					.inspect_err(|e| error!("Unable to retrieve volume: {:?}", e))
 					.map_err(|_| "Unable to retrieve volume")?
 					.unwrap_or(0.5)
 			)
@@ -131,7 +130,7 @@ pub async fn volume(
 					storage
 						.get_volume_clip(guild_id)
 						.await
-						.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
+						.inspect_err(|e| error!("Unable to retrieve volume: {:?}", e))
 						.map_err(|_| "Unable to retrieve volume")?
 						.unwrap_or(0.5),
 				),
@@ -140,7 +139,7 @@ pub async fn volume(
 					storage
 						.get_volume_play(guild_id)
 						.await
-						.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
+						.inspect_err(|e| error!("Unable to retrieve volume: {:?}", e))
 						.map_err(|_| "Unable to retrieve volume")?
 						.unwrap_or(0.5),
 				),
@@ -204,7 +203,7 @@ pub async fn volume(
 					PlayStyle::Clip => storage.set_volume_clip(guild_id, volume).await,
 					PlayStyle::Play => storage.set_volume_play(guild_id, volume).await,
 				}
-				.tap_err(|e| error!("Error setting volume: {:?}", e))
+				.inspect_err(|e| error!("Error setting volume: {:?}", e))
 				.map_err(|_| "Error setting volume")?;
 			}
 
@@ -223,7 +222,7 @@ pub async fn volume(
 				.get_info()
 				.await
 				.map(|info| info.volume)
-				.tap_err(|e| error!("Error getting volume: {:?}", e))
+				.inspect_err(|e| error!("Error getting volume: {:?}", e))
 				.map_err(|_| "Error getting volume")?;
 
 			Ok(format!("Current volume set to {}", volume).into())

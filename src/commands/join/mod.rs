@@ -1,6 +1,5 @@
 use songbird::SongbirdKey;
 
-use tap::TapFallible;
 use tracing::error;
 
 use crate::commands::{BotState, Source};
@@ -37,7 +36,7 @@ pub async fn summon(state: &BotState, source: &Source) -> Result<Response, Respo
 	songbird
 		.join(guild_id, connect_to)
 		.await
-		.tap_err(|e| error!("Error joining the channel: {e:?}"))
+		.inspect_err(|e| error!("Error joining the channel: {e:?}"))
 		.map_err(|_| "Error joining the channel")?;
 
 	Ok("Joined channel".into())

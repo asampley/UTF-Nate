@@ -1,16 +1,14 @@
 use itertools::Itertools;
 
-use once_cell::sync::Lazy;
-
 use serde::{Deserialize, Serialize};
 
-use tap::TapFallible;
 use tracing::{error, info};
 
 use std::fs::read_dir;
 use std::path::PathBuf;
 use std::process;
 use std::process::Stdio;
+use std::sync::LazyLock;
 
 use crate::util::*;
 use crate::RESOURCE_PATH;
@@ -19,7 +17,7 @@ use crate::RESOURCE_PATH;
 pub mod http;
 pub mod poise;
 
-pub static CMD_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("cmd/"));
+pub static CMD_PATH: LazyLock<PathBuf> = LazyLock::new(|| RESOURCE_PATH.join("cmd/"));
 
 pub const fn cmd_help() -> &'static str {
 	include_str!("help/cmd.md")
@@ -49,7 +47,7 @@ pub async fn cmd(CmdArgs { command, args }: CmdArgs) -> Result<Response, Respons
 			.args(args.iter().flat_map(serenity::utils::parse_quotes))
 			.stdin(Stdio::null())
 			.output()
-			.tap_err(|reason| error!("Error executing command {:?}: {:?}", command, reason))
+			.inspect_err(|reason| error!("Error executing command {:?}: {:?}", command, reason))
 			.map_err(|_| "Error executing command")?;
 
 		let stdout = String::from_utf8_lossy(&output.stdout);
@@ -65,7 +63,7 @@ pub async fn cmd(CmdArgs { command, args }: CmdArgs) -> Result<Response, Respons
 		}
 	})
 	.await
-	.tap_err(|e| error!("Failed to join blocking task: {e:?}"))
+	.inspect_err(|e| error!("Failed to join blocking task: {e:?}"))
 	.unwrap_or_else(|_| Err("Error executing command".into()))
 }
 
@@ -75,11 +73,11 @@ pub async fn cmdlist(CmdlistArgs { path }: &CmdlistArgs) -> Result<Response, Res
 		sandboxed_join(&CMD_PATH, path.as_deref().unwrap_or("")).ok_or("Invalid directory")?;
 
 	let dir_iter = read_dir(dir)
-		.tap_err(|reason| error!("Unable to read directory: {:?}", reason))
+		.inspect_err(|reason| error!("Unable to read directory: {:?}", reason))
 		.map_err(|_| "Invalid directory")?;
 
 	let message = dir_iter
-		.filter_map(|e| e.tap_err(|e| error!("{:?}", e)).ok())
+		.filter_map(|e| e.inspect_err(|e| error!("{:?}", e)).ok())
 		.map(|e| {
 			(
 				e.path()

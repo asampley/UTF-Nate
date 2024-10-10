@@ -1,4 +1,3 @@
-use tap::TapFallible;
 use tracing::error;
 
 use serde::{Deserialize, Serialize};
@@ -92,7 +91,7 @@ pub async fn intro_outro(
 				Intro => storage.get_intro(source.user_id).await,
 				Outro => storage.get_outro(source.user_id).await,
 			}
-			.tap_err(|e| error!("Unable to fetch user data: {:?}", e))
+			.inspect_err(|e| error!("Unable to fetch user data: {:?}", e))
 			.map_err(|_| "Unable to retrieve intro/outro")?;
 
 			Ok(format!(
@@ -118,7 +117,7 @@ pub async fn intro_outro(
 				Intro => storage.set_intro(source.user_id, clip).await,
 				Outro => storage.set_outro(source.user_id, clip).await,
 			}
-			.tap_err(|e| error!("Unable to write user data: {:?}", e))
+			.inspect_err(|e| error!("Unable to write user data: {:?}", e))
 			.map_err(|_| "Unable to set intro/outro")?;
 
 			Ok(format!("Set new {} to {}", mode.lowercase(), clip).into())
@@ -176,7 +175,7 @@ pub async fn introbot(
 			storage
 				.set_bot_intro(guild_id, clip)
 				.await
-				.tap_err(|e| error!("Unable to set bot intro: {:?}", e))
+				.inspect_err(|e| error!("Unable to set bot intro: {:?}", e))
 				.map_err(|_| "Unable to set bot intro")?;
 
 			Ok(format!("Set bot intro to {}", clip).into())
@@ -185,7 +184,7 @@ pub async fn introbot(
 			let intro = storage
 				.get_bot_intro(guild_id)
 				.await
-				.tap_err(|e| error!("Unable to retrieve bot intro: {:?}", e))
+				.inspect_err(|e| error!("Unable to retrieve bot intro: {:?}", e))
 				.map_err(|_| "Unable to retrieve bot intro")?;
 
 			Ok(format!(

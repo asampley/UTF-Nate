@@ -5,20 +5,19 @@
 //! functions on [`Config`].
 
 use std::path::PathBuf;
+use std::sync::LazyLock;
 use std::{fmt, fs::read_to_string};
-
-use once_cell::sync::Lazy;
 
 use serenity::model::id::{GuildId, UserId};
 
 use sqlx::{AnyExecutor, Database, Decode, Encode, FromRow, IntoArguments, Type};
-use tap::Conv;
 use thiserror::Error;
 
+use crate::util::Conv;
 use crate::RESOURCE_PATH;
 
 /// Path to shared directory for database scripts.
-pub static DB_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("database/"));
+pub static DB_PATH: LazyLock<PathBuf> = LazyLock::new(|| RESOURCE_PATH.join("database/"));
 
 /// Generic trait that can be implemented for the storage.
 ///

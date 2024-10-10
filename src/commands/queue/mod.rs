@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use songbird::tracks::PlayMode;
 use songbird::SongbirdKey;
 
-use tap::TapFallible;
 use thiserror::Error;
 
 use tracing::{error, info};
@@ -147,9 +146,10 @@ pub async fn skip(
 	let resume = current
 		.get_info()
 		.await
-		.tap_err(|e| error!("{:?}", e))
+		.inspect_err(|e| error!("{:?}", e))
 		.map_err(|_| "Error skipping clips")?
-		.playing == PlayMode::Play;
+		.playing
+		== PlayMode::Play;
 
 	let result = match &args.skip_set {
 		Some(skip_set) if !skip_set.0.is_empty() => {
@@ -213,7 +213,7 @@ pub async fn skip(
 			1 => "Skipped 1 clip".into(),
 			c => format!("Skipped {} clips", c).into(),
 		})
-		.tap_err(|e| error!("{:?}", e))
+		.inspect_err(|e| error!("{:?}", e))
 		.map_err(|_| "Error skipping clips".into())
 }
 
@@ -234,7 +234,7 @@ pub async fn pause(state: &BotState, source: &Source) -> Result<Response, Respon
 		.queue()
 		.pause()
 		.map(|_| "Pausing current clip".into())
-		.tap_err(|e| error!("{:?}", e))
+		.inspect_err(|e| error!("{:?}", e))
 		.map_err(|_| "Error pausing clip".into())
 }
 
@@ -255,7 +255,7 @@ pub async fn unpause(state: &BotState, source: &Source) -> Result<Response, Resp
 		.queue()
 		.resume()
 		.map(|_| "Unpausing current clip".into())
-		.tap_err(|e| error!("{:?}", e))
+		.inspect_err(|e| error!("{:?}", e))
 		.map_err(|_| "Error unpausing clip".into())
 }
 
@@ -346,7 +346,7 @@ pub async fn shuffle(
 		})
 		.and_then(|_| queue.resume())
 		.map(|_| "Shuffled queue".into())
-		.tap_err(|e| error!("{:?}", e))
+		.inspect_err(|e| error!("{:?}", e))
 		.map_err(|_| "Error shuffling queue".into())
 }
 
@@ -408,7 +408,7 @@ pub async fn r#loop(
 			.loop_for(*c)
 			.map(|_| format!("Looping current song {c} more times").into()),
 	}
-	.tap_err(|e| error!("{:?}", e))
+	.inspect_err(|e| error!("{:?}", e))
 	.map_err(|_| "Error changing looping settings".into())
 }
 
@@ -438,6 +438,6 @@ pub async fn r#move(
 			1 => "Moved 1 clip".into(),
 			c => format!("Moved {} clips", c).into(),
 		})
-		.tap_err(|e| error!("{:?}", e))
+		.inspect_err(|e| error!("{:?}", e))
 		.map_err(|_| "Error moving clips".into())
 }

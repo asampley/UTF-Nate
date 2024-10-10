@@ -7,7 +7,6 @@ use dashmap::DashMap;
 use rand::rngs::StdRng;
 use rand::seq::IteratorRandom;
 use rand::SeedableRng;
-use tap::TapFallible;
 use tracing::{error, info};
 
 use serenity::async_trait;
@@ -76,7 +75,7 @@ impl SerenityEventHandler for Handler {
 
 		let activity_data = crate::CONFIG.activity.as_ref().and_then(|a| {
 			a.try_into()
-				.tap_err(|e| error!("Error parsing activity data: {:?}", e))
+				.inspect_err(|e| error!("Error parsing activity data: {:?}", e))
 				.ok()
 		});
 
@@ -136,7 +135,7 @@ impl SerenityEventHandler for Handler {
 							IOClip::Intro => storage
 								.get_bot_intro(guild_id)
 								.await
-								.tap_err(|e| error!("Error fetching intro: {:?}", e))
+								.inspect_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
 								.unwrap_or_else(|| "dota/bleep bloop I am a robot".to_owned()),
@@ -147,14 +146,14 @@ impl SerenityEventHandler for Handler {
 							IOClip::Intro => storage
 								.get_intro(new_state.user_id)
 								.await
-								.tap_err(|e| error!("Error fetching intro: {:?}", e))
+								.inspect_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
 								.unwrap_or_else(|| self.random_intro(new_state.user_id)),
 							IOClip::Outro => storage
 								.get_outro(new_state.user_id)
 								.await
-								.tap_err(|e| error!("Error fetching outro: {:?}", e))
+								.inspect_err(|e| error!("Error fetching outro: {:?}", e))
 								.ok()
 								.flatten()
 								.unwrap_or_else(|| self.random_outro(new_state.user_id)),
@@ -179,7 +178,7 @@ impl SerenityEventHandler for Handler {
 					let volume = storage
 						.get_volume_clip(guild_id)
 						.await
-						.tap_err(|e| error!("Unable to get clip volume: {:?}", e))
+						.inspect_err(|e| error!("Unable to get clip volume: {:?}", e))
 						.ok()
 						.flatten()
 						.unwrap_or(0.5);

@@ -8,7 +8,6 @@ use songbird::tracks::Track;
 use songbird::Call;
 use songbird::SongbirdKey;
 
-use tap::TapFallible;
 use tracing::{debug, error};
 
 use std::sync::Arc;
@@ -81,7 +80,7 @@ pub async fn play(
 			PlayStyle::Clip => storage.get_volume_clip(guild_id).await,
 			PlayStyle::Play => storage.get_volume_play(guild_id).await,
 		}
-		.tap_err(|e| error!("Unable to get volume: {:?}", e))
+		.inspect_err(|e| error!("Unable to get volume: {:?}", e))
 		.ok()
 		.flatten()
 		.unwrap_or(0.5);
@@ -136,7 +135,7 @@ pub async fn play(
 							play_index,
 						)
 						.await
-						.tap_err(|e| error!("{:?}", e));
+						.inspect_err(|e| error!("{:?}", e));
 					}
 
 					let title = info.title.as_deref().unwrap_or(&args.search);
@@ -221,7 +220,7 @@ async fn queue_input(
 	let aux_metadata = input
 		.aux_metadata()
 		.await
-		.tap_err(|e| error!("Unable to fetch metadata: {:?}", e))
+		.inspect_err(|e| error!("Unable to fetch metadata: {:?}", e))
 		.ok();
 
 	let track = Track::from(input).volume(volume);
