@@ -12,10 +12,9 @@ use std::fs::read_dir;
 
 use crate::audio::{PlayStyle, CLIP_PATH};
 use crate::commands::{BotState, Source};
-use crate::configuration::Config;
 use crate::data::VoiceGuilds;
-use crate::util::*;
-use crate::Pool;
+use crate::persistence::Storage;
+use crate::{util::*, StorageKey};
 
 #[cfg(feature = "http-interface")]
 pub mod http;
@@ -104,16 +103,18 @@ pub async fn volume(
 
 	match mode {
 		VolumeMode::ConfigAllStyles => {
-			let pool = data_lock.clone_expect::<Pool>();
+			let storage = data_lock.clone_expect::<StorageKey>();
 
 			Ok(format!(
 				"Play volume: {}\nClip volume: {}",
-				Config::get_volume_play(&pool, guild_id)
+				storage
+					.get_volume_play(guild_id)
 					.await
 					.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
 					.map_err(|_| "Unable to retrieve volume")?
 					.unwrap_or(0.5),
-				Config::get_volume_clip(&pool, guild_id)
+				storage
+					.get_volume_clip(guild_id)
 					.await
 					.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
 					.map_err(|_| "Unable to retrieve volume")?
@@ -122,12 +123,13 @@ pub async fn volume(
 			.into())
 		}
 		VolumeMode::Config(style, None) => {
-			let pool = data_lock.clone_expect::<Pool>();
+			let storage = data_lock.clone_expect::<StorageKey>();
 
 			Ok(match style {
 				PlayStyle::Clip => format!(
 					"Clip volume: {}",
-					Config::get_volume_clip(&pool, guild_id)
+					storage
+						.get_volume_clip(guild_id)
 						.await
 						.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
 						.map_err(|_| "Unable to retrieve volume")?
@@ -135,7 +137,8 @@ pub async fn volume(
 				),
 				PlayStyle::Play => format!(
 					"Play volume: {}",
-					Config::get_volume_play(&pool, guild_id)
+					storage
+						.get_volume_play(guild_id)
 						.await
 						.tap_err(|e| error!("Unable to retrieve volume: {:?}", e))
 						.map_err(|_| "Unable to retrieve volume")?
@@ -195,11 +198,11 @@ pub async fn volume(
 			};
 
 			if let VolumeMode::Config(_, _) = mode {
-				let pool = data_lock.clone_expect::<Pool>();
+				let storage = data_lock.clone_expect::<StorageKey>();
 
 				match style {
-					PlayStyle::Clip => Config::set_volume_clip(&pool, guild_id, volume).await,
-					PlayStyle::Play => Config::set_volume_play(&pool, guild_id, volume).await,
+					PlayStyle::Clip => storage.set_volume_clip(guild_id, volume).await,
+					PlayStyle::Play => storage.set_volume_play(guild_id, volume).await,
 				}
 				.tap_err(|e| error!("Error setting volume: {:?}", e))
 				.map_err(|_| "Error setting volume")?;

@@ -98,7 +98,7 @@ version = "0.5.2"
 features = ["all"]
 
 [dependencies.sqlx]
-version = "0.7"
+version = "0.8"
 default-features = false
 features = ["any", "runtime-tokio", "tls-native-tls", "postgres", "sqlite"]
 

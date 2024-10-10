@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::search_clips;
 use crate::commands::{BotState, Source};
-use crate::configuration::Config;
+use crate::persistence::Storage;
 use crate::util::{GetExpect, Response};
-use crate::Pool;
+use crate::StorageKey;
 
 use IntroOutroMode::*;
 
@@ -84,13 +84,13 @@ pub async fn intro_outro(
 	};
 
 	let data_lock = state.data.read().await;
-	let pool = data_lock.clone_expect::<Pool>();
+	let storage = data_lock.clone_expect::<StorageKey>();
 
 	match clip {
 		None => {
 			let clip = match mode {
-				Intro => Config::get_intro(&pool, source.user_id).await,
-				Outro => Config::get_outro(&pool, source.user_id).await,
+				Intro => storage.get_intro(source.user_id).await,
+				Outro => storage.get_outro(source.user_id).await,
 			}
 			.tap_err(|e| error!("Unable to fetch user data: {:?}", e))
 			.map_err(|_| "Unable to retrieve intro/outro")?;
@@ -115,8 +115,8 @@ pub async fn intro_outro(
 			})?;
 
 			match mode {
-				Intro => Config::set_intro(&pool, source.user_id, clip).await,
-				Outro => Config::set_outro(&pool, source.user_id, clip).await,
+				Intro => storage.set_intro(source.user_id, clip).await,
+				Outro => storage.set_outro(source.user_id, clip).await,
 			}
 			.tap_err(|e| error!("Unable to write user data: {:?}", e))
 			.map_err(|_| "Unable to set intro/outro")?;
@@ -161,7 +161,7 @@ pub async fn introbot(
 	};
 
 	let data_lock = state.data.read().await;
-	let pool = data_lock.clone_expect::<Pool>();
+	let storage = data_lock.clone_expect::<StorageKey>();
 
 	match clip {
 		Some(clip) => {
@@ -173,7 +173,8 @@ pub async fn introbot(
 				)
 			})?;
 
-			Config::set_bot_intro(&pool, guild_id, clip)
+			storage
+				.set_bot_intro(guild_id, clip)
 				.await
 				.tap_err(|e| error!("Unable to set bot intro: {:?}", e))
 				.map_err(|_| "Unable to set bot intro")?;
@@ -181,7 +182,8 @@ pub async fn introbot(
 			Ok(format!("Set bot intro to {}", clip).into())
 		}
 		None => {
-			let intro = Config::get_bot_intro(&pool, guild_id)
+			let intro = storage
+				.get_bot_intro(guild_id)
 				.await
 				.tap_err(|e| error!("Unable to retrieve bot intro: {:?}", e))
 				.map_err(|_| "Unable to retrieve bot intro")?;

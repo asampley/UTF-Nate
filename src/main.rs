@@ -12,12 +12,14 @@ mod handler;
 mod http;
 mod interaction;
 mod parser;
+mod persistence;
 mod spotify;
 mod util;
 mod youtube;
 
 use clap::Parser;
 
+use persistence::StorageError;
 use ring::aead::LessSafeKey;
 
 use tap::TapFallible;
@@ -38,8 +40,6 @@ use serenity::prelude::RwLock;
 
 use songbird::serenity::SerenityInit;
 
-use sqlx::AnyPool;
-
 use configuration::Config;
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
@@ -49,6 +49,8 @@ use util::{read_toml, Framework};
 use std::fmt::Debug;
 use std::path::Path;
 use std::sync::Arc;
+
+use crate::persistence::Storage;
 
 /// Path to shared resources directory for things such as clips or database scripts.
 static RESOURCE_PATH: Lazy<&'static Path> = Lazy::new(|| Path::new("resources/"));
@@ -83,11 +85,11 @@ const GATEWAY_INTENTS: GatewayIntents = GatewayIntents::GUILD_MESSAGES
 	.union(GatewayIntents::GUILDS)
 	.union(GatewayIntents::MESSAGE_CONTENT);
 
-/// Key for [`serenity::prelude::TypeMap`] to enter the database pool.
-struct Pool;
+/// Key for persistent storage resource.
+struct StorageKey;
 
-impl serenity::prelude::TypeMapKey for Pool {
-	type Value = AnyPool;
+impl serenity::prelude::TypeMapKey for StorageKey {
+	type Value = sqlx::Pool<sqlx::Any>;
 }
 
 /// Key for [`ring::aead::LessSafeKey`] for encryption purposes.
@@ -200,41 +202,13 @@ async fn main() {
 
 	if OPT.init_database || !OPT.no_bot {
 		// initialize database connection
-		let db_pool = match AnyPool::connect(&keys.database.connect_string).await {
-			Ok(p) => p,
+		let db_pool = match init_database(&keys.database.connect_string, OPT.init_database).await {
+			Ok(v) => v,
 			Err(e) => {
-				error!("Failed to connect to database: {e}");
+				error!("Error initializing database: {e}");
 				return;
 			}
 		};
-
-		if OPT.init_database {
-			let mut trans = match db_pool.begin().await {
-				Ok(t) => t,
-				Err(e) => {
-					error!("Failed to intialize database transaction: {e}");
-					return;
-				}
-			};
-
-			match Config::setup_db(trans.as_mut()).await {
-				Ok(_) => (),
-				Err(e) => {
-					error!("Error creating tables: {e}");
-					return;
-				}
-			}
-
-			match trans.commit().await {
-				Ok(_) => (),
-				Err(e) => {
-					error!("Error committing table creation: {e}");
-					return;
-				}
-			}
-
-			info!("Data tables created");
-		}
 
 		if !OPT.no_bot {
 			let mut join_set = JoinSet::<Result<(), ProcessError>>::new();
@@ -247,7 +221,7 @@ async fn main() {
 				.type_map_insert::<VoiceUserCache>(Default::default())
 				.type_map_insert::<VoiceGuilds>(Default::default())
 				.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
-				.type_map_insert::<Pool>(db_pool)
+				.type_map_insert::<StorageKey>(db_pool)
 				.register_songbird_from_config(songbird::Config::default().preallocated_tracks(5))
 				.framework(
 					Framework::builder()
@@ -381,4 +355,22 @@ fn load_config() -> Config {
 			info!("Creating default config");
 			Config::default()
 		})
+}
+
+async fn init_database(
+	connect_string: &str,
+	create_tables: bool,
+) -> Result<sqlx::Pool<sqlx::Any>, StorageError> {
+	let db_pool = sqlx::Pool::<sqlx::Any>::connect(connect_string).await?;
+
+	if create_tables {
+		db_pool
+			.first_time_setup()
+			.await
+			.inspect_err(|e| error!("Error creating tables: {e}"))?;
+
+		info!("Data tables created");
+	}
+
+	Ok(db_pool)
 }

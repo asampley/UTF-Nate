@@ -16,13 +16,13 @@ use std::sync::Arc;
 use crate::audio::{get_inputs, move_queue, SearchSource};
 use crate::audio::{AudioError, PlayStyle};
 use crate::commands::{BotState, Source};
-use crate::configuration::Config;
 use crate::data::TrackMetadata;
 use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
 use crate::parser::Selection;
+use crate::persistence::Storage;
 use crate::util::write_duration;
 use crate::util::{GetExpect, Response};
-use crate::Pool;
+use crate::StorageKey;
 
 #[cfg(feature = "http-interface")]
 pub mod http;
@@ -76,10 +76,10 @@ pub async fn play(
 			.or_default()
 			.clone();
 
-		let pool = data_lock.clone_expect::<Pool>();
+		let storage = data_lock.clone_expect::<StorageKey>();
 		let volume = match play_style {
-			PlayStyle::Clip => Config::get_volume_clip(&pool, guild_id).await,
-			PlayStyle::Play => Config::get_volume_play(&pool, guild_id).await,
+			PlayStyle::Clip => storage.get_volume_clip(guild_id).await,
+			PlayStyle::Play => storage.get_volume_play(guild_id).await,
 		}
 		.tap_err(|e| error!("Unable to get volume: {:?}", e))
 		.ok()

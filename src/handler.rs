@@ -22,10 +22,10 @@ use songbird::SongbirdKey;
 
 use std::fmt::Write;
 
-use crate::Pool;
+use crate::persistence::Storage;
+use crate::StorageKey;
 
 use crate::audio::{clip_iter, get_inputs};
-use crate::configuration::Config;
 use crate::data::{VoiceGuild, VoiceGuilds, VoiceUserCache};
 use crate::util::*;
 use crate::Keys;
@@ -129,11 +129,12 @@ impl SerenityEventHandler for Handler {
 				};
 
 				let clip = {
-					let pool = ctx.data.read().await.clone_expect::<Pool>();
+					let storage = ctx.data.read().await.clone_expect::<StorageKey>();
 
 					if new_state.user_id == ctx.cache.current_user().id {
 						match io {
-							IOClip::Intro => Config::get_bot_intro(&pool, guild_id)
+							IOClip::Intro => storage
+								.get_bot_intro(guild_id)
 								.await
 								.tap_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
@@ -143,13 +144,15 @@ impl SerenityEventHandler for Handler {
 						}
 					} else {
 						match io {
-							IOClip::Intro => Config::get_intro(&pool, new_state.user_id)
+							IOClip::Intro => storage
+								.get_intro(new_state.user_id)
 								.await
 								.tap_err(|e| error!("Error fetching intro: {:?}", e))
 								.ok()
 								.flatten()
 								.unwrap_or_else(|| self.random_intro(new_state.user_id)),
-							IOClip::Outro => Config::get_outro(&pool, new_state.user_id)
+							IOClip::Outro => storage
+								.get_outro(new_state.user_id)
 								.await
 								.tap_err(|e| error!("Error fetching outro: {:?}", e))
 								.ok()
@@ -165,7 +168,7 @@ impl SerenityEventHandler for Handler {
 					let keys = lock.clone_expect::<Keys>();
 
 					let songbird = lock.clone_expect::<SongbirdKey>();
-					let pool = lock.clone_expect::<Pool>();
+					let storage = lock.clone_expect::<StorageKey>();
 
 					let voice_guild_arc = lock
 						.clone_expect::<VoiceGuilds>()
@@ -173,7 +176,8 @@ impl SerenityEventHandler for Handler {
 						.or_default()
 						.clone();
 
-					let volume = Config::get_volume_clip(&pool, guild_id)
+					let volume = storage
+						.get_volume_clip(guild_id)
 						.await
 						.tap_err(|e| error!("Unable to get clip volume: {:?}", e))
 						.ok()
