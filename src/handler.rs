@@ -21,7 +21,6 @@ use songbird::SongbirdKey;
 
 use std::fmt::Write;
 
-use crate::persistence::Storage;
 use crate::StorageKey;
 
 use crate::audio::{clip_iter, get_inputs};
@@ -128,7 +127,9 @@ impl SerenityEventHandler for Handler {
 				};
 
 				let clip = {
-					let storage = ctx.data.read().await.clone_expect::<StorageKey>();
+					let lock = ctx.data.read().await;
+
+					let storage = lock.get_expect::<StorageKey>();
 
 					if new_state.user_id == ctx.cache.current_user().id {
 						match io {
@@ -167,7 +168,7 @@ impl SerenityEventHandler for Handler {
 					let keys = lock.clone_expect::<Keys>();
 
 					let songbird = lock.clone_expect::<SongbirdKey>();
-					let storage = lock.clone_expect::<StorageKey>();
+					let storage = lock.get_expect::<StorageKey>();
 
 					let voice_guild_arc = lock
 						.clone_expect::<VoiceGuilds>()

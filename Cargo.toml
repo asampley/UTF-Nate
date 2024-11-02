@@ -12,6 +12,7 @@ http-interface = ["dep:askama", "dep:axum", "dep:axum-extra", "dep:chrono", "dep
 opt-level = 3
 
 [dependencies]
+async-trait = "0.1.83"
 caith = "4.2"
 dashmap = "5.5"
 futures = "0.3"

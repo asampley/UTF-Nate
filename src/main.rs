@@ -87,7 +87,7 @@ const GATEWAY_INTENTS: GatewayIntents = GatewayIntents::GUILD_MESSAGES
 struct StorageKey;
 
 impl serenity::prelude::TypeMapKey for StorageKey {
-	type Value = sqlx::Pool<sqlx::Any>;
+	type Value = Box<dyn Storage + Send + Sync>;
 }
 
 /// Key for [`ring::aead::LessSafeKey`] for encryption purposes.
@@ -219,7 +219,7 @@ async fn main() {
 				.type_map_insert::<VoiceUserCache>(Default::default())
 				.type_map_insert::<VoiceGuilds>(Default::default())
 				.type_map_insert::<Keys>(Arc::new(RwLock::new(keys)))
-				.type_map_insert::<StorageKey>(db_pool)
+				.type_map_insert::<StorageKey>(Box::new(db_pool))
 				.register_songbird_from_config(songbird::Config::default().preallocated_tracks(5))
 				.framework(
 					Framework::builder()

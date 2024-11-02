@@ -12,7 +12,6 @@ use std::fs::read_dir;
 use crate::audio::{PlayStyle, CLIP_PATH};
 use crate::commands::{BotState, Source};
 use crate::data::VoiceGuilds;
-use crate::persistence::Storage;
 use crate::{util::*, StorageKey};
 
 #[cfg(feature = "http-interface")]
@@ -99,7 +98,7 @@ pub async fn volume(
 
 	match mode {
 		VolumeMode::ConfigAllStyles => {
-			let storage = data_lock.clone_expect::<StorageKey>();
+			let storage = data_lock.get_expect::<StorageKey>();
 
 			Ok(format!(
 				"Play volume: {}\nClip volume: {}",
@@ -119,7 +118,7 @@ pub async fn volume(
 			.into())
 		}
 		VolumeMode::Config(style, None) => {
-			let storage = data_lock.clone_expect::<StorageKey>();
+			let storage = data_lock.get_expect::<StorageKey>();
 
 			Ok(match style {
 				PlayStyle::Clip => format!(
@@ -194,7 +193,7 @@ pub async fn volume(
 			};
 
 			if let VolumeMode::Config(_, _) = mode {
-				let storage = data_lock.clone_expect::<StorageKey>();
+				let storage = data_lock.get_expect::<StorageKey>();
 
 				match style {
 					PlayStyle::Clip => storage.set_volume_clip(guild_id, volume).await,

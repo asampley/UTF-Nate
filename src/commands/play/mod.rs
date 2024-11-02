@@ -18,7 +18,6 @@ use crate::commands::{BotState, Source};
 use crate::data::TrackMetadata;
 use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
 use crate::parser::Selection;
-use crate::persistence::Storage;
 use crate::util::write_duration;
 use crate::util::{GetExpect, Response};
 use crate::StorageKey;
@@ -75,7 +74,7 @@ pub async fn play(
 			.or_default()
 			.clone();
 
-		let storage = data_lock.clone_expect::<StorageKey>();
+		let storage = data_lock.get_expect::<StorageKey>();
 		let volume = match play_style {
 			PlayStyle::Clip => storage.get_volume_clip(guild_id).await,
 			PlayStyle::Play => storage.get_volume_play(guild_id).await,

@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::search_clips;
 use crate::commands::{BotState, Source};
-use crate::persistence::Storage;
 use crate::util::{GetExpect, Response};
 use crate::StorageKey;
 
@@ -83,7 +82,7 @@ pub async fn intro_outro(
 	};
 
 	let data_lock = state.data.read().await;
-	let storage = data_lock.clone_expect::<StorageKey>();
+	let storage = data_lock.get_expect::<StorageKey>();
 
 	match clip {
 		None => {
@@ -160,7 +159,7 @@ pub async fn introbot(
 	};
 
 	let data_lock = state.data.read().await;
-	let storage = data_lock.clone_expect::<StorageKey>();
+	let storage = data_lock.get_expect::<StorageKey>();
 
 	match clip {
 		Some(clip) => {
