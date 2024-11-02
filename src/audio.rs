@@ -485,7 +485,7 @@ pub async fn get_inputs(
 			}
 			// try to get an exact match on the clip, else fail
 			None => {
-				let clip = get_clip(dbg!(loc.as_ref())).ok_or(AudioError::NotFound)?;
+				let clip = get_clip(loc.as_ref()).ok_or(AudioError::NotFound)?;
 
 				let aux_metadata = AuxMetadata {
 					title: Some(loc.to_owned()),
@@ -713,7 +713,7 @@ pub fn clip_iter() -> impl Iterator<Item = OsString> {
 		.into_iter()
 		.filter_map(|f| f.inspect_err(|e| error!("{:?}", e)).ok())
 		.filter(|f| f.file_type().is_file())
-		.map(|f| f.path().file_stem().unwrap().to_owned())
+		.map(|f| f.path().strip_prefix(&*CLIP_PATH).unwrap().into())
 }
 
 /// Verify that the clip exists within the clip path directory.
