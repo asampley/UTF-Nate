@@ -124,16 +124,15 @@ where
 		if page_token.is_none() {
 			None
 		} else {
-			let response: Result<_, _> = try {
-				REQWEST_CLIENT
-					.get(url)
-					.query(&query)
-					.query(&page_token.map(|next| [("pageToken", next)]))
-					.send()
-					.await?
-					.json::<ListResponse<T>>()
-					.await?
-			};
+			let response = (|| async { REQWEST_CLIENT
+				.get(url)
+				.query(&query)
+				.query(&page_token.map(|next| [("pageToken", next)]))
+				.send()
+				.await?
+				.json::<ListResponse<T>>()
+				.await
+			})().await;
 
 			match response {
 				Err(e) => Some((Err(e), None)),

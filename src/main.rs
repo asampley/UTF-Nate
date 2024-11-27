@@ -1,6 +1,3 @@
-#![feature(try_blocks)]
-#![cfg_attr(test, feature(assert_matches))]
-
 mod audio;
 mod commands;
 mod configuration;

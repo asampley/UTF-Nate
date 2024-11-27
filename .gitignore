@@ -1,5 +1,6 @@
 /target
 **/*.rs.bk
+/.cargo
 
 # store api keys and such in this file
 /keys.toml

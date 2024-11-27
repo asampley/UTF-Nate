@@ -188,7 +188,7 @@ pub fn write_track(
 
 #[cfg(test)]
 mod test {
-	use std::{assert_matches::assert_matches, path::PathBuf};
+	use std::path::PathBuf;
 
 	use tracing::error;
 	use walkdir::{DirEntry, WalkDir};
@@ -230,7 +230,7 @@ mod test {
 				.strip_prefix(&*CLIP_PATH)
 				.expect("Unexpected prefix");
 
-			assert_matches!(sandboxed_join(&CLIP_PATH, relative), Some(_));
+			assert!(matches!(sandboxed_join(&CLIP_PATH, relative), Some(_)));
 		}
 	}
 
@@ -262,7 +262,7 @@ mod test {
 
 			assert!(absolute.exists());
 
-			assert_matches!(sandboxed_join(&CLIP_PATH, absolute), None);
+			assert!(matches!(sandboxed_join(&CLIP_PATH, absolute), None));
 		}
 	}
 }
