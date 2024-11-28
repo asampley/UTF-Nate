@@ -30,10 +30,10 @@ cat <<EOF
   (dirname (dirname (dirname (current-filename))))
 )
 
-(define (vcs-file? file stat)
+(define vcs-file?
 	(or
 		;; if we're in a git checkout and the file is not ignored
-		(and (git-predicate (source-dir)) (git-predicate file))
+		(git-predicate (source-dir))
 		;; if we're not in a git checkout always return true
 		(const #t)
 	)
