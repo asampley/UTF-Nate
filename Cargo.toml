@@ -3,6 +3,8 @@ name = "utf-nate"
 version = "0.4.0"
 authors = ["sampley <sampley@ualberta.ca>"]
 edition = "2021"
+description = "A discord bot for playing music"
+repository = "https://github.com/asampley/UTF-Nate"
 
 [features]
 default = ["http-interface"]
@@ -20,7 +22,7 @@ assets = [
 conf-files = ["/opt/utf-nate/resources/**/*"]
 
 [dependencies]
-async-trait = "0.1.83"
+async-trait = "0.1.77"
 caith = "4.2"
 dashmap = "5.5"
 futures = "0.3"
@@ -28,6 +30,7 @@ fxhash = "0.2"
 itertools = "0.11"
 markdown = "1.0.0-alpha.9"
 nom = "7.1"
+once_cell = "1.19.0"
 rand = "0.8"
 regex = "1.9"
 ring = "0.16"

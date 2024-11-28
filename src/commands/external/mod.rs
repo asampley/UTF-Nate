@@ -1,5 +1,7 @@
 use itertools::Itertools;
 
+use once_cell::sync::Lazy;
+
 use serde::{Deserialize, Serialize};
 
 use tracing::{error, info};
@@ -8,7 +10,6 @@ use std::fs::read_dir;
 use std::path::PathBuf;
 use std::process;
 use std::process::Stdio;
-use std::sync::LazyLock;
 
 use crate::util::*;
 use crate::RESOURCE_PATH;
@@ -17,7 +18,7 @@ use crate::RESOURCE_PATH;
 pub mod http;
 pub mod poise;
 
-pub static CMD_PATH: LazyLock<PathBuf> = LazyLock::new(|| RESOURCE_PATH.join("cmd/"));
+pub static CMD_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("cmd/"));
 
 pub const fn cmd_help() -> &'static str {
 	include_str!("help/cmd.md")

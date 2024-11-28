@@ -27,8 +27,6 @@
   (dirname (dirname (dirname (current-filename))))
 )
 
-(dbg (source-dir))
-
 (define (vcs-file? file stat)
 	(or
 		;; if we're in a git checkout and the file is not ignored
@@ -59,11 +57,12 @@
 				#:tests? #f
 				#:cargo-inputs (
 					("rust-askama" ,rust-askama-0.12)
+					("rust-async-trait" ,rust-async-trait-0.1)
 					("rust-axum" ,rust-axum-0.6)
 					("rust-axum-extra" ,rust-axum-extra-0.7)
+					("rust-caith" ,rust-caith-4)
 					("rust-chrono" ,rust-chrono-0.4)
 					("rust-clap" ,rust-clap-4)
-					("rust-caith" ,rust-caith-4)
 					("rust-dashmap" ,rust-dashmap-5)
 					("rust-futures" ,rust-futures-0.3)
 					("rust-fxhash" ,rust-fxhash-0.2)
@@ -85,9 +84,8 @@
 					("rust-serde-with" ,rust-serde-with-3)
 					("rust-serenity" ,rust-serenity-0.12)
 					("rust-songbird" ,rust-songbird-0.4)
+					("rust-sqlx" ,rust-sqlx-0.8)
 					("rust-symphonia" ,rust-symphonia-0.5)
-					("rust-sqlx" ,rust-sqlx-0.7)
-					("rust-tap" ,rust-tap-1)
 					("rust-thiserror" ,rust-thiserror-1)
 					("rust-tokio" ,rust-tokio-1)
 					("rust-toml" ,rust-toml-0.7)

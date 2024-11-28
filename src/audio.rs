@@ -12,6 +12,8 @@ use futures::TryStreamExt;
 
 use itertools::Itertools;
 
+use once_cell::sync::Lazy;
+
 use songbird::error::TrackResult;
 use songbird::input::{AudioStream, AudioStreamError, AuxMetadata, Compose};
 use songbird::tracks::PlayMode;
@@ -40,7 +42,6 @@ use std::cmp::min;
 use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
-use std::sync::LazyLock;
 
 use crate::data::{ArcRw, Keys};
 use crate::parser::Selection;
@@ -50,18 +51,18 @@ use crate::RESOURCE_PATH;
 use crate::{spotify, REQWEST_CLIENT};
 
 /// Path to shared directory for clips.
-pub static CLIP_PATH: LazyLock<PathBuf> = LazyLock::new(|| RESOURCE_PATH.join("clips/"));
+pub static CLIP_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("clips/"));
 
 /// Regular expression which matches valid http or https urls.
-static URL: LazyLock<Regex> = LazyLock::new(|| Regex::new("^https?://").unwrap());
+static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
 
 /// Regular expression which matches the host portion of a url if the host is youtube.
-static YOUTUBE_HOST: LazyLock<Regex> =
-	LazyLock::new(|| Regex::new("^([^.]*\\.)?(youtube\\.com|youtu.be)").unwrap());
+static YOUTUBE_HOST: Lazy<Regex> =
+	Lazy::new(|| Regex::new("^([^.]*\\.)?(youtube\\.com|youtu.be)").unwrap());
 
 /// Regular expression which matches the host portion of a url if the host is spotify.
-static SPOTIFY_HOST: LazyLock<Regex> =
-	LazyLock::new(|| Regex::new("^open\\.spotify\\.com").unwrap());
+static SPOTIFY_HOST: Lazy<Regex> =
+	Lazy::new(|| Regex::new("^open\\.spotify\\.com").unwrap());
 
 /// Enum for the two styles of audio source.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

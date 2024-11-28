@@ -1,8 +1,9 @@
 use std::fs::read_to_string;
 use std::path::PathBuf;
-use std::sync::LazyLock;
 
 use async_trait::async_trait;
+
+use once_cell::sync::Lazy;
 
 use serenity::all::{GuildId, UserId};
 use sqlx::{AnyExecutor, Database, Decode, Encode, FromRow, IntoArguments, Type};
@@ -13,7 +14,7 @@ use crate::RESOURCE_PATH;
 use super::{Storage, StorageError};
 
 /// Path to shared directory for database scripts.
-pub static DB_PATH: LazyLock<PathBuf> = LazyLock::new(|| RESOURCE_PATH.join("database/"));
+pub static DB_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("database/"));
 
 #[async_trait]
 impl Storage for sqlx::Pool<sqlx::Any> {
