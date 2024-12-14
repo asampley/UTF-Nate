@@ -6,7 +6,7 @@ set -euf
 # Confirm yourself that it's okay, or pipe in yes to skip
 
 # yt-dlp requires python.
-apt install python3
+apt install curl python3
 
 # yt-dlp install
 curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
