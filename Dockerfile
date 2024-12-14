@@ -3,7 +3,7 @@ FROM rust:latest AS builder
 WORKDIR /usr/src/utf-nate
 COPY . .
 
-RUN sudo apt update
+RUN apt update
 RUN yes | setup/debian-build-setup.sh
 RUN cargo install --path .
 
