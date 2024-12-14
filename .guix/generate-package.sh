@@ -9,7 +9,6 @@ cat <<EOF
 	#:use-module ((guix licenses) #:prefix license:)
 	#:use-module (guix build-system cargo)
 	#:use-module (gnu packages autotools)
-	#:use-module (gnu packages cmake)
 	#:use-module (gnu packages pkg-config)
 	#:use-module (gnu packages tls)
 	#:use-module (gnu packages video)
@@ -66,10 +65,10 @@ printf '
 	"$(cargo read-manifest | jq '.version')"
 
 cargo read-manifest\
-	| jq '.dependencies | map(.name + .req)'\
-	| sed '1d;$d;s#[ ",]##g;s#^#rust-#'\
-	| sed 's#\^\(0\.[0-9]*\|[1-9][0-9]*\).*$#^\1#;s#_#-#g;'\
-	| sed 's#^\(.*\)^\([^-]*\)$#\t\t\t\t\t("\1" ,\1-\2)#'
+	| jq '.dependencies | map(.name + " " + .req)'\
+	| sed '1d;$d;s#^ *"#rust-#;s#",$##'\
+	| sed 's# \([\^=]\)\(0\.[0-9]*\|[1-9][0-9]*\).*$#\1\2#;s#_#-#g;'\
+	| sed 's#^\(.*\)[\^=]\([^-]*\)$#\t\t\t\t\t("\1" ,\1-\2)#'
 
 printf \
 '				)
@@ -78,7 +77,6 @@ printf \
 		(native-inputs
 			(list
 				autoconf
-				cmake
 				openssl
 				opus
 				pkg-config

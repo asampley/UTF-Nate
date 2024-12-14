@@ -89,7 +89,7 @@ guix pack -L .guix/modules -f docker --entry-point=bin/utf-nate utf-nate
 
 ```sh
 # install the required external dependencies
-setup/debian-build-setup.sh
+sudo setup/debian-build-setup.sh
 # install cargo-deb to create a deb package, for most convenience
 cargo install cargo-deb
 ```
@@ -147,7 +147,7 @@ Currently, because maximum stability is gained from using the latest yt-dlp, it 
 the latest version, not from debian packages. If you want to go this route, use the
 `setup/debian-run-setup.sh` script. It will also install python for yt-dlp.
 ```sh
-setup/debian-run-setup.sh
+sudo setup/debian-run-setup.sh
 ```
 
 All paths are managed by the working directory. Run the bot from a directory with the

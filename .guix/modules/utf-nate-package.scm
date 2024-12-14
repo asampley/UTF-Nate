@@ -6,14 +6,13 @@
 	#:use-module ((guix licenses) #:prefix license:)
 	#:use-module (guix build-system cargo)
 	#:use-module (gnu packages autotools)
-	#:use-module (gnu packages cmake)
 	#:use-module (gnu packages pkg-config)
 	#:use-module (gnu packages tls)
 	#:use-module (gnu packages video)
 	#:use-module (gnu packages xiph)
+	#:use-module (gnu packages crates-crypto)
 	#:use-module (gnu packages crates-io)
 	#:use-module (gnu packages crates-web)
-	#:use-module (gnu packages crates-crypto)
 	#:use-module (utf-nate-import)
 )
 
@@ -101,7 +100,6 @@
 		(native-inputs
 			(list
 				autoconf
-				cmake
 				openssl
 				opus
 				pkg-config
