@@ -199,7 +199,8 @@ pub async fn play(
 						}
 						AudioError::NotFound => format!("Clip {} not found", &args.search).into(),
 						AudioError::Spotify => "Error reading from Spotify".into(),
-						AudioError::YoutubePlaylist => "Error reading youtube playlist".into(),
+						AudioError::YoutubeApiKey => "Error reading from Youtube".into(),
+						AudioError::YoutubeApi(_) => "Error reading from Youtube".into(),
 						AudioError::PlaylistNotAllowed => {
 							"A playlist is not allowed in this context".into()
 						}

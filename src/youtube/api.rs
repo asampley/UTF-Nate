@@ -3,8 +3,24 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum Response<T, F> {
+	Parse(T),
+	Fail(F),
+}
+
+impl<T, F> Response<T, F> {
+	pub fn into_result(self) -> Result<T, F> {
+		match self {
+			Self::Parse(v) => Ok(v),
+			Self::Fail(s) => Err(s),
+		}
+	}
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ListResponse<T> {
+pub struct List<T> {
 	pub next_page_token: Option<String>,
 	pub prev_page_token: Option<String>,
 	pub page_info: PageInfo,

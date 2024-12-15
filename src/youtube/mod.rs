@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 use songbird::constants::SAMPLE_RATE_RAW;
 use songbird::input::{AuxMetadata, YoutubeDl};
 
-use api::{ListResponse, Playlist, PlaylistItem, Video};
+use thiserror::Error;
+
+use api::{List, Playlist, PlaylistItem, Response, Video};
 
 use std::fmt::Display;
 
@@ -24,6 +26,16 @@ use crate::REQWEST_CLIENT;
 pub struct YoutubeApi {
 	pub key: String,
 }
+
+#[derive(Debug, Error)]
+pub enum Error {
+	#[error("failed while fetching data: {0}")]
+	Reqwest(#[from] reqwest::Error),
+	#[error("failed to parse data: {0}")]
+	Api(serde_json::Value),
+}
+
+pub type Result<T> = core::result::Result<T, Error>;
 
 pub fn compose_yt_url(
 	uri: String,
@@ -115,7 +127,7 @@ pub fn compose_yt_search_with_meta(
 pub fn stream_paged<'a, T, Q>(
 	url: &'static str,
 	query: Q,
-) -> impl Stream<Item = reqwest::Result<Vec<T>>> + 'a
+) -> impl Stream<Item = Result<Vec<T>>> + 'a
 where
 	for<'de> T: Deserialize<'de>,
 	Q: Serialize + Copy + 'a,
@@ -124,15 +136,19 @@ where
 		if page_token.is_none() {
 			None
 		} else {
-			let response = (|| async { REQWEST_CLIENT
-				.get(url)
-				.query(&query)
-				.query(&page_token.map(|next| [("pageToken", next)]))
-				.send()
-				.await?
-				.json::<ListResponse<T>>()
-				.await
-			})().await;
+			let response = (|| async {
+				REQWEST_CLIENT
+					.get(url)
+					.query(&query)
+					.query(&page_token.map(|next| [("pageToken", next)]))
+					.send()
+					.await?
+					.json::<Response<List<T>, _>>()
+					.await?
+					.into_result()
+					.map_err(|e| Error::Api(e))
+			})()
+			.await;
 
 			match response {
 				Err(e) => Some((Err(e), None)),
@@ -142,7 +158,7 @@ where
 	})
 }
 
-pub async fn playlist(api: &YoutubeApi, playlist_id: &str) -> reqwest::Result<Option<Playlist>> {
+pub async fn playlist(api: &YoutubeApi, playlist_id: &str) -> Result<Option<Playlist>> {
 	Ok(REQWEST_CLIENT
 		.get("https://www.googleapis.com/youtube/v3/playlists")
 		.query(&[
@@ -152,8 +168,10 @@ pub async fn playlist(api: &YoutubeApi, playlist_id: &str) -> reqwest::Result<Op
 		])
 		.send()
 		.await?
-		.json::<ListResponse<Playlist>>()
+		.json::<Response<List<Playlist>, _>>()
 		.await?
+		.into_result()
+		.map_err(|e| Error::Api(e))?
 		.items
 		.drain(..)
 		.next())
@@ -162,7 +180,7 @@ pub async fn playlist(api: &YoutubeApi, playlist_id: &str) -> reqwest::Result<Op
 pub fn playlist_items<'a>(
 	api: &'a YoutubeApi,
 	playlist_id: &'a str,
-) -> impl Stream<Item = reqwest::Result<Vec<PlaylistItem>>> + 'a {
+) -> impl Stream<Item = Result<Vec<PlaylistItem>>> + 'a {
 	let url = "https://youtube.googleapis.com/youtube/v3/playlistItems";
 	let query = [
 		("key", api.key.as_ref()),
@@ -174,7 +192,7 @@ pub fn playlist_items<'a>(
 	stream_paged(url, query)
 }
 
-pub async fn video(api: &YoutubeApi, video_id: &str) -> reqwest::Result<Option<Video>> {
+pub async fn video(api: &YoutubeApi, video_id: &str) -> Result<Option<Video>> {
 	Ok(REQWEST_CLIENT
 		.get("https://www.googleapis.com/youtube/v3/videos")
 		.query(&[
@@ -184,8 +202,10 @@ pub async fn video(api: &YoutubeApi, video_id: &str) -> reqwest::Result<Option<V
 		])
 		.send()
 		.await?
-		.json::<ListResponse<Video>>()
+		.json::<Response<List<Video>, _>>()
 		.await?
+		.into_result()
+		.map_err(|e| Error::Api(e))?
 		.items
 		.drain(..)
 		.next())
@@ -197,7 +217,7 @@ pub async fn video(api: &YoutubeApi, video_id: &str) -> reqwest::Result<Option<V
 pub async fn videos(
 	api: &YoutubeApi,
 	video_ids: impl IntoIterator<Item = impl std::fmt::Display>,
-) -> reqwest::Result<Vec<Video>> {
+) -> Result<Vec<Video>> {
 	let url = "https://youtube.googleapis.com/youtube/v3/videos";
 	let query_base = [
 		("key", api.key.as_ref()),
@@ -210,7 +230,9 @@ pub async fn videos(
 		.query(&[("id", &video_ids.into_iter().join(","))])
 		.send()
 		.await?
-		.json::<ListResponse<Video>>()
-		.await
-		.map(|list| list.items)
+		.json::<Response<List<Video>, _>>()
+		.await?
+		.into_result()
+		.map_err(|e| Error::Api(e))
+		.map(|v| v.items)
 }
