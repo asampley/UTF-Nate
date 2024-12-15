@@ -117,7 +117,7 @@ struct Opt {
 
 	/// Do not check for clip collisions. Speeds up start by disabling.
 	#[arg(long)]
-	no_check_clips: bool,
+	check_clips: bool,
 }
 
 #[derive(Debug, Error)]
@@ -146,7 +146,7 @@ async fn main() {
 		return;
 	}
 
-	if !OPT.no_check_clips {
+	if OPT.check_clips {
 		// warn if there are duplicate clip names
 		audio::warn_duplicate_clip_names();
 		// warn if clips cannot be found with search easily
