@@ -15,4 +15,4 @@ RUN yes | /tmp/setup/debian-run-setup.sh
 RUN rm /tmp/setup/debian-run-setup.sh
 COPY --from=builder /usr/local/cargo/bin/utf-nate /usr/local/bin/utf-nate
 
-CMD ["utf-nate"]
+ENTRYPOINT ["utf-nate"]
