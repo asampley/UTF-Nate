@@ -2,7 +2,7 @@ FROM rust:latest AS builder
 
 WORKDIR /usr/src/utf-nate
 
-COPY setup/debian-build-setup.sh .
+COPY setup .
 RUN apt update
 RUN yes | setup/debian-build-setup.sh
 
