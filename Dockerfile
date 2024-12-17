@@ -2,11 +2,10 @@ FROM rust:latest AS builder
 
 WORKDIR /usr/src/utf-nate
 
-COPY setup .
+COPY . .
 RUN apt update
 RUN yes | setup/debian-build-setup.sh
 
-COPY Cargo.toml src/ templates/ .
 RUN cargo install --path .
 
 FROM debian:bookworm-slim
