@@ -80,9 +80,14 @@ If you're looking for a specific way to distribute it, take a look at `guix pack
 
 ### Docker
 
-Create a docker image containing the executable (resources not included).
+Create a guix docker image containing the executable (resources not included).
 ```sh
 guix pack -L .guix/modules -f docker --entry-point=bin/utf-nate utf-nate
+```
+
+Create a debian docker image (resources not included).
+```sh
+docker build .
 ```
 
 ### Debian
@@ -100,6 +105,8 @@ Now each subsequent build is very simple.
 cargo deb
 # or build the executable itself (into `target/release`)
 cargo build --release
+# or install directly, location depends on user and can be changed if desired: https://doc.rust-lang.org/cargo/commands/cargo-install.html
+cargo install --path .
 ```
 
 If you want to build with specific features only, you can disable default features, and add
@@ -109,11 +116,15 @@ features, or any mix thereof.
 cargo deb -- --no-default-features
 # or
 cargo build --release --no-default-features
+# or
+cargo install --path . --no-default-features
 
 # add features with --features (see cargo for details)
 cargo deb -- --features http-interface
 # or
 cargo build --release --features http-interface
+# or
+cargo install --path . --features http-interface
 
 # --features and --no-default-features can be mixed
 ```
@@ -210,6 +221,9 @@ guix shell utf-nate -- utf-nate
 ```
 
 ### Docker
+
+If you use the Dockerfile, the default working directory is /opt/utf-nate. Put the resources,
+keys.toml, and config.toml there.
 
 I recommend building the docker image using guix. Then do all your docker magic to pass along access
 to the resources folder, keys.toml, config.toml, network to the database, etc. I don't use docker
