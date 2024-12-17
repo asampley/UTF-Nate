@@ -5,6 +5,22 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum Response<T, F> {
+	Parse(T),
+	Fail(F),
+}
+
+impl<T, F> Response<T, F> {
+	pub fn into_result(self) -> Result<T, F> {
+		match self {
+			Self::Parse(v) => Ok(v),
+			Self::Fail(e) => Err(e),
+		}
+	}
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Playlist {
 	pub name: String,
 	pub tracks: PlaylistTracks,
@@ -36,7 +52,6 @@ pub struct Track {
 	pub id: String,
 	pub name: String,
 	pub duration_ms: u64,
-	pub preview_url: Option<String>,
 	pub artists: Vec<Artist>,
 }
 

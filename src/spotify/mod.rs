@@ -7,10 +7,13 @@
 //! [Spotify API]: https://developer.spotify.com/documentation/web-api/reference/#/
 
 pub mod api;
+pub mod scrape;
 
 use itertools::Itertools;
 
 use tracing::debug;
+
+use thiserror::Error;
 
 use serde::Deserialize;
 
@@ -20,7 +23,7 @@ use std::time::{Duration, Instant};
 
 use crate::{audio::ComposeWithMetadata, youtube::compose_yt_search_with_meta, REQWEST_CLIENT};
 
-use api::{Album, Playlist, Track};
+use api::{Album, Playlist, Response, Track};
 
 /// Information required to connect to the Spotify API.
 ///
@@ -38,10 +41,22 @@ pub struct SpotifyApi {
 	pub token: Option<SpotifyToken>,
 }
 
+#[derive(Debug, Error)]
+pub enum Error {
+	#[error("failed while fetching data: {0}")]
+	Reqwest(#[from] reqwest::Error),
+	#[error("failed to parse data: {0}")]
+	Api(serde_json::Value),
+	#[error("failed to scrape data: {0}")]
+	Scrape(#[from] scrape::Error),
+}
+
+pub type Result<T> = core::result::Result<T, Error>;
+
 impl SpotifyApi {
 	/// If there is still a valid token, return it, and otherwise refresh the
 	/// spotify token.
-	pub async fn get_token(&mut self) -> reqwest::Result<&SpotifyToken> {
+	pub async fn get_token(&mut self) -> Result<&SpotifyToken> {
 		if self.token.as_ref().map(|t| t.expired()).unwrap_or(true) {
 			debug!("Refreshing spotify token");
 			self.token = Some(SpotifyToken::new(self).await?);
@@ -65,7 +80,7 @@ pub struct SpotifyToken {
 
 impl SpotifyToken {
 	/// Create a new token using persistent credentials.
-	pub async fn new(api: &SpotifyApi) -> reqwest::Result<Self> {
+	pub async fn new(api: &SpotifyApi) -> Result<Self> {
 		debug!("Fetching spotify token...");
 
 		let response = REQWEST_CLIENT
@@ -132,7 +147,7 @@ impl From<&Track> for ComposeWithMetadata<YoutubeDl> {
 /// Fetch and parse a playlist from the spotify API.
 ///
 /// See <https://developer.spotify.com/documentation/web-api/reference/#/operations/get-playlist>
-pub async fn playlist(token: &str, playlist_id: &str) -> reqwest::Result<Playlist> {
+pub async fn playlist(token: &str, playlist_id: &str) -> Result<Playlist> {
 	REQWEST_CLIENT
 		.get(format!(
 			"https://api.spotify.com/v1/playlists/{}",
@@ -141,32 +156,38 @@ pub async fn playlist(token: &str, playlist_id: &str) -> reqwest::Result<Playlis
 		.bearer_auth(token)
 		.send()
 		.await?
-		.json()
-		.await
+		.json::<Response<Playlist, _>>()
+		.await?
+		.into_result()
+		.map_err(Error::Api)
 }
 
 /// Fetch and parse an album from the spotify API.
 ///
 /// See <https://developer.spotify.com/documentation/web-api/reference/#/operations/get-an-album>
-pub async fn album(token: &str, album_id: &str) -> reqwest::Result<Album> {
+pub async fn album(token: &str, album_id: &str) -> Result<Album> {
 	REQWEST_CLIENT
 		.get(format!("https://api.spotify.com/v1/albums/{}", album_id))
 		.bearer_auth(token)
 		.send()
 		.await?
-		.json()
-		.await
+		.json::<Response<Album, _>>()
+		.await?
+		.into_result()
+		.map_err(Error::Api)
 }
 
 /// Fetch and parse a track from the spotify API.
 ///
 /// See <https://developer.spotify.com/documentation/web-api/reference/#/operations/get-track>
-pub async fn track(token: &str, track_id: &str) -> reqwest::Result<Track> {
+pub async fn track(token: &str, track_id: &str) -> Result<Track> {
 	REQWEST_CLIENT
 		.get(format!("https://api.spotify.com/v1/tracks/{}", track_id))
 		.bearer_auth(token)
 		.send()
 		.await?
-		.json()
-		.await
+		.json::<Response<Track, _>>()
+		.await?
+		.into_result()
+		.map_err(Error::Api)
 }

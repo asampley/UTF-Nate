@@ -363,10 +363,21 @@ pub async fn get_inputs(
 
 					let playlist_id = path_segments.next().ok_or(AudioError::UnsupportedUrl)?;
 
-					let playlist = spotify::playlist(&token, playlist_id)
-						.await
-						.inspect_err(|e| error!("Error reading spotify playlist: {:?}", e))
-						.map_err(|_| AudioError::Spotify)?;
+					// First try the api
+					let playlist = match spotify::playlist(&token, playlist_id).await {
+						Ok(v) => v,
+						Err(e) => {
+							// Fall back to parsing an embed in case spotify does not display that
+							// playlist on the api
+							spotify::scrape::playlist(playlist_id)
+								.await
+								.inspect_err(|e_scrape| {
+									error!("Error reading spotify playlist: {:?}", e);
+									error!("Error scraping spotify playlist: {:?}", e_scrape);
+								})
+								.map_err(|_| AudioError::Spotify)?
+						}
+					};
 
 					Ok(SourceInfo {
 						title: Some(playlist.name),
