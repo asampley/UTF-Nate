@@ -76,8 +76,6 @@ printf \
 		)
 		(native-inputs
 			(list
-				autoconf
-				openssl
 				opus
 				pkg-config
 			)

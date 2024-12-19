@@ -230,7 +230,7 @@ mod test {
 				.strip_prefix(&*CLIP_PATH)
 				.expect("Unexpected prefix");
 
-			assert!(matches!(sandboxed_join(&CLIP_PATH, relative), Some(_)));
+			assert!(sandboxed_join(&CLIP_PATH, relative).is_some());
 		}
 	}
 
@@ -262,7 +262,7 @@ mod test {
 
 			assert!(absolute.exists());
 
-			assert!(matches!(sandboxed_join(&CLIP_PATH, absolute), None));
+			assert_eq!(None, sandboxed_join(&CLIP_PATH, absolute));
 		}
 	}
 }

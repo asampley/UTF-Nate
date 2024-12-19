@@ -1,13 +1,14 @@
-use once_cell::sync::Lazy;
 use regex::{Regex, RegexBuilder};
 use thiserror::Error;
+
+use std::sync::LazyLock;
 
 use crate::REQWEST_CLIENT;
 
 use super::api::{Artist, Playlist, PlaylistTracks, PlaylistTracksItem, Track};
 use super::Result;
 
-static PLAYLIST_EMBED_JSON: Lazy<Regex> = Lazy::new(|| {
+static PLAYLIST_EMBED_JSON: LazyLock<Regex> = LazyLock::new(|| {
 	RegexBuilder::new(
 		r#"<script\s+([^>]*("[^"]*")?)*type="application/json"([^>]*("[^"]*")*)*>(?<json>.*)</script>"#,
 	)

@@ -14,5 +14,6 @@ clippy() {
 	fi
 }
 
-clippy --no-default-features
-clippy --no-default-features --features http-interface
+clippy --no-default-features --features "tls-rustls"
+clippy --no-default-features --features "tls-rustls http-interface"
+clippy --no-default-features --features "tls-native-tls"

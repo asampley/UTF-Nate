@@ -10,11 +10,10 @@ use axum_extra::extract::CookieJar;
 
 use hyper::StatusCode;
 
-use once_cell::sync::Lazy;
-
 use ring::aead::LessSafeKey;
 
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use crate::commands::CustomData;
 use crate::encrypt::Encrypted;
@@ -63,7 +62,7 @@ where
 	}
 }
 
-static FORMS: Lazy<HashMap<fn() -> Command, String>> = Lazy::new(|| {
+static FORMS: LazyLock<HashMap<fn() -> Command, String>> = LazyLock::new(|| {
 	super::COMMAND_CREATES
 		.iter()
 		.filter_map(|create| {

@@ -113,11 +113,11 @@ If you want to build with specific features only, you can disable default featur
 features, or any mix thereof.
 ```sh
 # minimal features with --no-default-features (see cargo for details)
-cargo deb -- --no-default-features
+cargo deb -- --no-default-features --features tls-rustls
 # or
-cargo build --release --no-default-features
+cargo build --release --no-default-features --features tls-rustls
 # or
-cargo install --path . --no-default-features
+cargo install --path . --no-default-features --features tls-rustls
 
 # add features with --features (see cargo for details)
 cargo deb -- --features http-interface

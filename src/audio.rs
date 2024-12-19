@@ -12,8 +12,6 @@ use futures::TryStreamExt;
 
 use itertools::Itertools;
 
-use once_cell::sync::Lazy;
-
 use songbird::error::TrackResult;
 use songbird::input::{AudioStream, AudioStreamError, AuxMetadata, Compose};
 use songbird::tracks::PlayMode;
@@ -42,6 +40,7 @@ use std::cmp::min;
 use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use crate::data::{ArcRw, Keys};
 use crate::parser::Selection;
@@ -51,17 +50,18 @@ use crate::RESOURCE_PATH;
 use crate::{spotify, REQWEST_CLIENT};
 
 /// Path to shared directory for clips.
-pub static CLIP_PATH: Lazy<PathBuf> = Lazy::new(|| RESOURCE_PATH.join("clips/"));
+pub static CLIP_PATH: LazyLock<PathBuf> = LazyLock::new(|| RESOURCE_PATH.join("clips/"));
 
 /// Regular expression which matches valid http or https urls.
-static URL: Lazy<Regex> = Lazy::new(|| Regex::new("^https?://").unwrap());
+static URL: LazyLock<Regex> = LazyLock::new(|| Regex::new("^https?://").unwrap());
 
 /// Regular expression which matches the host portion of a url if the host is youtube.
-static YOUTUBE_HOST: Lazy<Regex> =
-	Lazy::new(|| Regex::new("^([^.]*\\.)?(youtube\\.com|youtu.be)").unwrap());
+static YOUTUBE_HOST: LazyLock<Regex> =
+	LazyLock::new(|| Regex::new("^([^.]*\\.)?(youtube\\.com|youtu.be)").unwrap());
 
 /// Regular expression which matches the host portion of a url if the host is spotify.
-static SPOTIFY_HOST: Lazy<Regex> = Lazy::new(|| Regex::new("^open\\.spotify\\.com").unwrap());
+static SPOTIFY_HOST: LazyLock<Regex> =
+	LazyLock::new(|| Regex::new("^open\\.spotify\\.com").unwrap());
 
 /// Enum for the two styles of audio source.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -244,7 +244,7 @@ pub async fn get_inputs(
 				let playlist = youtube::playlist(&youtube_api, &id)
 					.await
 					.inspect_err(|e| error!("Error in youtube data api for playlists: {:?}", e))
-					.map_err(|e| AudioError::YoutubeApi(e))?
+					.map_err(AudioError::YoutubeApi)?
 					.ok_or_else(|| {
 						error!("No playlist found");
 						AudioError::NotFound
@@ -265,7 +265,7 @@ pub async fn get_inputs(
 					.inspect_err(|e| {
 						error!("Error in youtube data api for playlist items: {:?}", e)
 					})
-					.map_err(|e| AudioError::YoutubeApi(e))?;
+					.map_err(AudioError::YoutubeApi)?;
 
 				let count = videos.len();
 
@@ -301,7 +301,7 @@ pub async fn get_inputs(
 				let video = youtube::video(&youtube_api, &id)
 					.await
 					.inspect_err(|e| error!("Youtube video error: {:?}", e))
-					.map_err(|e| AudioError::YoutubeApi(e))?
+					.map_err(AudioError::YoutubeApi)?
 					.ok_or_else(|| {
 						error!("No video found with id {:?}", id);
 						AudioError::NotFound

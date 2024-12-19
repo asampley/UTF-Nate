@@ -136,7 +136,7 @@ where
 		if page_token.is_none() {
 			None
 		} else {
-			let response = (|| async {
+			let response = async {
 				REQWEST_CLIENT
 					.get(url)
 					.query(&query)
@@ -146,8 +146,8 @@ where
 					.json::<Response<List<T>, _>>()
 					.await?
 					.into_result()
-					.map_err(|e| Error::Api(e))
-			})()
+					.map_err(Error::Api)
+			}
 			.await;
 
 			match response {
@@ -171,7 +171,7 @@ pub async fn playlist(api: &YoutubeApi, playlist_id: &str) -> Result<Option<Play
 		.json::<Response<List<Playlist>, _>>()
 		.await?
 		.into_result()
-		.map_err(|e| Error::Api(e))?
+		.map_err(Error::Api)?
 		.items
 		.drain(..)
 		.next())
@@ -205,7 +205,7 @@ pub async fn video(api: &YoutubeApi, video_id: &str) -> Result<Option<Video>> {
 		.json::<Response<List<Video>, _>>()
 		.await?
 		.into_result()
-		.map_err(|e| Error::Api(e))?
+		.map_err(Error::Api)?
 		.items
 		.drain(..)
 		.next())
@@ -233,6 +233,6 @@ pub async fn videos(
 		.json::<Response<List<Video>, _>>()
 		.await?
 		.into_result()
-		.map_err(|e| Error::Api(e))
+		.map_err(Error::Api)
 		.map(|v| v.items)
 }

@@ -16,8 +16,6 @@ mod youtube;
 
 use clap::Parser;
 
-use once_cell::sync::Lazy;
-
 use persistence::StorageError;
 use ring::aead::LessSafeKey;
 
@@ -44,24 +42,35 @@ use util::{read_toml, Framework};
 
 use std::fmt::Debug;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use crate::persistence::Storage;
 
 /// Path to shared resources directory for things such as clips or database scripts.
-static RESOURCE_PATH: Lazy<&'static Path> = Lazy::new(|| Path::new("resources/"));
+static RESOURCE_PATH: LazyLock<&'static Path> = LazyLock::new(|| Path::new("resources/"));
 
 /// Options parsed from the command line using [`clap`].
-static OPT: Lazy<Opt> = Lazy::new(|| {
+static OPT: LazyLock<Opt> = LazyLock::new(|| {
 	let opt = Opt::parse();
 	println!("Options: {:#?}", opt);
 	opt
 });
 
 /// Configuration parameters from a file. See [`load_config()`].
-static CONFIG: Lazy<Config> = Lazy::new(load_config);
+static CONFIG: LazyLock<Config> = LazyLock::new(load_config);
 
-static REQWEST_CLIENT: Lazy<reqwest::Client> = Lazy::new(reqwest::Client::new);
+static REQWEST_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+	let builder = reqwest::ClientBuilder::new();
+
+	#[cfg(feature = "tls-rustls")]
+	let builder = builder.use_rustls_tls();
+	#[cfg(feature = "tls-native-tls")]
+	let builder = builder.use_native_tls();
+
+	builder
+		.build()
+		.expect("Unable to initialize reqwest client")
+});
 
 /// Permissions recommended for registering the bot with a server, for full
 /// functionality.
