@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 use crate::REQWEST_CLIENT;
 
-use super::api::{Artist, Playlist, PlaylistTracks, PlaylistTracksItem, Track};
+use super::api::{Artist, Playlist, PlaylistTracks, PlaylistTracksItem, Streamable, Track};
 use super::Result;
 
 static PLAYLIST_EMBED_JSON: LazyLock<Regex> = LazyLock::new(|| {
@@ -106,7 +106,10 @@ fn scrape_playlist_embed(embed: String) -> Result<Playlist> {
 
 	Ok(Playlist {
 		name: name.unwrap_or("Unknown").to_string(),
-		tracks: PlaylistTracks { items: tracks },
+		tracks: Streamable {
+			next: None,
+			rest: PlaylistTracks { items: tracks },
+		},
 	})
 }
 
@@ -126,6 +129,6 @@ mod test {
 		let playlist = scrape_playlist_embed(TEST_DOC.to_owned()).unwrap();
 
 		assert!(playlist.name == "Chill Mix");
-		assert!(playlist.tracks.items.len() == 1)
+		assert!(playlist.tracks.rest.items.len() == 1)
 	}
 }

@@ -9,6 +9,7 @@
 pub mod api;
 pub mod scrape;
 
+use futures::{Stream, StreamExt};
 use itertools::Itertools;
 
 use tracing::debug;
@@ -23,7 +24,7 @@ use std::time::{Duration, Instant};
 
 use crate::{audio::ComposeWithMetadata, youtube::compose_yt_search_with_meta, REQWEST_CLIENT};
 
-use api::{Album, Playlist, Response, Track};
+use api::{Album, Playlist, Response, Streamable, Track};
 
 /// Information required to connect to the Spotify API.
 ///
@@ -142,6 +143,42 @@ impl From<&Track> for ComposeWithMetadata<YoutubeDl> {
 			},
 		)
 	}
+}
+
+/// Convert Streamable response into Stream
+pub fn into_stream<'t, T>(
+	token: &'t str,
+	streamable: Streamable<T>,
+) -> impl Stream<Item = Result<T>> + 't
+where
+	for<'de> T: Deserialize<'de> + 't,
+{
+	let subsequent = futures::stream::unfold(streamable.next, move |next| async move {
+		match next {
+			None => None,
+			Some(next) => {
+				let response = async {
+					REQWEST_CLIENT
+						.get(next)
+						.bearer_auth(token)
+						.send()
+						.await?
+						.json::<Response<Streamable<T>, _>>()
+						.await?
+						.into_result()
+						.map_err(Error::Api)
+				}
+				.await;
+
+				match response {
+					Err(e) => Some((Err(e), None)),
+					Ok(v) => Some((Ok(v.rest), v.next)),
+				}
+			}
+		}
+	});
+
+	futures::stream::once(async move { Ok(streamable.rest) }).chain(subsequent)
 }
 
 /// Fetch and parse a playlist from the spotify API.

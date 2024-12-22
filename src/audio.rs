@@ -379,15 +379,22 @@ pub async fn get_inputs(
 						}
 					};
 
+					let items = spotify::into_stream(&token, playlist.tracks)
+						.map_ok(|playlist_tracks| playlist_tracks.items)
+						.try_concat()
+						.await
+						.inspect_err(|e| {
+							error!("Error in spotify data api for playlist items: {:?}", e)
+						})
+						.map_err(|_| AudioError::Spotify)?;
+
 					Ok(SourceInfo {
 						title: Some(playlist.name),
 						url: Some(loc.to_string()),
-						count: playlist.tracks.items.len(),
+						count: items.len(),
 						duration: None,
 						inputs: Box::new(
-							playlist
-								.tracks
-								.items
+							items
 								.into_iter()
 								.map(|t| Input::from(ComposeWithMetadata::from(&t.track))),
 						),
@@ -406,15 +413,22 @@ pub async fn get_inputs(
 						.inspect_err(|e| error!("Error reading spotify album: {:?}", e))
 						.map_err(|_| AudioError::Spotify)?;
 
+					let items = spotify::into_stream(&token, album.tracks)
+						.map_ok(|album_tracks| album_tracks.items)
+						.try_concat()
+						.await
+						.inspect_err(|e| {
+							error!("Error in spotify data api for album items: {:?}", e)
+						})
+						.map_err(|_| AudioError::Spotify)?;
+
 					Ok(SourceInfo {
 						title: Some(album.name),
 						url: Some(loc.to_string()),
-						count: album.tracks.items.len(),
+						count: items.len(),
 						duration: None,
 						inputs: Box::new(
-							album
-								.tracks
-								.items
+							items
 								.into_iter()
 								.map(|track| Input::from(ComposeWithMetadata::from(&track))),
 						),

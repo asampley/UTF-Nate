@@ -21,9 +21,16 @@ impl<T, F> Response<T, F> {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct Streamable<T> {
+	pub next: Option<String>,
+	#[serde(flatten)]
+	pub rest: T,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Playlist {
 	pub name: String,
-	pub tracks: PlaylistTracks,
+	pub tracks: Streamable<PlaylistTracks>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -39,7 +46,7 @@ pub struct PlaylistTracksItem {
 #[derive(Debug, Deserialize)]
 pub struct Album {
 	pub name: String,
-	pub tracks: AlbumTracks,
+	pub tracks: Streamable<AlbumTracks>,
 }
 
 #[derive(Debug, Deserialize)]
