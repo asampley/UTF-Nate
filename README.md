@@ -55,34 +55,42 @@ server is a great example of something that is useful for anyone in your server 
 
 Although it is primarily rust, a few libraries have system library dependencies. If `cargo build` is
 insufficient, it is likely that a system library is missing. For that reason there is a setup
-script to download required packages for building on Debian, and there is a guix package
+script to download required packages for building on Debian, and there is a nix package
 definition which will handle all dependencies for you.
 
-### Guix
+### Cargo
 
-This repository is a channel. You can [add the channel to your guix], and skip the
-`-L .guix/modules` in any of the below commands.
-
-Guix supports many options for how to build/install. The package manager can run on any linux
-distribution (as far as I know).
-
-Build and install in one step:
+Build into the `target/` folder
 ```sh
-guix package -L .guix/modules -i utf-nate
+cargo build
 ```
 
-Only build:
+### Nix
+
+Nix supports many options for how to build/install. The package manager can run on any linux
+distribution (probably).
+
+Build the binary into the `result/` folder
 ```sh
-guix build -L .guix/modules utf-nate
+nix build
 ```
 
-If you're looking for a specific way to distribute it, take a look at `guix pack`.
+You can also cross compile (but it's slow as there is no binary cross compiler cache).
+
+If you have binfmt emulation, you can also natively compile it with emulation. For example, for arm
+64-bit.
+
+```sh
+nix build .#packages.aarch64-linux.utf-nate
+```
+
+If you're looking for a specific way to distribute it, take a look at `nix bundle`.
 
 ### Docker
 
-Create a guix docker image containing the executable (resources not included).
+Create a nix docker image containing the executable (resources not included).
 ```sh
-guix pack -L .guix/modules -f docker --entry-point=bin/utf-nate utf-nate
+nix bundle --bundler github:NixOS/bundlers#toDockerImage .#
 ```
 
 Create a debian docker image (resources not included).
@@ -204,20 +212,12 @@ For information on arguments available, use
 utf-nate --help
 ```
 
-### Guix
+### Nix
 
-You can also run without "installing" (to your system path) using guix. See guix for more options,
-such as containerized execution.
-
-```sh
-guix shell -L .guix/modules utf-nate -- utf-nate
-```
-
-This repository is a channel! You can [add the channel to your guix] then just run it without adding
-the load path.
+You can also run without "installing" (to your system path) using nix.
 
 ```sh
-guix shell utf-nate -- utf-nate
+nix run
 ```
 
 ### Docker
@@ -225,8 +225,6 @@ guix shell utf-nate -- utf-nate
 If you use the Dockerfile, the default working directory is /opt/utf-nate. Put the resources,
 keys.toml, and config.toml there.
 
-I recommend building the docker image using guix. Then do all your docker magic to pass along access
+I recommend building the docker image using nix. Then do all your docker magic to pass along access
 to the resources folder, keys.toml, config.toml, network to the database, etc. I don't use docker
 much, hopefully if you're reading this you really just need the image.
-
-[add the channel to your guix]: https://guix.gnu.org/manual/devel/en/html_node/Specifying-Additional-Channels.html

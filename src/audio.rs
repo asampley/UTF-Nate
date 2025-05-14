@@ -766,8 +766,11 @@ mod tests {
 		"https://open.spotify.com/playlist/2O18dCV9uoGTyxN5HLJkTo",
 	];
 
-	// test to make sure inputs equal count
+	/// test to make sure inputs equal count
+	///
+	/// ignored to avoid failing isolated builds
 	#[tokio::test]
+	#[ignore]
 	async fn play_sources_count() {
 		let keys: ArcRw<_> = std::sync::Arc::new(read_toml::<Keys, _>("keys.toml").unwrap().into());
 

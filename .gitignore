@@ -7,3 +7,9 @@
 
 # persistent configuration stored here
 /config.toml
+
+# default outputs of nix
+result
+utf-nate*.tar.gz
+# I use this to keep outputs when cross compiling
+result.*
