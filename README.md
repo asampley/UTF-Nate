@@ -75,11 +75,20 @@ Build the binary into the `result/` folder
 nix build
 ```
 
-You can also cross compile (but it's slow as there is no binary cross compiler cache).
+You can also cross compile (but it's slow the first time as there is no binary cross compiler
+cache). If you go down this route I recommend using `keep-outputs = true` in your nix.conf. Retain a
+copy of the output in `result` or something like `result.aarch64-unknown-linux-gnu` for example, to
+keep a gc root around (both are in the .gitignore).
 
-If you have binfmt emulation, you can also natively compile it with emulation. For example, for arm
-64-bit.
+E.g.
+```sh
+nix build .#utf-nate-aarch64-unknown-linux-gnu -o result.aarch64-unknown-linux-gnu
+```
 
+
+If you have binfmt emulation, you can also natively compile it with emulation.
+
+E.g.
 ```sh
 nix build .#packages.aarch64-linux.utf-nate
 ```
