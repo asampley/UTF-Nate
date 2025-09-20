@@ -2,84 +2,76 @@
   description = "UTF-Nate";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    systems = {
+      url = nix/systems.nix;
+      flake = false;
+    };
   };
   outputs =
-    { nixpkgs, ... }:
+    inputs:
     let
-      supportedSystems = [
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
-      crossSystems = [
-        "aarch64-unknown-linux-gnu"
-        "x86_64-unknown-linux-gnu"
-      ];
-      lib = nixpkgs.lib;
-      forAllSystems = lib.genAttrs supportedSystems;
-      pkgsFor = nixpkgs.legacyPackages;
-      manifest = (lib.importTOML ./Cargo.toml).package;
-      package = { pkgsHostTarget, pkgsBuildHost, ... }:
-        pkgsHostTarget.rustPlatform.buildRustPackage {
-          pname = manifest.name;
-          version = manifest.version;
-          cargoLock.lockFile = ./Cargo.lock;
-          src = pkgsBuildHost.lib.cleanSource ./.;
-
-          nativeBuildInputs = with pkgsBuildHost; [ cmake ];
-          buildInputs = with pkgsHostTarget; [
-            libopus
-          ];
-          propagatedBuildInputs = with pkgsHostTarget; [
-            yt-dlp
-            ffmpeg-headless
-          ];
+      systems = import inputs.systems;
+      lib = inputs.nixpkgs.lib;
+      genSystems = lib.genAttrs systems;
+      pkgsFor =
+        localSystem: crossSystem:
+        import inputs.nixpkgs {
+          localSystem = {
+            system = localSystem;
+          };
+          crossSystem = {
+            system = crossSystem;
+          };
         };
-      docker = drv: {
-        name = "utf-nate";
-        tag = manifest.version;
-        contents = [ drv ] ++ drv.propagatedBuildInputs;
-        config.Entrypoint = [ "/bin/utf-nate" ];
-      };
-      shell = { pkgsBuildHost, ... }:
+      package = import nix/package.nix;
+      docker = import nix/docker.nix;
+      postfix =
+        localSystem: crossSystem:
+        if localSystem == crossSystem then "" else "-for-${crossSystem}";
+      shell =
+        { pkgsBuildHost, ... }:
         pkgsBuildHost.mkShell {
           inputsFrom = [ (pkgsBuildHost.callPackage package { }) ];
-          buildInputs = with pkgsBuildHost; [
+          nativeBuildInputs = with pkgsBuildHost; [
+            cargo-audit
+            clippy
             rust-analyzer
             rustfmt
-            clippy
           ];
         };
     in
     {
-      formatter = forAllSystems (system: pkgsFor.${system}.nixfmt-rfc-style);
-      packages = forAllSystems (system:
-        rec {
-          utf-nate = pkgsFor.${system}.callPackage package { };
-          utf-nate-docker = pkgsFor.${system}.dockerTools.buildLayeredImage (docker utf-nate);
+      formatter = genSystems (system: (pkgsFor system system).nixfmt-rfc-style);
 
-          default = utf-nate;
-        } // builtins.listToAttrs (builtins.concatMap
-          (cross:
+      packages = genSystems (
+        system:
+        lib.mergeAttrsList (
+          map (
+            cross:
             let
-              cross-nixpkgs = (import nixpkgs { inherit system; crossSystem = { config = cross; }; });
-              cross-package = cross-nixpkgs.callPackage package { };
-            in [
-              {
-                name = "utf-nate-${cross}";
-                value = cross-package;
-              }
-              {
-                name = "utf-nate-docker-${cross}";
-                value = cross-nixpkgs.dockerTools.buildLayeredImage (docker cross-package);
-              }
-            ]
-          )
-          crossSystems
+              pkgs = (pkgsFor system cross);
+              post = postfix system cross;
+              utf-nate = pkgs.callPackage package { };
+            in
+            {
+              "utf-nate${post}" = utf-nate;
+              "utf-nate-docker${post}" = pkgs.callPackage docker { drv = utf-nate; entrypoint = "/bin/utf-nate"; };
+            }
+            // (if system == cross then { "default" = utf-nate; } else { })
+          ) systems
         )
       );
 
-      devShells = forAllSystems (system: {
-        default = pkgsFor.${system}.callPackage shell { };
-      });
+      devShells = genSystems (
+        system:
+        let
+          pkgs = (pkgsFor system system);
+          utf-nate-shell = pkgs.callPackage shell { };
+        in
+        {
+          "utf-nate" = utf-nate-shell;
+          "default" = utf-nate-shell;
+        }
+      );
     };
 }

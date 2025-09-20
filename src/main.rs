@@ -121,8 +121,8 @@ struct Opt {
 	no_bot: bool,
 
 	/// Run command with additional logging.
-	#[arg(long, short)]
-	verbose: bool,
+	#[arg(long, short, action = clap::ArgAction::Count)]
+	verbose: u8,
 
 	/// Do not check for clip collisions. Speeds up start by disabling.
 	#[arg(long)]
@@ -136,7 +136,7 @@ enum ProcessError {
 
 	#[cfg(feature = "http-interface")]
 	#[error(transparent)]
-	Hyper(#[from] hyper::Error),
+	StdIo(#[from] std::io::Error),
 }
 
 #[tokio::main]
@@ -144,8 +144,9 @@ async fn main() {
 	// initialize logging
 	let subscriber = tracing_subscriber::fmt()
 		.with_max_level(match OPT.verbose {
-			true => LevelFilter::DEBUG,
-			false => LevelFilter::INFO,
+			0 => LevelFilter::INFO,
+			1 => LevelFilter::DEBUG,
+			2.. => LevelFilter::TRACE,
 		})
 		.compact()
 		.finish();
@@ -262,7 +263,7 @@ async fn main() {
 			};
 
 			#[cfg(feature = "http-interface")]
-			if let Some(addr) = &CONFIG.http {
+			if let Some(http_config) = &CONFIG.http {
 				use axum::routing::*;
 
 				use tower_http::services::ServeDir;
@@ -326,7 +327,8 @@ async fn main() {
 					.fallback_service(ServeDir::new("resources/web"))
 					.with_state(state);
 
-				let http_future = hyper::Server::bind(addr).serve(app.into_make_service());
+				let listener = tokio::net::TcpListener::bind(http_config.listen).await.unwrap();
+				let http_future = axum::serve(listener, app);
 
 				join_set.spawn(async move { http_future.await.map_err(Into::into) });
 			}

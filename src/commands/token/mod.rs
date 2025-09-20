@@ -42,12 +42,11 @@ pub async fn token(state: &BotState, source: &Source) -> Result<Response, Respon
 	let encrypted = Encrypted::encrypt(&token, state.data.read().await.get_expect::<AeadKey>())
 		.map_err(|_| "Internal error with encrypting")?;
 
+	let http_config = CONFIG.http.as_ref().ok_or("Http inteface not set up")?;
+
 	let url = format!(
-		"http://{}:{}/token?{}",
-		public_ip::addr()
-			.await
-			.ok_or("Unable to find public address")?,
-		CONFIG.http.ok_or("Http interface not set up")?.port(),
+		"http://{}/token?{}",
+		http_config.public_url,
 		serde_urlencoded::to_string(encrypted)
 			.map_err(|_| "Internal error with url serialization")?,
 	);

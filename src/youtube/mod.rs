@@ -40,14 +40,14 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub fn compose_yt_url(
 	uri: String,
 	mut aux_metadata: AuxMetadata,
-) -> ComposeWithMetadata<YoutubeDl> {
+) -> ComposeWithMetadata<YoutubeDl<'static>> {
 	aux_metadata.channels = Some(2);
 	aux_metadata.sample_rate = Some(SAMPLE_RATE_RAW as u32);
 
 	ComposeWithMetadata::new(YoutubeDl::new(REQWEST_CLIENT.clone(), uri), aux_metadata)
 }
 
-impl From<Video> for ComposeWithMetadata<YoutubeDl> {
+impl From<Video> for ComposeWithMetadata<YoutubeDl<'_>> {
 	fn from(item: Video) -> Self {
 		let url = format!("https://youtu.be/{}", item.id);
 		let tn = item.snippet.thumbnails;
@@ -73,7 +73,7 @@ impl From<Video> for ComposeWithMetadata<YoutubeDl> {
 	}
 }
 
-impl From<PlaylistItem> for ComposeWithMetadata<YoutubeDl> {
+impl From<PlaylistItem> for ComposeWithMetadata<YoutubeDl<'_>> {
 	fn from(item: PlaylistItem) -> Self {
 		let url = format!("https://youtu.be/{}", item.content_details.video_id);
 		let tn = item.snippet.thumbnails;
@@ -98,8 +98,8 @@ impl From<PlaylistItem> for ComposeWithMetadata<YoutubeDl> {
 	}
 }
 
-pub fn compose_yt_search(search: impl Display) -> YoutubeDl {
-	fn inner(search: String) -> YoutubeDl {
+pub fn compose_yt_search(search: impl Display) -> YoutubeDl<'static> {
+	fn inner(search: String) -> YoutubeDl<'static> {
 		YoutubeDl::new(REQWEST_CLIENT.clone(), search)
 	}
 
@@ -111,8 +111,8 @@ pub fn compose_yt_search(search: impl Display) -> YoutubeDl {
 pub fn compose_yt_search_with_meta(
 	search: impl Display,
 	metadata: AuxMetadata,
-) -> ComposeWithMetadata<YoutubeDl> {
-	fn inner(search: String, mut metadata: AuxMetadata) -> ComposeWithMetadata<YoutubeDl> {
+) -> ComposeWithMetadata<YoutubeDl<'static>> {
+	fn inner(search: String, mut metadata: AuxMetadata) -> ComposeWithMetadata<YoutubeDl<'static>> {
 		metadata.channels = Some(2);
 		metadata.sample_rate = Some(SAMPLE_RATE_RAW as u32);
 

@@ -119,7 +119,7 @@ impl SpotifyToken {
 	}
 }
 
-impl From<&Track> for ComposeWithMetadata<YoutubeDl> {
+impl From<&Track> for ComposeWithMetadata<YoutubeDl<'static>> {
 	/// Convert a spotify track into a youtube search that songbird can use.
 	fn from(track: &Track) -> Self {
 		let artist = if track.artists.is_empty() {

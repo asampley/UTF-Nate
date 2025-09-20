@@ -1,6 +1,5 @@
 use askama::Template;
 
-use axum::body::HttpBody;
 use axum::handler::Handler;
 use axum::response::Html;
 use axum::routing::get;
@@ -34,18 +33,17 @@ struct ResponseTemplate<'a> {
 	response: &'a str,
 }
 
-pub trait FormRouter<S, B> {
-	fn form_route<T>(self, create: fn() -> Command, http_call: impl Handler<T, S, B>) -> Self
+pub trait FormRouter<S> {
+	fn form_route<T>(self, create: fn() -> Command, http_call: impl Handler<T, S>) -> Self
 	where
 		T: 'static;
 }
 
-impl<S, B> FormRouter<S, B> for Router<S, B>
+impl<S> FormRouter<S> for Router<S>
 where
 	S: Clone + Send + Sync + 'static,
-	B: Send + HttpBody + 'static,
 {
-	fn form_route<T>(self, create: fn() -> Command, http_call: impl Handler<T, S, B>) -> Self
+	fn form_route<T>(self, create: fn() -> Command, http_call: impl Handler<T, S>) -> Self
 	where
 		T: 'static,
 	{
@@ -135,6 +133,6 @@ fn render_form(command: &Command, help_md: &str) -> String {
 	.unwrap()
 }
 
-pub fn form_endpoint(command: fn() -> Command) -> Result<Html<&'static str>, StatusCode> {
+pub fn form_endpoint(command: fn() -> Command) -> axum::response::Result<Html<&'static str>, StatusCode> {
 	get_form(command).map(Html).ok_or(StatusCode::NOT_FOUND)
 }

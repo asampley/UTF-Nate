@@ -15,7 +15,7 @@ use nom::{
 	combinator::{all_consuming, map},
 	multi::separated_list0,
 	sequence::{delimited, separated_pair},
-	Finish, IResult, ToUsize,
+	Finish, IResult, Parser, ToUsize,
 };
 
 /// Represents a selection of several ranges of values.
@@ -110,7 +110,7 @@ where
 
 /// [`nom`] style parser for turning a u64 into a usize.
 pub fn cusize(input: &str) -> IResult<&str, usize> {
-	map(cu64, |v| v.to_usize())(input)
+	map(cu64, |v| v.to_usize()).parse(input)
 }
 
 /// [`nom`] style parser for turning "`usize`-`usize`" into a
@@ -123,7 +123,7 @@ pub fn range_usize(input: &str) -> IResult<&str, RangeInclusive<usize>> {
 			cusize,
 		),
 		|(a, b)| a..=b,
-	)(input)
+	).parse(input)
 }
 
 /// [`nom`] style parser for parsing either a range or num. See [`cusize`] and
@@ -133,7 +133,7 @@ pub fn num_or_range_usize(input: &str) -> IResult<&str, NumOrRange<usize>> {
 		multispace0,
 		alt((map(range_usize, |v| v.into()), map(cusize, |v| v.into()))),
 		multispace0,
-	)(input)
+	).parse(input)
 }
 
 /// [`nom`] style parser for getting a list of nums and ranges separated by
@@ -141,7 +141,7 @@ pub fn num_or_range_usize(input: &str) -> IResult<&str, NumOrRange<usize>> {
 pub fn selection(input: &str) -> IResult<&str, Selection<usize>> {
 	all_consuming(map(separated_list0(cchar(','), num_or_range_usize), |v| {
 		v.into()
-	}))(input)
+	})).parse(input)
 }
 
 #[cfg(test)]

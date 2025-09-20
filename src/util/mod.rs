@@ -22,7 +22,6 @@ use serenity::prelude::{TypeMap, TypeMapKey};
 
 use thiserror::Error;
 
-use std::fmt;
 use std::fmt::Debug;
 use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
@@ -34,18 +33,6 @@ pub type CommandResult = Result<(), CommandError>;
 pub type Context<'a> = poise::Context<'a, Data, CommandError>;
 pub type FrameworkError<'a> = poise::FrameworkError<'a, Data, CommandError>;
 pub type Framework = poise::Framework<Data, CommandError>;
-
-#[derive(Debug, Error)]
-pub enum UtilError {
-	Serenity(#[from] serenity::Error),
-	Songbird(#[from] songbird::input::core::errors::Error),
-}
-
-impl fmt::Display for UtilError {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		fmt::Debug::fmt(self, f)
-	}
-}
 
 /// Errors that can occur when reading a toml file.
 #[derive(Debug, Error)]

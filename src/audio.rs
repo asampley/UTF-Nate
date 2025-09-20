@@ -490,7 +490,7 @@ pub async fn get_inputs(
 
 				let clip_name = clips
 					.into_iter()
-					.choose(&mut rand::thread_rng())
+					.choose(&mut rand::rng())
 					.ok_or(AudioError::NotFound)?;
 
 				let clip = get_clip(&clip_name).ok_or(AudioError::NotFound)?;

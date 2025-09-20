@@ -19,7 +19,13 @@ pub struct Config {
 	/// Prefixes that the bot recognizes as beginning a command.
 	pub prefixes: Vec<String>,
 	pub activity: Option<ActivityConfig>,
-	pub http: Option<SocketAddr>,
+	pub http: Option<HttpConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HttpConfig {
+	pub public_url: String,
+	pub listen: SocketAddr,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serenity::http::Http;
 use serenity::model::id::ChannelId;
 
+use songbird::input::AuxMetadata;
 use songbird::input::Input;
 use songbird::tracks::Track;
 use songbird::Call;
@@ -15,7 +16,6 @@ use std::sync::Arc;
 use crate::audio::{get_inputs, move_queue, SearchSource};
 use crate::audio::{AudioError, PlayStyle};
 use crate::commands::{BotState, Source};
-use crate::data::TrackMetadata;
 use crate::data::{ArcRw, Keys, VoiceGuild, VoiceGuilds};
 use crate::parser::Selection;
 use crate::util::write_duration;
@@ -223,13 +223,9 @@ async fn queue_input(
 		.inspect_err(|e| error!("Unable to fetch metadata: {:?}", e))
 		.ok();
 
-	let track = Track::from(input).volume(volume);
+	let track = Track::new_with_data(input, Arc::new(aux_metadata)).volume(volume);
 
 	let handle = call.enqueue(track).await;
-
-	if let Some(meta) = aux_metadata {
-		handle.typemap().write().await.insert::<TrackMetadata>(meta);
-	}
 
 	if let Err(e) = VoiceGuild::add_error_handler(handle, respond) {
 		error!("Error setting up error handler for track: {:?}", e);
@@ -245,7 +241,7 @@ async fn immediate_input(
 	input: Input,
 	volume: f32,
 ) -> bool {
-	let track = Track::from(input).volume(volume);
+	let track = Track::new_with_data(input, Arc::new(None::<AuxMetadata>)).volume(volume);
 
 	let handle = call.play(track);
 	voice_guild_arc

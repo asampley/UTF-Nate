@@ -4,6 +4,7 @@ use rand::Rng;
 
 use serde::{Deserialize, Serialize};
 
+use songbird::input::AuxMetadata;
 use songbird::tracks::PlayMode;
 use songbird::SongbirdKey;
 
@@ -13,7 +14,7 @@ use tracing::{error, info};
 
 use crate::audio::move_queue;
 use crate::commands::{BotState, Source};
-use crate::data::{TrackMetadata, VoiceGuilds};
+use crate::data::VoiceGuilds;
 use crate::parser::{NumOrRange, Selection};
 use crate::util::{write_track, GetExpect, Response};
 
@@ -298,7 +299,7 @@ pub async fn queue(
 
 		write!(response, "{i}:").unwrap();
 
-		if let Some(meta) = track.typemap().read().await.get::<TrackMetadata>() {
+		if let Some(meta) = track.data::<Option<AuxMetadata>>().as_ref() {
 			write_track(&mut response, meta, track.get_info().await.ok()).unwrap();
 		} else {
 			response.push_str("No metadata");
@@ -336,10 +337,10 @@ pub async fn shuffle(
 		.pause()
 		.map(|_| {
 			queue.modify_queue(|deque| {
-				let mut rng = rand::thread_rng();
+				let mut rng = rand::rng();
 
 				for j in ((shuffle_from + 1)..deque.len()).rev() {
-					let i = rng.gen_range(shuffle_from..=j);
+					let i = rng.random_range(shuffle_from..=j);
 					deque.swap(i, j);
 				}
 			})

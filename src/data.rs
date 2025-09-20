@@ -60,13 +60,6 @@ impl TypeMapKey for Keys {
 }
 
 /// Empty struct to be a [`TypeMapKey`].
-pub struct TrackMetadata;
-
-impl TypeMapKey for TrackMetadata {
-	type Value = AuxMetadata;
-}
-
-/// Empty struct to be a [`TypeMapKey`].
 pub struct VoiceUserCache;
 
 /// Alias for `Arc<RwLock<T>>`.
@@ -218,7 +211,7 @@ impl<R: Respond + Send + Sync> songbird::EventHandler for TrackErrorHandler<R> {
 
 					let mut response = String::from("Error playing ");
 
-					if let Some(meta) = handle.typemap().read().await.get::<TrackMetadata>() {
+					if let Some(meta) = handle.data::<Option<AuxMetadata>>().as_ref() {
 						write_track(&mut response, meta, None).unwrap();
 					} else {
 						write!(response, "unknown track").unwrap();

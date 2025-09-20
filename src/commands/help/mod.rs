@@ -167,7 +167,7 @@ fn md_discord_format(f: &mut String, nodes: &[Node]) -> std::fmt::Result {
 	for node in nodes {
 		match node {
 			// ignored constructs
-			BlockQuote(_)
+			Blockquote(_)
 			| FootnoteDefinition(_)
 			| MdxJsxFlowElement(_)
 			| List(_)

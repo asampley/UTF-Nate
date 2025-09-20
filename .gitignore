@@ -13,3 +13,5 @@ result
 utf-nate*.tar.gz
 # I use this to keep outputs when cross compiling
 result.*
+# Using a different prefix prevents nh from auto cleaning
+keep.*
