@@ -65,11 +65,7 @@ pub fn sandboxed_join(sandbox: &Path, path: impl AsRef<Path>) -> Option<PathBuf>
 			// existence
 			let joined = sandbox.join(path);
 
-			if joined.exists() {
-				Some(joined)
-			} else {
-				None
-			}
+			if joined.exists() { Some(joined) } else { None }
 		}
 		Err(_) => None,
 	}
@@ -160,11 +156,11 @@ pub fn write_track(
 
 	if let Some(duration) = meta.duration {
 		write!(write, " (")?;
-		if let Some(position) = state.map(|s| s.position) {
-			if position != Duration::ZERO {
-				write_duration(write, position)?;
-				write!(write, "/")?;
-			}
+		if let Some(position) = state.map(|s| s.position)
+			&& position != Duration::ZERO
+		{
+			write_duration(write, position)?;
+			write!(write, "/")?;
 		}
 		write_duration(write, duration)?;
 		write!(write, ")")?;
@@ -230,7 +226,7 @@ mod test {
 				.expect("Unexpected prefix");
 			let relative = [
 				"..".as_ref(),
-				CLIP_PATH.components().last().unwrap().as_ref(),
+				CLIP_PATH.components().next_back().unwrap().as_ref(),
 				relative,
 			]
 			.iter()

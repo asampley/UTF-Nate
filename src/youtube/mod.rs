@@ -19,8 +19,8 @@ use api::{List, Playlist, PlaylistItem, Response, Video};
 
 use std::fmt::Display;
 
-use crate::audio::ComposeWithMetadata;
 use crate::REQWEST_CLIENT;
+use crate::audio::ComposeWithMetadata;
 
 #[derive(Clone, Deserialize)]
 pub struct YoutubeApi {

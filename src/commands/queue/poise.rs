@@ -1,5 +1,5 @@
 use crate::commands::queue::QueueArgs;
-use crate::commands::{run, CustomData};
+use crate::commands::{CustomData, run};
 use crate::parser::Selection;
 use crate::util::*;
 

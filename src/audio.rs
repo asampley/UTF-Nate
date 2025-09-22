@@ -12,10 +12,10 @@ use futures::TryStreamExt;
 
 use itertools::Itertools;
 
+use songbird::Call;
 use songbird::error::TrackResult;
 use songbird::input::{AudioStream, AudioStreamError, AuxMetadata, Compose};
 use songbird::tracks::PlayMode;
-use songbird::Call;
 
 use symphonia::core::io::MediaSource;
 
@@ -42,12 +42,12 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
+use crate::RESOURCE_PATH;
 use crate::data::{ArcRw, Keys};
 use crate::parser::Selection;
 use crate::util::*;
 use crate::youtube::{self, compose_yt_search};
-use crate::RESOURCE_PATH;
-use crate::{spotify, REQWEST_CLIENT};
+use crate::{REQWEST_CLIENT, spotify};
 
 /// Path to shared directory for clips.
 pub static CLIP_PATH: LazyLock<PathBuf> = LazyLock::new(|| RESOURCE_PATH.join("clips/"));

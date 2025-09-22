@@ -1,4 +1,4 @@
-use crate::commands::{run, CustomData};
+use crate::commands::{CustomData, run};
 use crate::util::*;
 
 use super::RollArgs;

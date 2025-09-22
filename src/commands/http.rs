@@ -1,9 +1,9 @@
 use askama::Template;
 
+use axum::Router;
 use axum::handler::Handler;
 use axum::response::Html;
 use axum::routing::get;
-use axum::Router;
 
 use axum_extra::extract::CookieJar;
 
@@ -133,6 +133,8 @@ fn render_form(command: &Command, help_md: &str) -> String {
 	.unwrap()
 }
 
-pub fn form_endpoint(command: fn() -> Command) -> axum::response::Result<Html<&'static str>, StatusCode> {
+pub fn form_endpoint(
+	command: fn() -> Command,
+) -> axum::response::Result<Html<&'static str>, StatusCode> {
 	get_form(command).map(Html).ok_or(StatusCode::NOT_FOUND)
 }

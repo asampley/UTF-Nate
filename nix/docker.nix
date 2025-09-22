@@ -9,4 +9,5 @@ dockerTools.buildLayeredImage {
   tag = drv.version;
   contents = [ drv ] ++ drv.propagatedBuildInputs;
   config.Entrypoint = entrypoint;
-} // (if entrypoint != null then { config.Entrypoint = entrypoint; } else {})
+}
+// (if entrypoint != null then { config.Entrypoint = entrypoint; } else { })

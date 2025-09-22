@@ -26,8 +26,7 @@
       package = import nix/package.nix;
       docker = import nix/docker.nix;
       postfix =
-        localSystem: crossSystem:
-        if localSystem == crossSystem then "" else "-for-${crossSystem}";
+        localSystem: crossSystem: if localSystem == crossSystem then "" else "-for-${crossSystem}";
       shell =
         { pkgsBuildHost, ... }:
         pkgsBuildHost.mkShell {
@@ -37,6 +36,11 @@
             clippy
             rust-analyzer
             rustfmt
+
+            # For tls-native-tls, which is not the default, but is checked
+            # during commit that it compiles
+            pkg-config
+            openssl
           ];
         };
     in
@@ -55,7 +59,10 @@
             in
             {
               "utf-nate${post}" = utf-nate;
-              "utf-nate-docker${post}" = pkgs.callPackage docker { drv = utf-nate; entrypoint = "/bin/utf-nate"; };
+              "utf-nate-docker${post}" = pkgs.callPackage docker {
+                drv = utf-nate;
+                entrypoint = "/bin/utf-nate";
+              };
             }
             // (if system == cross then { "default" = utf-nate; } else { })
           ) systems

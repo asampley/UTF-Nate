@@ -4,9 +4,9 @@
 //! are detected.
 
 use dashmap::DashMap;
+use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::IteratorRandom;
-use rand::SeedableRng;
 use tracing::{error, info};
 
 use serenity::async_trait;
@@ -23,10 +23,10 @@ use std::fmt::Write;
 
 use crate::StorageKey;
 
+use crate::Keys;
 use crate::audio::{clip_iter, get_inputs};
 use crate::data::{VoiceGuild, VoiceGuilds, VoiceUserCache};
 use crate::util::*;
-use crate::Keys;
 
 /// Handler that handeles serenity events for playing intros and outros, and
 /// other non-command events.

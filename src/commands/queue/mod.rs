@@ -4,9 +4,9 @@ use rand::Rng;
 
 use serde::{Deserialize, Serialize};
 
+use songbird::SongbirdKey;
 use songbird::input::AuxMetadata;
 use songbird::tracks::PlayMode;
-use songbird::SongbirdKey;
 
 use thiserror::Error;
 
@@ -16,7 +16,7 @@ use crate::audio::move_queue;
 use crate::commands::{BotState, Source};
 use crate::data::VoiceGuilds;
 use crate::parser::{NumOrRange, Selection};
-use crate::util::{write_track, GetExpect, Response};
+use crate::util::{GetExpect, Response, write_track};
 
 #[cfg(feature = "http-interface")]
 pub mod http;

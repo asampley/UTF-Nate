@@ -1,7 +1,7 @@
 use axum::extract::Query;
 use axum::response::IntoResponse;
-use axum_extra::extract::cookie::Cookie;
 use axum_extra::extract::CookieJar;
+use axum_extra::extract::cookie::Cookie;
 
 use crate::commands::token::Encrypted;
 

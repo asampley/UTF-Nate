@@ -10,12 +10,12 @@ use thiserror::Error;
 use std::ops::RangeInclusive;
 
 use nom::{
+	Finish, IResult, Parser, ToUsize,
 	branch::alt,
 	character::complete::{char as cchar, multispace0, u64 as cu64},
 	combinator::{all_consuming, map},
 	multi::separated_list0,
 	sequence::{delimited, separated_pair},
-	Finish, IResult, Parser, ToUsize,
 };
 
 /// Represents a selection of several ranges of values.
@@ -123,7 +123,8 @@ pub fn range_usize(input: &str) -> IResult<&str, RangeInclusive<usize>> {
 			cusize,
 		),
 		|(a, b)| a..=b,
-	).parse(input)
+	)
+	.parse(input)
 }
 
 /// [`nom`] style parser for parsing either a range or num. See [`cusize`] and
@@ -133,7 +134,8 @@ pub fn num_or_range_usize(input: &str) -> IResult<&str, NumOrRange<usize>> {
 		multispace0,
 		alt((map(range_usize, |v| v.into()), map(cusize, |v| v.into()))),
 		multispace0,
-	).parse(input)
+	)
+	.parse(input)
 }
 
 /// [`nom`] style parser for getting a list of nums and ranges separated by
@@ -141,7 +143,8 @@ pub fn num_or_range_usize(input: &str) -> IResult<&str, NumOrRange<usize>> {
 pub fn selection(input: &str) -> IResult<&str, Selection<usize>> {
 	all_consuming(map(separated_list0(cchar(','), num_or_range_usize), |v| {
 		v.into()
-	})).parse(input)
+	}))
+	.parse(input)
 }
 
 #[cfg(test)]
@@ -157,7 +160,7 @@ mod test {
 
 			let sel = selection(&s).expect("Error parsing");
 
-			assert_eq!(vec![NumOrRange::Num(num)], sel.1 .0)
+			assert_eq!(vec![NumOrRange::Num(num)], sel.1.0)
 		}
 	}
 
@@ -176,7 +179,7 @@ mod test {
 
 					let sel = selection(&s).expect("Error parsing");
 
-					assert_eq!(vec![NumOrRange::Range(range.clone())], sel.1 .0)
+					assert_eq!(vec![NumOrRange::Range(range.clone())], sel.1.0)
 				}
 			}
 		}
@@ -216,7 +219,7 @@ mod test {
 			.for_each(|s| {
 				let sel = selection(&s).expect("Error parsing");
 
-				assert_eq!(target, sel.1 .0[..])
+				assert_eq!(target, sel.1.0[..])
 			});
 	}
 }

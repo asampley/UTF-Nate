@@ -10,8 +10,8 @@ use std::process;
 use std::process::Stdio;
 use std::sync::LazyLock;
 
-use crate::util::*;
 use crate::RESOURCE_PATH;
+use crate::util::*;
 
 #[cfg(feature = "http-interface")]
 pub mod http;

@@ -28,8 +28,8 @@ use tracing_subscriber::filter::LevelFilter;
 
 use serenity::client::Client;
 use serenity::http::Http;
-use serenity::model::gateway::GatewayIntents;
 use serenity::model::Permissions;
+use serenity::model::gateway::GatewayIntents;
 use serenity::prelude::RwLock;
 
 use songbird::serenity::SerenityInit;
@@ -38,7 +38,7 @@ use configuration::Config;
 use data::{Keys, VoiceGuilds, VoiceUserCache};
 use handler::Handler;
 use interaction::reregister;
-use util::{read_toml, Framework};
+use util::{Framework, read_toml};
 
 use std::fmt::Debug;
 use std::path::Path;
@@ -268,8 +268,8 @@ async fn main() {
 
 				use tower_http::services::ServeDir;
 
-				use crate::commands::http::form_endpoint;
 				use crate::commands::http::FormRouter;
+				use crate::commands::http::form_endpoint;
 				use crate::commands::*;
 
 				let state = commands::BotState {
@@ -327,7 +327,9 @@ async fn main() {
 					.fallback_service(ServeDir::new("resources/web"))
 					.with_state(state);
 
-				let listener = tokio::net::TcpListener::bind(http_config.listen).await.unwrap();
+				let listener = tokio::net::TcpListener::bind(http_config.listen)
+					.await
+					.unwrap();
 				let http_future = axum::serve(listener, app);
 
 				join_set.spawn(async move { http_future.await.map_err(Into::into) });

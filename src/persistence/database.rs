@@ -7,8 +7,8 @@ use async_trait::async_trait;
 use serenity::all::{GuildId, UserId};
 use sqlx::{AnyExecutor, Database, Decode, Encode, FromRow, IntoArguments, Type};
 
-use crate::util::Conv;
 use crate::RESOURCE_PATH;
+use crate::util::Conv;
 
 use super::{Storage, StorageError};
 

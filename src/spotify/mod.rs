@@ -22,7 +22,7 @@ use songbird::input::{AuxMetadata, YoutubeDl};
 
 use std::time::{Duration, Instant};
 
-use crate::{audio::ComposeWithMetadata, youtube::compose_yt_search_with_meta, REQWEST_CLIENT};
+use crate::{REQWEST_CLIENT, audio::ComposeWithMetadata, youtube::compose_yt_search_with_meta};
 
 use api::{Album, Playlist, Response, Streamable, Track};
 

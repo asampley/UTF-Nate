@@ -5,8 +5,8 @@ use std::sync::LazyLock;
 
 use crate::REQWEST_CLIENT;
 
-use super::api::{Artist, Playlist, PlaylistTracks, PlaylistTracksItem, Streamable, Track};
 use super::Result;
+use super::api::{Artist, Playlist, PlaylistTracks, PlaylistTracksItem, Streamable, Track};
 
 static PLAYLIST_EMBED_JSON: LazyLock<Regex> = LazyLock::new(|| {
 	RegexBuilder::new(

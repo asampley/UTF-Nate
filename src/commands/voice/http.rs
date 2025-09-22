@@ -3,11 +3,11 @@ use axum::response::Html;
 
 use axum_extra::extract::CookieJar;
 
-use crate::audio::PlayStyle;
-use crate::commands::http::{extract_source, render_response};
-use crate::commands::BotState;
-use crate::util::GetExpect;
 use crate::AeadKey;
+use crate::audio::PlayStyle;
+use crate::commands::BotState;
+use crate::commands::http::{extract_source, render_response};
+use crate::util::GetExpect;
 
 use super::{VolumeMode, VolumeSetArgs};
 

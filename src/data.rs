@@ -21,7 +21,7 @@ use uuid::Uuid;
 use std::sync::Arc;
 
 use crate::spotify::SpotifyApi;
-use crate::util::{check_msg, write_track, Respond};
+use crate::util::{Respond, check_msg, write_track};
 use crate::youtube::YoutubeApi;
 
 /// Authentication keys required to connect to assorted external interfaces.

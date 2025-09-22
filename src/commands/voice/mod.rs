@@ -4,15 +4,15 @@ use tracing::error;
 
 use serde::{Deserialize, Serialize};
 
-use songbird::tracks::ControlError;
 use songbird::SongbirdKey;
+use songbird::tracks::ControlError;
 
 use std::fs::read_dir;
 
-use crate::audio::{PlayStyle, CLIP_PATH};
+use crate::audio::{CLIP_PATH, PlayStyle};
 use crate::commands::{BotState, Source};
 use crate::data::VoiceGuilds;
-use crate::{util::*, StorageKey};
+use crate::{StorageKey, util::*};
 
 #[cfg(feature = "http-interface")]
 pub mod http;

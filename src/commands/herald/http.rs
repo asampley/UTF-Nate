@@ -2,10 +2,10 @@ use axum::extract::{Query, State};
 use axum::response::Html;
 use axum_extra::extract::cookie::CookieJar;
 
-use crate::commands::http::{extract_source, render_response};
-use crate::commands::BotState;
-use crate::util::GetExpect;
 use crate::AeadKey;
+use crate::commands::BotState;
+use crate::commands::http::{extract_source, render_response};
+use crate::util::GetExpect;
 
 use super::{IntroBotArgs, IntroOutroArgs, IntroOutroMode};
 
