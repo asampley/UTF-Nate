@@ -1,13 +1,14 @@
 {
   dockerTools,
   drv,
-  entrypoint ? null,
+  lib,
   ...
 }:
 dockerTools.buildLayeredImage {
   name = drv.pname;
   tag = drv.version;
   contents = [ drv ] ++ drv.propagatedBuildInputs;
-  config.Entrypoint = entrypoint;
+  config = {
+    entrypoint = if drv.meta ? mainProgram then [ (lib.getExe' drv drv.meta.mainProgram) ] else null;
+  };
 }
-// (if entrypoint != null then { config.Entrypoint = entrypoint; } else { })

@@ -27,6 +27,28 @@
       docker = import nix/docker.nix;
       postfix =
         localSystem: crossSystem: if localSystem == crossSystem then "" else "-for-${crossSystem}";
+      genSystemsCross =
+        f:
+        lib.genAttrs systems (
+          system:
+          lib.mergeAttrsList (
+            map (
+              cross:
+              let
+                pkgs = pkgsFor system cross;
+                post = postfix system cross;
+              in
+              (f {
+                inherit
+                  pkgs
+                  post
+                  system
+                  cross
+                  ;
+              })
+            ) systems
+          )
+        );
       shell =
         { pkgsBuildHost, ... }:
         pkgsBuildHost.mkShell {
@@ -47,26 +69,28 @@
     {
       formatter = genSystems (system: (pkgsFor system system).nixfmt-rfc-style);
 
-      packages = genSystems (
-        system:
-        lib.mergeAttrsList (
-          map (
-            cross:
-            let
-              pkgs = (pkgsFor system cross);
-              post = postfix system cross;
-              utf-nate = pkgs.callPackage package { };
-            in
-            {
-              "utf-nate${post}" = utf-nate;
-              "utf-nate-docker${post}" = pkgs.callPackage docker {
-                drv = utf-nate;
-                entrypoint = "/bin/utf-nate";
-              };
-            }
-            // (if system == cross then { "default" = utf-nate; } else { })
-          ) systems
-        )
+      bundlers = genSystemsCross (
+        { pkgs, post, ... }:
+        {
+          "docker${post}" = drv: pkgs.callPackage docker { inherit drv; };
+        }
+      );
+
+      packages = genSystemsCross (
+        {
+          pkgs,
+          post,
+          system,
+          cross,
+          ...
+        }:
+        let
+          utf-nate = pkgs.callPackage package { };
+        in
+        {
+          "utf-nate${post}" = utf-nate;
+        }
+        // (if system == cross then { "default" = utf-nate; } else { })
       );
 
       devShells = genSystems (

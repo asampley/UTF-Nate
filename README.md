@@ -5,7 +5,7 @@ commands!
 
 ## Features
 
-### Getting started
+### Joining voice
 
 First get the bot into a channel using `summon`, and it will join whatever channel you are in.
 
@@ -24,15 +24,15 @@ the bot is in!
 
 ### Play music and clips
 
-You can play both the in built clips, and youtube content. Because both can be searched, there
+You can play both the in built clips, and YouTube content. Because both can be searched, there
 are two separate commands for them.
 
-* `play` lets you pass in a youtube link, spotify link, or any text that it will then get the
-  first result from youtube an play it!
-* Both spotify and youtube playlists are supported! Get a link and it will queue everything at once.
+* `play` lets you pass in a YouTube link, Spotify link, link to an audio file, or any text that it
+will then get the first result from YouTube an play it!
+* Both Spotify and YouTube playlists are supported! Get a link and it will queue everything at once.
 * `clip` searches the built in clips for the best matching name, and plays that.
 
-There's a lot more you can do when playing youtube links, and modifying the queue of audio coming
+There's a lot more you can do when playing YouTube links, and modifying the queue of audio coming
 up.
 
 * `playnext` and `playnow` allow you to skip the line, and change where your addition will start
@@ -45,7 +45,7 @@ up.
 
 And even more! Take a look at `help` for the full list of commands
 
-### External integration
+### Customization
 
 Whoever sets up your bot can set up some scripts on their server, which you can run using `cmd`.
 It will vary quite a bit, but setting something up to start and stop a dedicated video game
@@ -53,8 +53,8 @@ server is a great example of something that is useful for anyone in your server 
 
 ## Building
 
-Although it is primarily rust, a few libraries have system library dependencies. If `cargo build` is
-insufficient, it is likely that a system library is missing. For that reason there is a setup
+Although it is primarily rust, a few dependencies have system library dependencies. If `cargo build`
+is insufficient, it is likely that a system library is missing. For that reason there is a setup
 script to download required packages for building on Debian, and there is a nix package
 definition which will handle all dependencies for you.
 
@@ -67,8 +67,9 @@ cargo build
 
 ### Nix
 
-Nix supports many options for how to build/install. The package manager can run on any linux
-distribution (probably).
+Nix supports many options for how to build/install. The package manager can run on any Linux
+distribution (probably). These instructions will cover building it yourself, but also take a look at
+things like `nix install` and `nix bundle`.
 
 Build the binary into the `result/` folder
 ```sh
@@ -77,12 +78,12 @@ nix build
 
 You can also cross compile (but it's slow the first time as there is no binary cross compiler
 cache). If you go down this route I recommend using `keep-outputs = true` in your nix.conf. Retain a
-copy of the output in `result` or something like `result.aarch64-unknown-linux-gnu` for example, to
+copy of the output in `result` or something like `result.for-aarch64-unknown-linux-gnu` for example, to
 keep a gc root around (both are in the .gitignore).
 
 E.g.
 ```sh
-nix build .#utf-nate-aarch64-unknown-linux-gnu -o result.aarch64-unknown-linux-gnu
+nix build .#utf-nate-for-aarch64-linux -o result.for-aarch64-linux
 ```
 
 
@@ -93,18 +94,21 @@ E.g.
 nix build .#packages.aarch64-linux.utf-nate
 ```
 
-If you're looking for a specific way to distribute it, take a look at `nix bundle`.
+`nix bundle` also provides ways to distribute it outside of the nix package manager.
+
+If you're looking for a specific way to distribute it, such as to another computer that doesn't have
+the nix package manager, take a look at `nix bundle`.
 
 ### Docker
 
 Create a nix docker image containing the executable (resources not included).
 ```sh
-nix bundle --bundler github:NixOS/bundlers#toDockerImage .#
+nix bundle --bundler .#docker .
 ```
 
-Create a debian docker image (resources not included).
+Or you can create a cross compiled docker image.
 ```sh
-docker build .
+nix bundle --bundler .#docker-for-aarch64-linux .#utf-nate-for-aarch64-linux
 ```
 
 ### Debian
@@ -172,7 +176,7 @@ Your setup will need to have those resources available, or some commands may not
 ### Debian
 
 Currently, because maximum stability is gained from using the latest yt-dlp, it is installed with
-the latest version, not from debian packages. If you want to go this route, use the
+the latest version, not from Debian packages. If you want to go this route, use the
 `setup/debian-run-setup.sh` script. It will also install python for yt-dlp.
 ```sh
 sudo setup/debian-run-setup.sh
@@ -186,6 +190,12 @@ All paths are managed by the working directory. Run the bot from a directory wit
 You will need a database, either postgresql or sqlite will work. For sqlite, there are examples
 in `keys.template.toml` where you can easily just make a file database. For postgresql, you'll
 have to set one up.
+
+If the database needs to be set up, you can use the following command to create all necessary
+tables without actually running the bot.
+```sh
+utf-nate --init-database --no-bot
+```
 
 ### File setup
 
