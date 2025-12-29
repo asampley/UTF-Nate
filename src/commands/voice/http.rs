@@ -3,13 +3,20 @@ use axum::response::Html;
 
 use axum_extra::extract::CookieJar;
 
+use serde::{Deserialize, Serialize};
+
 use crate::AeadKey;
 use crate::audio::PlayStyle;
 use crate::commands::BotState;
 use crate::commands::http::{extract_source, render_response};
 use crate::util::GetExpect;
 
-use super::{VolumeMode, VolumeSetArgs};
+use super::VolumeMode;
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct VolumeSetArgs {
+	volume: Option<f32>,
+}
 
 pub async fn volume_get(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
 	let source = match extract_source(&jar, state.data.read().await.get_expect::<AeadKey>()) {

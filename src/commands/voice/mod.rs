@@ -2,8 +2,6 @@ use itertools::Itertools;
 
 use tracing::error;
 
-use serde::{Deserialize, Serialize};
-
 use songbird::SongbirdKey;
 use songbird::tracks::ControlError;
 
@@ -40,11 +38,6 @@ pub const fn volume_now_help() -> &'static str {
 
 pub const fn list_help() -> &'static str {
 	include_str!("help/list.md")
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct VolumeSetArgs {
-	volume: Option<f32>,
 }
 
 #[derive(Debug)]
