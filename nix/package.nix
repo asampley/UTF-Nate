@@ -27,7 +27,7 @@ pkgsHostTarget.rustPlatform.buildRustPackage {
       ];
     };
 
-  nativeBuildInputs = with pkgsBuildHost; [ cmake ];
+  nativeBuildInputs = with pkgsBuildHost; [ pkg-config ];
   buildInputs = with pkgsHostTarget; [
     libopus
   ];
