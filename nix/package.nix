@@ -28,14 +28,19 @@ pkgsHostTarget.rustPlatform.buildRustPackage {
     };
 
   nativeBuildInputs = with pkgsBuildHost; [
+    coreutils
     makeWrapper
     pkg-config
   ];
   buildInputs = with pkgsHostTarget; [
     libopus
   ];
-  postInstall = "wrapProgram $out/bin/utf-nate --prefix PATH : ${with pkgsHostTarget; lib.makeBinPath [
-    yt-dlp-light
-    ffmpeg-headless
-  ]}";
+  postInstall = ''
+    wrapProgram $out/bin/utf-nate --prefix PATH : ${with pkgsHostTarget; lib.makeBinPath [
+      yt-dlp-light
+      ffmpeg-headless
+    ]}
+
+    cp -r resources $out/resources
+  '';
 }
