@@ -14,6 +14,9 @@ pkgsHostTarget.rustPlatform.buildRustPackage {
   pname = manifest.package.name;
   version = manifest.package.version;
   cargoLock.lockFile = ../Cargo.lock;
+  cargoLock.outputHashes = {
+    "songbird-0.5.0" = "sha256-YleLMN7Mnta4etqKRXZpWSPgc1PblFAWwgUflGmKYsI=";
+  };
   src =
     with lib.fileset;
     toSource {
@@ -26,7 +29,6 @@ pkgsHostTarget.rustPlatform.buildRustPackage {
         ../resources
       ];
     };
-
   nativeBuildInputs = with pkgsBuildHost; [
     coreutils
     makeWrapper

@@ -153,8 +153,8 @@ impl VoiceGuild {
 		debug!("Cleaning audios. List before cleaning: {:?}", self.audios);
 
 		loop {
-			match self.to_remove.try_next() {
-				Ok(Some(uuid)) => {
+			match self.to_remove.try_recv() {
+				Ok(uuid) => {
 					for i in 0..self.audios.len() {
 						let audio_uuid = self.audios[i].uuid();
 
@@ -164,8 +164,15 @@ impl VoiceGuild {
 						}
 					}
 				}
-				Ok(None) => unimplemented!(),
-				Err(_) => break,
+				Err(e) => {
+					match e {
+						mpsc::TryRecvError::Empty => (),
+						mpsc::TryRecvError::Closed => {
+							error!("to_remove channel is closed. This shouldn't happen.");
+						}
+					};
+					break;
+				}
 			}
 		}
 

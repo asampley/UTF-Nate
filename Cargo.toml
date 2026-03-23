@@ -1,6 +1,6 @@
 [package]
 name = "utf-nate"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["sampley <sampley@ualberta.ca>"]
 edition = "2024"
 description = "A discord bot for playing music"
@@ -21,6 +21,10 @@ suggests = ["youtube-dl", "python", "postgresql"]
 assets = [
 	["target/release/utf-nate", "usr/bin/", "755"],
 ]
+
+[patch.crates-io.songbird]
+git = "https://github.com/beerpsi-forks/songbird"
+rev = "4c5c2b5a258744cc731572edf42bb255e72caace"
 
 [dependencies]
 async-trait = "0.1.77"

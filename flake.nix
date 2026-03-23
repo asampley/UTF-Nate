@@ -63,6 +63,10 @@
             # during commit that it compiles
             pkg-config
             openssl
+
+            # path programs required for execution
+            yt-dlp-light
+            ffmpeg-headless
           ];
         };
     in
