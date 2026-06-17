@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
-use rand::Rng;
+use nonmax::NonMaxU32;
+use rand::RngExt;
 
 use serde::{Deserialize, Serialize};
 
@@ -406,7 +407,7 @@ pub async fn r#loop(
 			.disable_loop()
 			.map(|_| "No longer looping current song".into()),
 		LoopArg::Count(c) => current
-			.loop_for(*c)
+			.loop_for((*c).try_into().ok().and_then(NonMaxU32::new).unwrap_or(NonMaxU32::MAX))
 			.map(|_| format!("Looping current song {c} more times").into()),
 	}
 	.inspect_err(|e| error!("{:?}", e))

@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 use async_trait::async_trait;
 
 use serenity::all::{GuildId, UserId};
-use sqlx::{AnyExecutor, Database, Decode, Encode, FromRow, IntoArguments, Type};
+use sqlx::{AnyExecutor, AssertSqlSafe, Database, Decode, Encode, FromRow, IntoArguments, SqlSafeStr, SqlStr, Type};
 
 use crate::RESOURCE_PATH;
 use crate::util::Conv;
@@ -18,19 +18,19 @@ pub static DB_PATH: LazyLock<PathBuf> = LazyLock::new(|| RESOURCE_PATH.join("dat
 #[async_trait]
 impl Storage for sqlx::Pool<sqlx::Any> {
 	async fn first_time_setup(&self) -> Result<(), StorageError> {
-		let sql: &str = &read_query("create-tables.sql")?;
+		let sql = read_query("create-tables.sql")?;
 		sqlx::raw_sql(sql).execute(self).await?;
 		Ok(())
 	}
 
 	async fn get_intro(&self, user_id: UserId) -> Result<Option<String>, StorageError> {
-		get_by_id(self, &read_query("get-intro.sql")?, user_id.conv::<i64>()).await
+		get_by_id(self, read_query("get-intro.sql")?, user_id.conv::<i64>()).await
 	}
 
 	async fn set_intro(&self, user_id: UserId, intro: &str) -> Result<(), StorageError> {
 		set_by_id(
 			self,
-			&read_query("set-intro.sql")?,
+			read_query("set-intro.sql")?,
 			user_id.conv::<i64>(),
 			intro,
 		)
@@ -38,13 +38,13 @@ impl Storage for sqlx::Pool<sqlx::Any> {
 	}
 
 	async fn get_outro(&self, user_id: UserId) -> Result<Option<String>, StorageError> {
-		get_by_id(self, &read_query("get-outro.sql")?, user_id.conv::<i64>()).await
+		get_by_id(self, read_query("get-outro.sql")?, user_id.conv::<i64>()).await
 	}
 
 	async fn set_outro(&self, user_id: UserId, outro: &str) -> Result<(), StorageError> {
 		set_by_id(
 			self,
-			&read_query("set-outro.sql")?,
+			read_query("set-outro.sql")?,
 			user_id.conv::<i64>(),
 			outro,
 		)
@@ -54,7 +54,7 @@ impl Storage for sqlx::Pool<sqlx::Any> {
 	async fn get_bot_intro(&self, guild_id: GuildId) -> Result<Option<String>, StorageError> {
 		get_by_id(
 			self,
-			&read_query("get-bot-intro.sql")?,
+			read_query("get-bot-intro.sql")?,
 			guild_id.conv::<i64>(),
 		)
 		.await
@@ -63,7 +63,7 @@ impl Storage for sqlx::Pool<sqlx::Any> {
 	async fn set_bot_intro(&self, guild_id: GuildId, intro: &str) -> Result<(), StorageError> {
 		set_by_id(
 			self,
-			&read_query("set-bot-intro.sql")?,
+			read_query("set-bot-intro.sql")?,
 			guild_id.conv::<i64>(),
 			intro,
 		)
@@ -74,17 +74,17 @@ impl Storage for sqlx::Pool<sqlx::Any> {
 		let mut conn = self.acquire().await?;
 
 		Ok(match conn.backend_name() {
-			"SQLite" => get_by_id::<_, _, f64>(
+			"SQLite" => get_by_id::<_, _, f64, _>(
 				conn.as_mut(),
-				&read_query("get-volume-clip.sql")?,
+				read_query("get-volume-clip.sql")?,
 				guild_id.conv::<i64>(),
 			)
 			.await?
 			.map(|v| v as f32),
 			_ => {
-				get_by_id::<_, _, f32>(
+				get_by_id::<_, _, f32, _>(
 					conn.as_mut(),
-					&read_query("get-volume-clip.sql")?,
+					read_query("get-volume-clip.sql")?,
 					guild_id.conv::<i64>(),
 				)
 				.await?
@@ -95,7 +95,7 @@ impl Storage for sqlx::Pool<sqlx::Any> {
 	async fn set_volume_clip(&self, guild_id: GuildId, volume: f32) -> Result<(), StorageError> {
 		set_by_id(
 			self,
-			&read_query("set-volume-clip.sql")?,
+			read_query("set-volume-clip.sql")?,
 			guild_id.conv::<i64>(),
 			volume,
 		)
@@ -106,17 +106,17 @@ impl Storage for sqlx::Pool<sqlx::Any> {
 		let mut conn = self.acquire().await?;
 
 		Ok(match conn.backend_name() {
-			"SQLite" => get_by_id::<_, _, f64>(
+			"SQLite" => get_by_id::<_, _, f64, _>(
 				conn.as_mut(),
-				&read_query("get-volume-play.sql")?,
+				read_query("get-volume-play.sql")?,
 				guild_id.conv::<i64>(),
 			)
 			.await?
 			.map(|v| v as f32),
 			_ => {
-				get_by_id::<_, _, f32>(
+				get_by_id::<_, _, f32, _>(
 					conn.as_mut(),
-					&read_query("get-volume-play.sql")?,
+					read_query("get-volume-play.sql")?,
 					guild_id.conv::<i64>(),
 				)
 				.await?
@@ -127,7 +127,7 @@ impl Storage for sqlx::Pool<sqlx::Any> {
 	async fn set_volume_play(&self, guild_id: GuildId, volume: f32) -> Result<(), StorageError> {
 		set_by_id(
 			self,
-			&read_query("set-volume-play.sql")?,
+			read_query("set-volume-play.sql")?,
 			guild_id.conv::<i64>(),
 			volume,
 		)
@@ -139,17 +139,18 @@ impl Storage for sqlx::Pool<sqlx::Any> {
 ///
 /// `id` is bound into the first variable passed into the database script
 /// at `file_name`.
-async fn get_by_id<'e, 'q, E, I, T>(
+async fn get_by_id<'e, 'q, E, I, T, S>(
 	executor: E,
-	sql: &'q str,
+	sql: S,
 	id: I,
 ) -> Result<Option<T>, StorageError>
 where
 	E: AnyExecutor<'e>,
-	<E::Database as Database>::Arguments<'q>: IntoArguments<'q, E::Database>,
+	<E::Database as Database>::Arguments: IntoArguments<E::Database>,
 	I: Encode<'q, E::Database> + Type<E::Database> + Send + 'q,
 	T: Decode<'q, E::Database> + Type<E::Database> + Send + Unpin + 'q,
 	for<'r> (T,): FromRow<'r, <E::Database as Database>::Row>,
+	S: SqlSafeStr,
 {
 	Ok(sqlx::query_scalar(sql)
 		.bind(id)
@@ -161,17 +162,18 @@ where
 ///
 /// `id` is bound into the first variable passed into the database script
 /// at `file_name`. `value` is bound to the second variable.
-async fn set_by_id<'e, 'q, E, I, T>(
+async fn set_by_id<'e, 'q, E, I, T, S>(
 	executor: E,
-	sql: &'q str,
+	sql: S,
 	id: I,
 	value: T,
 ) -> Result<(), StorageError>
 where
 	E: AnyExecutor<'e>,
-	<E::Database as Database>::Arguments<'q>: IntoArguments<'q, E::Database>,
+	<E::Database as Database>::Arguments: IntoArguments<E::Database>,
 	I: Encode<'q, E::Database> + Type<E::Database> + Send + 'q,
 	T: Encode<'q, E::Database> + Type<E::Database> + Send + 'q,
+	S: SqlSafeStr,
 {
 	sqlx::query(sql)
 		.bind(id)
@@ -185,6 +187,6 @@ where
 		})
 }
 
-fn read_query(name: &str) -> Result<String, StorageError> {
-	read_to_string(DB_PATH.join(name)).map_err(Into::into)
+fn read_query(name: &str) -> Result<SqlStr, StorageError> {
+	Ok(AssertSqlSafe(read_to_string(DB_PATH.join(name))?).into_sql_str())
 }

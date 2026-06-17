@@ -1,22 +1,23 @@
 {
   lib,
+  coreutils,
+  libopus,
+  makeWrapper,
+  pkg-config,
+  rustPlatform,
   pkgsHostTarget,
-  pkgsBuildHost,
   ...
 }:
 let
   manifest = (lib.importTOML ../Cargo.toml);
 in
 
-pkgsHostTarget.rustPlatform.buildRustPackage {
+rustPlatform.buildRustPackage {
   meta.mainProgram = "utf-nate";
 
   pname = manifest.package.name;
   version = manifest.package.version;
   cargoLock.lockFile = ../Cargo.lock;
-  cargoLock.outputHashes = {
-    "songbird-0.5.0" = "sha256-YleLMN7Mnta4etqKRXZpWSPgc1PblFAWwgUflGmKYsI=";
-  };
   src =
     with lib.fileset;
     toSource {
@@ -29,19 +30,23 @@ pkgsHostTarget.rustPlatform.buildRustPackage {
         ../resources
       ];
     };
-  nativeBuildInputs = with pkgsBuildHost; [
+
+  nativeBuildInputs = [
     coreutils
     makeWrapper
     pkg-config
   ];
-  buildInputs = with pkgsHostTarget; [
+  buildInputs = [
     libopus
   ];
   postInstall = ''
-    wrapProgram $out/bin/utf-nate --prefix PATH : ${with pkgsHostTarget; lib.makeBinPath [
-      yt-dlp-light
-      ffmpeg-headless
-    ]}
+    wrapProgram $out/bin/utf-nate --prefix PATH : ${
+      with pkgsHostTarget;
+      lib.makeBinPath [
+        yt-dlp-light
+        ffmpeg-headless
+      ]
+    }
 
     cp -r resources $out/resources
   '';
