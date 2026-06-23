@@ -7,6 +7,8 @@
   pkg-config,
   openssl,
   utf-nate,
+  yt-dlp-light,
+  ffmpeg-headless,
   ...
 }:
 mkShell {
@@ -21,5 +23,9 @@ mkShell {
     # during commit that it compiles
     pkg-config
     openssl
+
+    # Path for runtime
+    yt-dlp-light
+    ffmpeg-headless
   ];
 }

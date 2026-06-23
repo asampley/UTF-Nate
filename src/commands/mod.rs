@@ -1,6 +1,6 @@
 //! All commands are defined under this module.
 //!
-//! Commands can be created for adding to the bot using [`commands()`].
+//! A list of all commands can be gotten from [`COMMANDS`], or if yu need to own them, [`commands()`].
 
 pub mod external;
 pub mod help;
@@ -23,7 +23,7 @@ use serenity::http::Http;
 use serenity::model::id::{ChannelId, GuildId, UserId};
 use serenity::prelude::{RwLock, TypeMap};
 
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use crate::util::{Command, CommandResult, Context, Respond, Response};
 
@@ -56,6 +56,8 @@ pub static COMMAND_CREATES: &[fn() -> Command] = &[
 	voice::poise::volume,
 	voice::poise::list,
 ];
+
+pub static COMMANDS: LazyLock<Vec<Command>> = LazyLock::new(commands);
 
 pub struct CustomData {
 	pub help_md: fn() -> &'static str,
@@ -104,6 +106,21 @@ impl From<Context<'_>> for BotState {
 /// Create a vector containing all the commands.
 pub fn commands() -> Vec<Command> {
 	COMMAND_CREATES.iter().map(|c| c()).collect()
+}
+
+#[cfg_attr(not(feature = "http-interface"), allow(unused))]
+pub fn for_each_recursive(mut f: impl FnMut(&'static Command)) {
+	fn apply_recursive(f: &mut impl FnMut(&'static Command), command: &'static Command) {
+		f(command);
+
+		for subcommand in &command.subcommands {
+			apply_recursive(f, subcommand);
+		}
+	}
+
+	for command in &*COMMANDS {
+		apply_recursive(&mut f, command);
+	}
 }
 
 /// Await a command `f`, and then reply to the initiating message with the

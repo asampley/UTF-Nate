@@ -17,7 +17,7 @@ use crate::audio::move_queue;
 use crate::commands::{BotState, Source};
 use crate::data::VoiceGuilds;
 use crate::parser::{NumOrRange, Selection};
-use crate::util::{GetExpect, Response, write_track};
+use crate::util::{GetExpect, Response, from_str_blank_as_none, write_track};
 
 #[cfg(feature = "http-interface")]
 pub mod http;
@@ -61,7 +61,8 @@ pub const fn move_help() -> &'static str {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SkipArgs {
-	pub skip_set: Option<Selection<usize>>,
+	#[serde(deserialize_with = "from_str_blank_as_none")]
+	pub selection: Option<Selection<usize>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -71,22 +72,7 @@ pub struct LoopArgs {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct QueueArgs {
-	#[serde(default = "QueueArgs::default_selection")]
-	pub selection: Selection<usize>,
-}
-
-impl QueueArgs {
-	fn default_selection() -> Selection<usize> {
-		Selection(vec![NumOrRange::Range(0..=10)])
-	}
-}
-
-impl Default for QueueArgs {
-	fn default() -> Self {
-		Self {
-			selection: Self::default_selection(),
-		}
-	}
+	pub selection: Option<Selection<usize>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -153,7 +139,7 @@ pub async fn skip(
 		.playing
 		== PlayMode::Play;
 
-	let result = match &args.skip_set {
+	let result = match &args.selection {
 		Some(skip_set) if !skip_set.0.is_empty() => {
 			let mut skip_set = skip_set.clone();
 			let mut removed = HashSet::new();
@@ -285,8 +271,11 @@ pub async fn queue(
 
 	let mut response = format!("Current queue ({} total):\n", len);
 
-	let tracks = args
+	let selection = args
 		.selection
+		.unwrap_or_else(|| Selection(vec![NumOrRange::Range(0..=10)]));
+
+	let tracks = selection
 		.0
 		.iter()
 		.flat_map(|v| match v {
@@ -354,8 +343,11 @@ pub async fn shuffle(
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub enum LoopArg {
+	#[serde(alias = "on")]
 	On,
+	#[serde(alias = "off")]
 	Off,
+	#[serde(untagged)]
 	Count(usize),
 }
 
@@ -407,7 +399,12 @@ pub async fn r#loop(
 			.disable_loop()
 			.map(|_| "No longer looping current song".into()),
 		LoopArg::Count(c) => current
-			.loop_for((*c).try_into().ok().and_then(NonMaxU32::new).unwrap_or(NonMaxU32::MAX))
+			.loop_for(
+				(*c).try_into()
+					.ok()
+					.and_then(NonMaxU32::new)
+					.unwrap_or(NonMaxU32::MAX),
+			)
 			.map(|_| format!("Looping current song {c} more times").into()),
 	}
 	.inspect_err(|e| error!("{:?}", e))

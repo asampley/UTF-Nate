@@ -15,7 +15,7 @@ pub async fn clip(
 	ctx: Context<'_>,
 	#[description = "Clip to play"]
 	#[rest]
-	clip: String,
+	search: String,
 ) -> CommandResult {
 	run(
 		&ctx,
@@ -24,7 +24,7 @@ pub async fn clip(
 			&(&ctx).into(),
 			PlayStyle::Clip,
 			None,
-			&PlayArgs { search: clip },
+			&PlayArgs { search },
 		),
 	)
 	.await
@@ -59,9 +59,9 @@ pub async fn play(
 	ctx: Context<'_>,
 	#[description = "Youtube or Spotify URL, or Youtube search"]
 	#[rest]
-	query: String,
+	search: String,
 ) -> CommandResult {
-	play_type_command(ctx, query, None).await
+	play_type_command(ctx, search, None).await
 }
 
 #[poise::command(
@@ -75,9 +75,9 @@ pub async fn playnext(
 	ctx: Context<'_>,
 	#[description = "Youtube or Spotify URL, or Youtube search"]
 	#[rest]
-	query: String,
+	search: String,
 ) -> CommandResult {
-	play_type_command(ctx, query, Some(1)).await
+	play_type_command(ctx, search, Some(1)).await
 }
 
 #[poise::command(
@@ -91,7 +91,7 @@ pub async fn playnow(
 	ctx: Context<'_>,
 	#[description = "Youtube or Spotify URL, or Youtube search"]
 	#[rest]
-	query: String,
+	search: String,
 ) -> CommandResult {
-	play_type_command(ctx, query, Some(0)).await
+	play_type_command(ctx, search, Some(0)).await
 }

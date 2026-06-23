@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::StorageKey;
 use crate::audio::search_clips;
 use crate::commands::{BotState, Source};
-use crate::util::{GetExpect, Response};
+use crate::util::{GetExpect, Response, from_str_blank_as_none};
 
 use IntroOutroMode::*;
 
@@ -33,11 +33,13 @@ pub enum IntroOutroMode {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct IntroOutroArgs {
+	#[serde(deserialize_with = "from_str_blank_as_none")]
 	clip: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct IntroBotArgs {
+	#[serde(deserialize_with = "from_str_blank_as_none")]
 	clip: Option<String>,
 }
 

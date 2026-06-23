@@ -32,13 +32,7 @@ pub async fn skip(
 ) -> CommandResult {
 	run(
 		&ctx,
-		super::skip(
-			&ctx.into(),
-			&(&ctx).into(),
-			&SkipArgs {
-				skip_set: selection,
-			},
-		),
+		super::skip(&ctx.into(), &(&ctx).into(), &SkipArgs { selection }),
 	)
 	.await
 }
@@ -80,13 +74,7 @@ pub async fn queue(
 ) -> CommandResult {
 	run(
 		&ctx,
-		super::queue(
-			&ctx.into(),
-			&(&ctx).into(),
-			QueueArgs {
-				selection: selection.unwrap_or_else(QueueArgs::default_selection),
-			},
-		),
+		super::queue(&ctx.into(), &(&ctx).into(), QueueArgs { selection }),
 	)
 	.await
 }

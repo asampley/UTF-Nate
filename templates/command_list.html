@@ -1,0 +1,32 @@
+<head>
+	{% include "head.html" %}
+</head>
+<body>
+	<h1>Web Interface of {{ bot_name }}</h1>
+	<p>
+	This interface lets you run bot commands from your browser. This lets you:
+		<ul>
+			<li>Run commands without opening discord (like <code>help</code>)</li>
+			<li>Run commands without building up a chat history (like <code>roll</code>)</li>
+			<li>Create a link that could run a command for you when clicked (like <code>clip bnw/angels</code>)</li>
+			<li>Create an html page with many links or buttons to run commands when clicked (custom soundboard anyone?)</li>
+			<li>Create a script to automatically run commands in response to anything you can dream (like play a sound whenever the Oilers score)</li>
+		</ul>
+	</p>
+	<p>
+		To get started, use the `token` command in a server. Follow the link it responds with. This allows the bot to know who's asking (for commands like `intro` that target yourself), and for what server (for commands like `botintro` or `volume` that need to know).
+	</p>
+	<p>
+		For now the interface doesn't support multiple servers well.
+	</p>
+	<p>
+		Here's a directory of commands to get started. For automating, each one generates a link to replay that same request. If you're in your same browser, this will work with your token stored as a cookie. If you're automating it in a script, you'll have to provide the script your token cookie.
+	</p>
+	<ul>
+		{% for command in commands %}
+			{% if !command.subcommand_required %}
+			<li><a href={{ command.identifying_name }}>{{ command.identifying_name }}</a></li>
+			{% endif %}
+		{% endfor %}
+	</ul>
+</body>

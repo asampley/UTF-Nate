@@ -1,3 +1,5 @@
+use std::num::ParseIntError;
+
 use tracing::error;
 
 use ring::aead::{AES_256_GCM, Aad, LessSafeKey, UnboundKey};
@@ -11,10 +13,27 @@ use serde_with::serde_as;
 
 static ALGO: &ring::aead::Algorithm = &AES_256_GCM;
 
-pub fn gen_key() -> LessSafeKey {
+pub fn gen_key() -> String {
+	let mut key = String::with_capacity(64);
 	let mut bytes = [0; 32];
 	SystemRandom::new().fill(&mut bytes).unwrap();
-	LessSafeKey::new(UnboundKey::new(ALGO, &bytes).unwrap())
+
+	for byte in bytes {
+		use core::fmt::Write;
+		write!(key, "{:02x}", byte).unwrap();
+	}
+
+	key
+}
+
+pub fn key_from_hex(hex: &[char; 64]) -> Result<LessSafeKey, ParseIntError> {
+	let mut bytes = [0; 32];
+
+	for i in 0..32 {
+		bytes[i] = u8::from_str_radix(&String::from_iter(&hex[2 * i..2 * (i + 1)]), 16)?;
+	}
+
+	Ok(LessSafeKey::new(UnboundKey::new(ALGO, &bytes).unwrap()))
 }
 
 #[serde_as]

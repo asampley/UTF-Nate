@@ -5,7 +5,10 @@ use std::sync::LazyLock;
 use async_trait::async_trait;
 
 use serenity::all::{GuildId, UserId};
-use sqlx::{AnyExecutor, AssertSqlSafe, Database, Decode, Encode, FromRow, IntoArguments, SqlSafeStr, SqlStr, Type};
+use sqlx::{
+	AnyExecutor, AssertSqlSafe, Database, Decode, Encode, FromRow, IntoArguments, SqlSafeStr,
+	SqlStr, Type,
+};
 
 use crate::RESOURCE_PATH;
 use crate::util::Conv;

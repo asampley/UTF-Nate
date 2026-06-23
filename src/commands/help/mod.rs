@@ -1,33 +1,40 @@
 use markdown::mdast::Node;
 
-use ::poise::{Command, FrameworkContext};
+use ::poise::Command;
+use serde::{Deserialize, Serialize};
 
 use std::fmt::Write;
 
-use crate::commands::CustomData;
+use crate::commands::{COMMANDS, CustomData};
 use crate::util::Response;
 
+#[cfg(feature = "http-interface")]
+pub mod http;
 pub mod poise;
 
 pub const fn help_help() -> &'static str {
 	include_str!("help/help.md")
 }
 
-#[tracing::instrument(level = "info", ret, skip(framework))]
-pub async fn help<U, E>(
-	command_name: &[String],
-	framework: FrameworkContext<'_, U, E>,
-) -> Result<Response, Response> {
-	match command_name {
-		[] => {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct HelpArgs {
+	command: Option<String>,
+}
+
+#[tracing::instrument(level = "info", ret)]
+pub async fn help(help_args: &HelpArgs) -> Result<Response, Response> {
+	match &help_args.command.as_deref() {
+		None | Some("") => {
 			let mut s = "Pass the name of any command to get more details\n".into();
 
-			write_groups(&mut s, &framework.options.commands);
+			write_groups(&mut s, &COMMANDS);
 
 			Ok(s.into())
 		}
-		_ => {
-			let command = find_command(&framework.options.commands, command_name);
+		Some(name) => {
+			let command_name = &name.split(' ').collect::<Vec<_>>()[..];
+
+			let command = find_command(&COMMANDS, command_name);
 
 			match command {
 				Some(command) => {
@@ -81,7 +88,7 @@ pub fn write_groups<U, E>(text: &mut String, commands: &[Command<U, E>]) {
 			writeln!(text, "\n__**{}:**__", cat.unwrap_or("uncategorized")).unwrap();
 		}
 
-		write!(text, "  `{}`", name).unwrap();
+		write!(text, "* `{}`", name).unwrap();
 
 		if let Some(desc) = desc {
 			write!(text, " {}", desc).unwrap();
@@ -93,11 +100,11 @@ pub fn write_groups<U, E>(text: &mut String, commands: &[Command<U, E>]) {
 
 pub fn find_command<'a, U, E>(
 	commands: &'a [Command<U, E>],
-	name: &[String],
+	name: &[&str],
 ) -> Option<&'a Command<U, E>> {
 	commands
 		.iter()
-		.filter(|c| c.name == name[0] || c.aliases.contains(&name[0]))
+		.filter(|c| c.name == name[0] || c.aliases.iter().any(|v| v == name[0]))
 		.find_map(|c| {
 			if name.len() == 1 {
 				Some(c)

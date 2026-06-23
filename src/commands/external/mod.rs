@@ -13,8 +13,9 @@ use std::sync::LazyLock;
 use crate::RESOURCE_PATH;
 use crate::util::*;
 
-#[cfg(feature = "http-interface")]
-pub mod http;
+// TODO cmd permissions
+//#[cfg(feature = "http-interface")]
+//pub mod http;
 pub mod poise;
 
 pub static CMD_PATH: LazyLock<PathBuf> = LazyLock::new(|| RESOURCE_PATH.join("cmd/"));
@@ -30,11 +31,13 @@ pub const fn cmdlist_help() -> &'static str {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CmdArgs {
 	command: String,
+	#[serde(deserialize_with = "from_str_blank_as_none")]
 	args: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CmdlistArgs {
+	#[serde(deserialize_with = "from_str_blank_as_none")]
 	path: Option<String>,
 }
 

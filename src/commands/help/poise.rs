@@ -1,6 +1,8 @@
 use crate::commands::{CustomData, run};
 use crate::util::{CommandResult, Context};
 
+use super::HelpArgs;
+
 #[poise::command(
 	category = "help",
 	prefix_command,
@@ -9,7 +11,7 @@ use crate::util::{CommandResult, Context};
 )]
 pub async fn help(
 	ctx: Context<'_>,
-	#[description = "Command to display information about"] command: Vec<String>,
+	#[description = "Command to display information about"] command: Option<String>,
 ) -> CommandResult {
-	run(&ctx, super::help(&command, ctx.framework())).await
+	run(&ctx, super::help(&HelpArgs { command })).await
 }

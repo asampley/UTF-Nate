@@ -1,5 +1,6 @@
 use itertools::Itertools;
 
+use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use songbird::SongbirdKey;
@@ -40,6 +41,11 @@ pub const fn list_help() -> &'static str {
 	include_str!("help/list.md")
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ListArgs {
+	pub path: Option<String>,
+}
+
 #[derive(Debug)]
 pub enum VolumeMode {
 	ConfigAllStyles,
@@ -48,8 +54,9 @@ pub enum VolumeMode {
 }
 
 #[tracing::instrument(level = "info", ret)]
-pub async fn list(path: Option<&str>) -> Result<Response, Response> {
-	let dir = sandboxed_join(&CLIP_PATH, path.unwrap_or("")).ok_or("Invalid directory")?;
+pub async fn list(args: ListArgs) -> Result<Response, Response> {
+	let dir = sandboxed_join(&CLIP_PATH, args.path.as_deref().unwrap_or(""))
+		.ok_or("Invalid directory")?;
 
 	let dir_iter = read_dir(dir)
 		.inspect_err(|reason| error!("Unable to read directory: {:?}", reason))

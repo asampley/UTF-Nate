@@ -9,13 +9,19 @@ use crate::AeadKey;
 use crate::audio::PlayStyle;
 use crate::commands::BotState;
 use crate::commands::http::{extract_source, render_response};
-use crate::util::GetExpect;
+use crate::commands::voice::ListArgs;
+use crate::util::{GetExpect, from_str_blank_as_none};
 
 use super::VolumeMode;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VolumeSetArgs {
+	#[serde(deserialize_with = "from_str_blank_as_none")]
 	volume: Option<f32>,
+}
+
+pub async fn volume(state: State<BotState>, jar: CookieJar) -> Html<String> {
+	volume_get(state, jar).await
 }
 
 pub async fn volume_get(State(state): State<BotState>, jar: CookieJar) -> Html<String> {
@@ -78,4 +84,8 @@ pub async fn volume_now(
 	};
 
 	render_response(super::volume(&state, &source, VolumeMode::Current(args.volume)).await)
+}
+
+pub async fn list(Query(args): Query<ListArgs>) -> Html<String> {
+	render_response(super::list(args).await)
 }

@@ -44,7 +44,19 @@ pub const fn playnow_help() -> &'static str {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PlayArgs {
+	#[serde(alias = "query", alias = "clip")]
 	search: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ClipArgs {
+	clip: String,
+}
+
+impl From<ClipArgs> for PlayArgs {
+	fn from(value: ClipArgs) -> Self {
+		Self { search: value.clip }
+	}
 }
 
 #[tracing::instrument(level = "info", ret, skip(state))]

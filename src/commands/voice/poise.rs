@@ -1,4 +1,5 @@
 use crate::audio::PlayStyle;
+use crate::commands::voice::ListArgs;
 use crate::commands::{CustomData, run};
 use crate::util::*;
 
@@ -111,5 +112,5 @@ pub async fn list(
 	ctx: Context<'_>,
 	#[description = "Path to list clips underneath"] path: Option<String>,
 ) -> CommandResult {
-	run(&ctx, super::list(path.as_deref())).await
+	run(&ctx, super::list(ListArgs { path })).await
 }

@@ -45,7 +45,7 @@ pub async fn token(state: &BotState, source: &Source) -> Result<Response, Respon
 	let http_config = CONFIG.http.as_ref().ok_or("Http inteface not set up")?;
 
 	let url = format!(
-		"http://{}/token?{}",
+		"{}/token?{}",
 		http_config.public_url,
 		serde_urlencoded::to_string(encrypted)
 			.map_err(|_| "Internal error with url serialization")?,

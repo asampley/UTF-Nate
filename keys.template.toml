@@ -24,3 +24,8 @@ connect_string = "postgresql://utf_nate:password@localhost/utf_nate"
 # client_id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 # # Spotify client secret
 # client_secret = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Encryption key for token command
+# You can generate this and fill it in with --generate-key
+[encrypt]
+hex = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"

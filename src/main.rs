@@ -50,11 +50,7 @@ use crate::persistence::Storage;
 static RESOURCE_PATH: LazyLock<&'static Path> = LazyLock::new(|| Path::new("resources/"));
 
 /// Options parsed from the command line using [`clap`].
-static OPT: LazyLock<Opt> = LazyLock::new(|| {
-	let opt = Opt::parse();
-	println!("Options: {:#?}", opt);
-	opt
-});
+static OPT: LazyLock<Opt> = LazyLock::new(Opt::parse);
 
 /// Configuration parameters from a file. See [`load_config()`].
 static CONFIG: LazyLock<Config> = LazyLock::new(load_config);
@@ -107,6 +103,12 @@ impl serenity::prelude::TypeMapKey for AeadKey {
 
 #[derive(Debug, Parser)]
 struct Opt {
+	/// Generate a key for tokens. Place it in keys.toml. This stops the command immediately after
+	/// printing the key.
+	#[cfg(feature = "http-interface")]
+	#[arg(long)]
+	generate_key: bool,
+
 	/// Run initializing scripts for database.
 	#[arg(long)]
 	init_database: bool,
@@ -156,6 +158,15 @@ async fn main() {
 		return;
 	}
 
+	#[cfg(feature = "http-interface")]
+	if OPT.generate_key {
+		println!("{}", encrypt::gen_key());
+
+		return;
+	}
+
+	println!("Options: {:#?}", OPT);
+
 	if OPT.check_clips {
 		// warn if there are duplicate clip names
 		audio::warn_duplicate_clip_names();
@@ -192,10 +203,10 @@ async fn main() {
 	let http = Http::new(&keys.discord.token);
 	http.set_application_id(keys.discord.application_id.into());
 
-	let commands = commands::commands();
+	let commands = &*commands::COMMANDS;
 
 	if OPT.reregister {
-		match reregister(&http, &commands).await {
+		match reregister(&http, commands).await {
 			Ok(()) => (),
 			Err(e) => {
 				error!("Unable to reregister slash commands: {e}");
@@ -217,6 +228,18 @@ async fn main() {
 		};
 
 		if !OPT.no_bot {
+			#[cfg(feature = "http-interface")]
+			let encrypt_key = {
+				let chars = keys.encrypt.hex.chars().collect::<Vec<_>>();
+
+				encrypt::key_from_hex(chars[..].try_into().unwrap_or_else(|_| {
+					panic!(
+						"Wrong key size. Expected a 64 character hex key, got {}",
+						chars.len()
+					)
+				}))
+			};
+
 			let mut join_set = JoinSet::<Result<(), ProcessError>>::new();
 
 			info!("Config: {:#?}", *CONFIG);
@@ -242,7 +265,7 @@ async fn main() {
 								case_insensitive_commands: true,
 								..Default::default()
 							},
-							commands,
+							commands: commands::commands(),
 							pre_command: |ctx| Box::pin(handler::before_hook(ctx)),
 							post_command: |ctx| Box::pin(handler::after_hook(ctx)),
 							on_error: |err| Box::pin(handler::on_error(err)),
@@ -252,7 +275,7 @@ async fn main() {
 				);
 
 			#[cfg(feature = "http-interface")]
-			let client_builder = client_builder.type_map_insert::<AeadKey>(encrypt::gen_key());
+			let client_builder = client_builder.type_map_insert::<AeadKey>(encrypt_key.unwrap());
 
 			let mut client = match client_builder.await {
 				Ok(client) => client,
@@ -264,75 +287,17 @@ async fn main() {
 
 			#[cfg(feature = "http-interface")]
 			if let Some(http_config) = &CONFIG.http {
-				use axum::routing::*;
-
-				use tower_http::services::ServeDir;
-
-				use crate::commands::http::FormRouter;
-				use crate::commands::http::form_endpoint;
-				use crate::commands::*;
-
 				let state = commands::BotState {
 					data: client.data.clone(),
 					cache: client.cache.clone(),
 					http: client.http.clone(),
 				};
 
-				info!("Starting HTTP server");
-
-				let app = axum::Router::new()
-					.form_route(external::poise::cmd, external::http::cmd)
-					.form_route(external::poise::cmdlist, external::http::cmdlist)
-					.form_route(join::poise::summon, join::http::summon)
-					.form_route(join::poise::banish, join::http::banish)
-					.form_route(herald::poise::intro, herald::http::intro)
-					.form_route(herald::poise::introbot, herald::http::introbot)
-					.form_route(herald::poise::outro, herald::http::outro)
-					.form_route(play::poise::clip, play::http::clip)
-					.form_route(play::poise::play, play::http::play)
-					.form_route(play::poise::playnext, play::http::playnext)
-					.form_route(play::poise::playnow, play::http::playnow)
-					.form_route(queue::poise::stop, queue::http::stop)
-					.form_route(queue::poise::skip, queue::http::skip)
-					.form_route(queue::poise::pause, queue::http::pause)
-					.form_route(queue::poise::unpause, queue::http::unpause)
-					.form_route(queue::poise::queue, queue::http::queue)
-					.form_route(queue::poise::shuffle, queue::http::shuffle)
-					.form_route(queue::poise::shufflenow, queue::http::shufflenow)
-					.form_route(queue::poise::r#loop, queue::http::r#loop)
-					.form_route(queue::poise::r#move, queue::http::r#move)
-					.route(
-						"/volume/get",
-						get(|| async { form_endpoint(voice::poise::volume_get) }),
-					)
-					.route("/volume/get/run", get(voice::http::volume_get))
-					.route(
-						"/volume/clip",
-						get(|| async { form_endpoint(voice::poise::volume_clip) }),
-					)
-					.route("/volume/clip/run", get(voice::http::volume_clip))
-					.route(
-						"/volume/play",
-						get(|| async { form_endpoint(voice::poise::volume_play) }),
-					)
-					.route("/volume/play/run", get(voice::http::volume_play))
-					.route(
-						"/volume/now",
-						get(|| async { form_endpoint(voice::poise::volume_now) }),
-					)
-					.route("/volume/now/run", get(voice::http::volume_now))
-					.form_route(unicode::poise::unicode, unicode::http::unicode)
-					.form_route(roll::poise::roll, roll::http::roll)
-					.route("/token", get(token::http::token))
-					.fallback_service(ServeDir::new("resources/web"))
-					.with_state(state);
-
-				let listener = tokio::net::TcpListener::bind(http_config.listen)
-					.await
-					.unwrap();
-				let http_future = axum::serve(listener, app);
-
-				join_set.spawn(async move { http_future.await.map_err(Into::into) });
+				join_set.spawn(async move {
+					http::axum_task(http_config, state)
+						.await
+						.map_err(Into::into)
+				});
 			}
 
 			join_set.spawn(async move { client.start().await.map_err(Into::into) });

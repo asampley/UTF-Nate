@@ -1,7 +1,7 @@
 [package]
 name = "utf-nate"
-version = "0.5.1"
-authors = ["sampley <sampley@ualberta.ca>"]
+version = "1.0.0"
+authors = ["Alex Sampley <alex.sampley@gmail.com>"]
 edition = "2024"
 description = "A discord bot for playing music"
 repository = "https://github.com/asampley/UTF-Nate"

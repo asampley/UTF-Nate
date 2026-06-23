@@ -10,4 +10,4 @@ prefixes = ["!", "?", "‽"]
 
 # Optional http interface setup
 # 0.0.0.0 can be used to just bind to the current ip
-#http = { public_url = "my.domain.com:443", listen = "0.0.0.0:8080" }
+http = { public_url = "https://my.domain.com", listen = "0.0.0.0:8080" }

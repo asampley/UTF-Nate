@@ -24,6 +24,7 @@ use thiserror::Error;
 
 use std::fmt::Debug;
 use std::path::{Component, Path, PathBuf};
+use std::str::FromStr;
 use std::time::Duration;
 
 pub type Data = ();
@@ -31,8 +32,8 @@ pub type Command = poise::Command<Data, CommandError>;
 pub type CommandError = Box<dyn std::error::Error + Send + Sync>;
 pub type CommandResult = Result<(), CommandError>;
 pub type Context<'a> = poise::Context<'a, Data, CommandError>;
-pub type FrameworkError<'a> = poise::FrameworkError<'a, Data, CommandError>;
 pub type Framework = poise::Framework<Data, CommandError>;
+pub type FrameworkError<'a> = poise::FrameworkError<'a, Data, CommandError>;
 
 /// Errors that can occur when reading a toml file.
 #[derive(Debug, Error)]
@@ -167,6 +168,21 @@ pub fn write_track(
 	};
 
 	Ok(())
+}
+
+pub fn from_str_blank_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
+where
+	D: serde::Deserializer<'de>,
+	T: FromStr,
+	T::Err: core::fmt::Display,
+{
+	let opt = Option::<String>::deserialize(de)?;
+	match opt.as_deref() {
+		None | Some("") => Ok(None),
+		Some(s) => FromStr::from_str(s)
+			.map(Some)
+			.map_err(serde::de::Error::custom),
+	}
 }
 
 #[cfg(test)]
