@@ -229,8 +229,8 @@ async fn main() {
 
 		if !OPT.no_bot {
 			#[cfg(feature = "http-interface")]
-			let encrypt_key = {
-				let chars = keys.encrypt.hex.chars().collect::<Vec<_>>();
+			let http_key = keys.http.as_ref().map(|v| {
+				let chars = v.encrypt.chars().collect::<Vec<_>>();
 
 				encrypt::key_from_hex(chars[..].try_into().unwrap_or_else(|_| {
 					panic!(
@@ -238,7 +238,8 @@ async fn main() {
 						chars.len()
 					)
 				}))
-			};
+				.unwrap()
+			});
 
 			let mut join_set = JoinSet::<Result<(), ProcessError>>::new();
 
@@ -275,7 +276,11 @@ async fn main() {
 				);
 
 			#[cfg(feature = "http-interface")]
-			let client_builder = client_builder.type_map_insert::<AeadKey>(encrypt_key.unwrap());
+			let client_builder = if let Some(key) = http_key {
+				client_builder.type_map_insert::<AeadKey>(key)
+			} else {
+				client_builder
+			};
 
 			let mut client = match client_builder.await {
 				Ok(client) => client,
@@ -287,6 +292,8 @@ async fn main() {
 
 			#[cfg(feature = "http-interface")]
 			if let Some(http_config) = &CONFIG.http {
+				client.data.read().await.get::<AeadKey>().expect("No encryption key set for http interface. Please disable the [http] section in your configuration or add an [http] section to your keys.");
+
 				let state = commands::BotState {
 					data: client.data.clone(),
 					cache: client.cache.clone(),

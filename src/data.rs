@@ -40,7 +40,7 @@ pub struct Keys {
 	pub spotify: Option<SpotifyApi>,
 
 	#[cfg(feature = "http-interface")]
-	pub encrypt: Encrypt,
+	pub http: Option<Http>,
 }
 
 /// Token and application id for connecting to the discord API.
@@ -59,8 +59,8 @@ pub struct DatabaseKeys {
 
 #[cfg(feature = "http-interface")]
 #[derive(Deserialize)]
-pub struct Encrypt {
-	pub hex: String,
+pub struct Http {
+	pub encrypt: String,
 }
 
 /// Allow these keys to be inserted into a typemap.
