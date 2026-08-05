@@ -1,6 +1,6 @@
 [package]
 name = "utf-nate"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Alex Sampley <alex.sampley@gmail.com>"]
 edition = "2024"
 description = "A discord bot for playing music"
